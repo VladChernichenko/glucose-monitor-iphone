@@ -1,10 +1,29 @@
 import SwiftUI
+import UIKit
+
+private enum BackendPreset: String, CaseIterable, Identifiable {
+    case local
+    case remote
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .local: return "Local"
+        case .remote: return "Remote"
+        }
+    }
+    var url: String {
+        switch self {
+        case .local: return "http://192.168.100.8:8080"
+        case .remote: return GlucoseMonitorAPI.defaultBackendBaseURL
+        }
+    }
+}
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
 
     // Backend
-    @State private var backendURL = ""
+    @State private var backendPreset: BackendPreset = .remote
     @State private var username = ""
     @State private var password = ""
     @State private var signInStatus = ""
@@ -65,22 +84,33 @@ struct SettingsView: View {
 
     private var backendSection: some View {
         Section("Backend") {
-            TextField("Base URL", text: $backendURL)
-                .textContentType(.URL)
-                .keyboardType(.URL)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
+            Picker("Server", selection: $backendPreset) {
+                ForEach(BackendPreset.allCases) { preset in
+                    Text(preset.title).tag(preset)
+                }
+            }
+            .pickerStyle(.menu)
+            .onChange(of: backendPreset) { newValue in
+                GlucoseMonitorAPI.storeBackendBaseURL(newValue.url)
+            }
+            Text(backendPreset.url)
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
             TextField("Username", text: $username)
                 .textContentType(.username)
                 .autocapitalization(.none)
                 .autocorrectionDisabled()
+                .onChange(of: username) { _ in persistAppLoginCredentials() }
             SecureField("Password", text: $password)
                 .textContentType(.password)
+                .onChange(of: password) { _ in persistAppLoginCredentials() }
 
             Button("Sign In") {
+                dismissKeyboard()
                 Task { await signIn() }
             }
-            .disabled(isBusy || backendURL.isEmpty || username.isEmpty || password.isEmpty)
+            .disabled(isBusy || username.isEmpty || password.isEmpty)
 
             if !signInStatus.isEmpty {
                 Text(signInStatus)
@@ -155,8 +185,6 @@ struct SettingsView: View {
         Section("Carb Absorption (COB)") {
             numericRow(label: "Carb Ratio (g/u)", placeholder: "10", value: $cobSettings.carbRatio)
             numericRow(label: "ISF (mmol/L per u)", placeholder: "2.5", value: $cobSettings.isf)
-            numericRow(label: "Carb Half-Life (min)", placeholder: "60", value: $cobSettings.carbHalfLife)
-            numericRow(label: "Max COB Duration (min)", placeholder: "240", value: $cobSettings.maxCOBDuration)
 
             Button("Save COB Settings") {
                 Task { await saveCOB() }
@@ -176,7 +204,7 @@ struct SettingsView: View {
             if rapidCatalog.isEmpty {
                 HStack {
                     ProgressView()
-                    Text("Loading catalog…")
+                    Text("Loading catalog...")
                         .foregroundColor(.secondary)
                         .padding(.leading, 8)
                 }
@@ -219,11 +247,29 @@ struct SettingsView: View {
     private func loadStoredValues() {
         let ud = GlucoseMonitorAPI.sharedDefaults()
         let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
-        backendURL = storedBackend.isEmpty ? GlucoseMonitorAPI.defaultBackendBaseURL : storedBackend
+        let normStored = storedBackend.isEmpty ? "" : Self.normalizeURLString(storedBackend)
+        let nLocal = Self.normalizeURLString(BackendPreset.local.url)
+        let nRemote = Self.normalizeURLString(BackendPreset.remote.url)
+        if normStored.isEmpty {
+            backendPreset = .remote
+        } else if normStored == nLocal {
+            backendPreset = .local
+        } else if normStored == nRemote {
+            backendPreset = .remote
+        } else {
+            backendPreset = .remote
+            GlucoseMonitorAPI.storeBackendBaseURL(BackendPreset.remote.url)
+        }
+        username = GlucoseMonitorAPI.storedAppUsername()
+        password = GlucoseMonitorAPI.storedAppPassword()
         libreEmail    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
         librePassword = ud.string(forKey: GlucoseMonitorAPI.StorageKey.librePassword) ?? ""
         patientId     = ud.string(forKey: GlucoseMonitorAPI.StorageKey.patientId) ?? ""
         dataSource    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
+    }
+
+    private func persistAppLoginCredentials() {
+        GlucoseMonitorAPI.saveAppLoginCredentials(username: username, password: password)
     }
 
     private func loadRemoteSettings() async {
@@ -273,9 +319,10 @@ struct SettingsView: View {
             try await GlucoseMonitorAPI.loginAppAccount(
                 username: username,
                 password: password,
-                baseURL: backendURL
+                baseURL: backendPreset.url
             )
             appState.checkAuthentication()
+            persistAppLoginCredentials()
             signInStatus = "OK: signed in."
             await loadRemoteSettings()
         } catch {
@@ -340,6 +387,16 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+
+    private static func normalizeURLString(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.hasSuffix("/") { s.removeLast() }
+        return s
+    }
 
     private func numericRow(label: String, placeholder: String, value: Binding<Double>) -> some View {
         HStack {

@@ -1,8 +1,6 @@
 import Foundation
 
-/// iOS-only API layer — Notes, COB Settings, Glucose Calculations, Insulin Preferences, Nightscout.
-/// Mirrors the logic in the web frontend's service layer (authService, backendNotesApi,
-/// cobSettingsApi, glucoseCalculationsApi, insulinPreferencesApi, nightscout services).
+/// iOS API layer: notes, COB, calculations, insulin, Nightscout, AI insights, nutrition, version.
 enum BackendAPI {
 
     // MARK: - Models
@@ -19,13 +17,32 @@ enum BackendAPI {
     }
 
     struct NoteInput: Encodable {
-        let timestamp: String   // ISO8601
+        let timestamp: String
         let carbs: Double
         let insulin: Double
         let meal: String
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
+    }
+
+    struct UpdateNoteBody: Encodable {
+        var timestamp: String?
+        var carbs: Double?
+        var insulin: Double?
+        var meal: String?
+        var comment: String?
+        var glucoseValue: Double?
+        var absorptionMode: String?
+    }
+
+    /// Matches Spring `@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")` on note DTOs (naive local wall time).
+    static func formatNoteTimestampForRequest(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone.current
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return f.string(from: date)
     }
 
     struct COBSettings: Codable {
@@ -35,18 +52,105 @@ enum BackendAPI {
         var maxCOBDuration: Double
     }
 
+    struct PredictionFactors: Decodable {
+        let carbContribution: Double?
+        let insulinContribution: Double?
+        let baselineContribution: Double?
+        let trendContribution: Double?
+        let preBolusTimingContribution: Double?
+        let avgBolusToMealMinutes: Double?
+        let estimatedMealGi: Double?
+        let estimatedMealGl: Double?
+        let absorptionSpeedClass: String?
+        let absorptionMode: String?
+    }
+
+    struct PredictionPathPoint: Decodable {
+        let timestamp: Date
+        let predictedGlucose: Double?
+        let carbAbsorptionEffect: Double?
+        let insulinActivityEffect: Double?
+        let absorptionMode: String?
+
+        enum CodingKeys: String, CodingKey {
+            case timestamp, predictedGlucose, carbAbsorptionEffect, insulinActivityEffect, absorptionMode
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            predictedGlucose = Self.decodeFlexibleDouble(c, key: .predictedGlucose)
+            carbAbsorptionEffect = Self.decodeFlexibleDouble(c, key: .carbAbsorptionEffect)
+            insulinActivityEffect = Self.decodeFlexibleDouble(c, key: .insulinActivityEffect)
+            absorptionMode = try c.decodeIfPresent(String.self, forKey: .absorptionMode)
+
+            if let s = try? c.decode(String.self, forKey: .timestamp) {
+                timestamp = Self.parseBackendDate(s) ?? Date()
+            } else {
+                timestamp = Date()
+            }
+        }
+
+        private static func decodeFlexibleDouble<K: CodingKey>(
+            _ c: KeyedDecodingContainer<K>, key: K
+        ) -> Double? {
+            if let x = try? c.decodeIfPresent(Double.self, forKey: key) { return x }
+            if let x = try? c.decodeIfPresent(Int.self, forKey: key) { return Double(x) }
+            return nil
+        }
+
+        private static func parseBackendDate(_ s: String) -> Date? {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.timeZone = TimeZone(secondsFromGMT: 0)
+            for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"] {
+                df.dateFormat = format
+                if let d = df.date(from: s) { return d }
+            }
+            let iso = ISO8601DateFormatter()
+            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = iso.date(from: s) { return d }
+            iso.formatOptions = [.withInternetDateTime]
+            return iso.date(from: s)
+        }
+    }
+
     struct GlucoseCalculationsResponse: Decodable {
         let activeCarbsOnBoard: Double
         let activeInsulinOnBoard: Double
         let twoHourPrediction: Double
-        let predictionTrend: String   // "rising" | "falling" | "stable"
+        let predictionTrend: String
         let confidence: Double
+        let factors: PredictionFactors?
+        let predictionPath: [PredictionPathPoint]?
 
-        // The backend wraps the real payload in { backendMode, data }
         struct Envelope: Decodable {
             let backendMode: Bool?
             let data: GlucoseCalculationsResponse?
             let message: String?
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, predictionTrend, confidence
+            case factors, predictionPath
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            activeCarbsOnBoard = Self.decodeFlexible(c, key: .activeCarbsOnBoard) ?? 0
+            activeInsulinOnBoard = Self.decodeFlexible(c, key: .activeInsulinOnBoard) ?? 0
+            twoHourPrediction = Self.decodeFlexible(c, key: .twoHourPrediction) ?? 0
+            predictionTrend = try c.decodeIfPresent(String.self, forKey: .predictionTrend) ?? "stable"
+            confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
+            factors = try? c.decode(PredictionFactors.self, forKey: .factors)
+            predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
+        }
+
+        private static func decodeFlexible(
+            _ c: KeyedDecodingContainer<CodingKeys>, key: CodingKeys
+        ) -> Double? {
+            if let x = try? c.decodeIfPresent(Double.self, forKey: key) { return x }
+            if let x = try? c.decodeIfPresent(Int.self, forKey: key) { return Double(x) }
+            return nil
         }
     }
 
@@ -74,35 +178,75 @@ enum BackendAPI {
         let timestamp: Date?
         let sgv: Double?
         let trend: Int?
-        let trendArrow: String?
+        let direction: String?
+        let type: String?
 
-        private enum CodingKeys: String, CodingKey {
+        enum CodingKeys: String, CodingKey {
             case id = "_id"
-            case timestamp = "dateString"
-            case sgv, trend, trendArrow
+            case date
+            case dateString
+            case sgv, trend, direction, type
         }
 
-        /// Converts a Nightscout entry to the common glucose display model.
-        func toLibreGlucoseCurrent() -> GlucoseMonitorAPI.LibreGlucoseCurrent {
-            let arrow: String
-            switch trend {
-            case 1: arrow = "↑↑"
-            case 2: arrow = "↑"
-            case 3: arrow = "↗"
-            case 4: arrow = "→"
-            case 5: arrow = "↘"
-            case 6: arrow = "↓"
-            case 7: arrow = "↓↓"
-            default: arrow = "→"
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            id = try c.decodeIfPresent(String.self, forKey: .id)
+            trend = try c.decodeIfPresent(Int.self, forKey: .trend)
+            direction = try c.decodeIfPresent(String.self, forKey: .direction)
+            type = try c.decodeIfPresent(String.self, forKey: .type)
+
+            if let i = try? c.decodeIfPresent(Int.self, forKey: .sgv) {
+                sgv = Double(i)
+            } else {
+                sgv = try c.decodeIfPresent(Double.self, forKey: .sgv)
             }
-            return GlucoseMonitorAPI.LibreGlucoseCurrent(
+
+            if let ms = try? c.decodeIfPresent(Int64.self, forKey: .date) {
+                timestamp = Date(timeIntervalSince1970: Double(ms) / 1000.0)
+            } else if let ms = try? c.decodeIfPresent(Double.self, forKey: .date) {
+                timestamp = Date(timeIntervalSince1970: ms / 1000.0)
+            } else if let ds = try? c.decodeIfPresent(String.self, forKey: .dateString), !ds.isEmpty {
+                timestamp = NightscoutEntry.parseNightscoutDateString(ds)
+            } else {
+                timestamp = nil
+            }
+        }
+
+        func toLibreGlucoseCurrent() -> GlucoseMonitorAPI.LibreGlucoseCurrent {
+            GlucoseMonitorAPI.LibreGlucoseCurrent(
                 timestamp: timestamp,
                 value: sgv,
                 trend: trend,
-                trendArrow: trendArrow ?? arrow,
+                trendArrow: NightscoutEntry.directionArrow(direction),
                 status: glucoseStatus(sgv, unit: "mg/dL"),
                 unit: "mg/dL"
             )
+        }
+
+        static func directionArrow(_ direction: String?) -> String {
+            guard let d = direction?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty else {
+                return "\u{2192}"
+            }
+            switch d {
+            case "DoubleUp": return "\u{2191}\u{2191}"
+            case "SingleUp": return "\u{2191}"
+            case "FortyFiveUp": return "\u{2197}"
+            case "Flat": return "\u{2192}"
+            case "FortyFiveDown": return "\u{2198}"
+            case "SingleDown": return "\u{2193}"
+            case "DoubleDown": return "\u{2193}\u{2193}"
+            case "NOT COMPUTABLE", "RATE OUT OF RANGE": return "\u{2192}"
+            default: return "\u{2192}"
+            }
+        }
+
+        private static func parseNightscoutDateString(_ s: String) -> Date? {
+            let f1 = ISO8601DateFormatter()
+            f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let d = f1.date(from: s) { return d }
+            let f2 = ISO8601DateFormatter()
+            f2.formatOptions = [.withInternetDateTime]
+            return f2.date(from: s)
         }
     }
 
@@ -112,7 +256,52 @@ enum BackendAPI {
         var token: String?
     }
 
-    /// Matches `UserDataSourceConfigDto` / `DataSourceConfigRequestDto` (Nightscout fields).
+    struct AiRecommendation: Decodable {
+        let code: String?
+        let text: String?
+        let priority: String?
+    }
+
+    struct AiAnalysisResult: Decodable {
+        let summary: String?
+        let recommendations: [AiRecommendation]?
+        let disclaimer: String?
+        let confidence: Double?
+        let modelId: String?
+        let latencyMs: Int64?
+    }
+
+    struct NutritionSnapshot: Decodable {
+        let absorptionMode: String?
+        let source: String?
+        let confidence: Double?
+        let totalCarbs: Double?
+        let fiber: Double?
+        let protein: Double?
+        let fat: Double?
+        let estimatedGi: Double?
+        let glycemicLoad: Double?
+        let absorptionSpeedClass: String?
+        let normalizedFoods: [String]?
+    }
+
+    struct BackendVersionPayload: Decodable {
+        let version: String?
+        let apiVersion: String?
+        let environment: String?
+        let minIosVersion: String?
+        let compatibleIosVersions: [String]?
+        let status: String?
+    }
+
+    struct CompatibilityPayload: Decodable {
+        let compatible: Bool?
+        let meetsMinimumVersion: Bool?
+        let recommendation: String?
+        let backendVersion: String?
+        let clientVersion: String?
+    }
+
     private struct UserDataSourceNightscoutResponse: Decodable {
         let nightscoutUrl: String?
         let nightscoutApiSecret: String?
@@ -129,7 +318,6 @@ enum BackendAPI {
 
     // MARK: - Request helpers
 
-    /// Builds an authenticated URLRequest for the stored backend URL.
     private static func authorizedRequest(path: String, method: String = "GET") throws -> URLRequest {
         let ud = GlucoseMonitorAPI.sharedDefaults()
         let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
@@ -143,13 +331,14 @@ enum BackendAPI {
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        // Mirror the web frontend's timezone headers
         req.setValue(TimeZone.current.identifier, forHTTPHeaderField: "X-Timezone")
         req.setValue("\(TimeZone.current.secondsFromGMT() / 60)", forHTTPHeaderField: "X-Timezone-Offset")
+        req.setValue(ClientVersion.clientPlatform, forHTTPHeaderField: "X-Client-Platform")
+        req.setValue(ClientVersion.resolvedSemanticVersion(), forHTTPHeaderField: "X-Client-Version")
+        req.setValue(ClientVersion.apiVersion, forHTTPHeaderField: "X-API-Version")
         return req
     }
 
-    /// Retries `work` once after a successful token refresh on 401.
     private static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
         do {
             return try await work()
@@ -171,7 +360,7 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - Notes  (mirrors backendNotesApi.ts)
+    // MARK: - Notes
 
     static func fetchNotes() async throws -> [GlucoseNote] {
         try await performWithRefresh {
@@ -192,6 +381,16 @@ enum BackendAPI {
         }
     }
 
+    static func updateNote(id: String, body: UpdateNoteBody) async throws -> GlucoseNote {
+        try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/notes/\(id)", method: "PUT")
+            req.httpBody = try JSONEncoder().encode(body)
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(GlucoseNote.self, from: data)
+        }
+    }
+
     static func deleteNote(id: String) async throws {
         try await performWithRefresh {
             let req = try authorizedRequest(path: "/api/notes/\(id)", method: "DELETE")
@@ -200,7 +399,7 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - COB Settings  (mirrors cobSettingsApi.ts)
+    // MARK: - COB Settings
 
     static func fetchCOBSettings() async throws -> COBSettings {
         try await performWithRefresh {
@@ -221,11 +420,12 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - Glucose Calculations  (mirrors glucoseCalculationsApi.ts)
+    // MARK: - Glucose calculations
 
     static func fetchGlucoseCalculations(currentGlucose: Double) async throws -> GlucoseCalculationsResponse {
         try await performWithRefresh {
-            var req = try authorizedRequest(path: "/api/glucose-calculations", method: "POST")
+            // Trailing slash matches web axios baseURL + post('/') and Spring `@PostMapping("/")`.
+            var req = try authorizedRequest(path: "/api/glucose-calculations/", method: "POST")
 
             struct TimeInfo: Encodable {
                 let timestamp: String
@@ -239,13 +439,15 @@ enum BackendAPI {
             }
 
             let tz = TimeZone.current
+            // Same as web `getClientTimeInfo()` / note payloads: naive local wall time, not UTC ISO8601 with Z.
+            // Backend compares this to note timestamps (also local wall time) for COB windows and decay.
             let body = Body(
                 currentGlucose: currentGlucose,
                 includePredictionFactors: true,
                 clientTimeInfo: TimeInfo(
-                    timestamp: ISO8601DateFormatter().string(from: Date()),
+                    timestamp: formatNoteTimestampForRequest(Date()),
                     timezone: tz.identifier,
-                    timezoneOffset: tz.secondsFromGMT() / 60
+                    timezoneOffset: -tz.secondsFromGMT() / 60
                 )
             )
             req.httpBody = try JSONEncoder().encode(body)
@@ -253,18 +455,21 @@ enum BackendAPI {
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
 
-            let envelope = try JSONDecoder().decode(GlucoseCalculationsResponse.Envelope.self, from: data)
+            let decoder = JSONDecoder()
+            let envelope = try decoder.decode(GlucoseCalculationsResponse.Envelope.self, from: data)
             guard let result = envelope.data else {
                 throw GlucoseMonitorAPI.APIError.decoding(
-                    NSError(domain: "BackendAPI", code: 0,
-                            userInfo: [NSLocalizedDescriptionKey: envelope.message ?? "No calculation data returned"])
+                    NSError(
+                        domain: "BackendAPI", code: 0,
+                        userInfo: [NSLocalizedDescriptionKey: envelope.message ?? "No calculation data returned"]
+                    )
                 )
             }
             return result
         }
     }
 
-    // MARK: - Insulin Preferences  (mirrors insulinPreferencesApi.ts)
+    // MARK: - Insulin preferences
 
     static func fetchInsulinCatalog(category: String? = nil) async throws -> [InsulinCatalogEntry] {
         try await performWithRefresh {
@@ -296,18 +501,61 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - Nightscout  (mirrors enhancedNightscoutService.ts / nightscoutProxyService.ts)
+    // MARK: - Nightscout
 
-    static func fetchNightscoutEntries(count: Int = 24) async throws -> [NightscoutEntry] {
+    /// Live Nightscout proxy (`useStored=false`) or DB-cached entries from last successful sync (`useStored=true`).
+    static func fetchNightscoutEntries(count: Int = 24, useStored: Bool = false) async throws -> [NightscoutEntry] {
         try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/nightscout/entries?count=\(count)")
+            let stored = useStored ? "true" : "false"
+            let req = try authorizedRequest(path: "/api/nightscout/entries?count=\(count)&useStored=\(stored)")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try GlucoseMonitorAPI.jsonDecoder().decode([NightscoutEntry].self, from: data)
+            let decoder = JSONDecoder()
+            return try decoder.decode([NightscoutEntry].self, from: data)
         }
     }
 
-    /// Active Nightscout config from `GET /api/user/data-source-config/active/NIGHTSCOUT`.
+    /// Stored chart points written by the backend when a live sync succeeds (`EnhancedNightscoutService` strategy 3).
+    static func fetchNightscoutChartData(count: Int = 100) async throws -> [NightscoutEntry] {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/nightscout/chart-data?count=\(count)")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try JSONDecoder().decode([NightscoutEntry].self, from: data)
+        }
+    }
+
+    /// Matches web `EnhancedNightscoutService.getGlucoseEntries`: live -> `useStored` -> chart-data.
+    static func fetchNightscoutEntriesWithFallbacks(count: Int) async throws -> [NightscoutEntry] {
+        var firstError: Error?
+
+        do {
+            let fresh = try await fetchNightscoutEntries(count: count, useStored: false)
+            if !fresh.isEmpty { return fresh }
+        } catch {
+            firstError = error
+        }
+
+        do {
+            let cached = try await fetchNightscoutEntries(count: count, useStored: true)
+            if !cached.isEmpty { return cached }
+        } catch {
+            if firstError == nil { firstError = error }
+        }
+
+        do {
+            let chart = try await fetchNightscoutChartData(count: count)
+            if !chart.isEmpty { return chart }
+        } catch {
+            if firstError == nil { firstError = error }
+        }
+
+        throw firstError ?? GlucoseMonitorAPI.APIError.httpStatus(
+            400,
+            "No glucose data (live or cached). Open Settings, check Nightscout URL and API secret, then Save."
+        )
+    }
+
     static func fetchNightscoutConfig() async throws -> NightscoutConfig? {
         try await performWithRefresh {
             let req = try authorizedRequest(path: "/api/user/data-source-config/active/NIGHTSCOUT")
@@ -329,7 +577,6 @@ enum BackendAPI {
         }
     }
 
-    /// Persists Nightscout URL/secret via `POST /api/user/data-source-config` (same as web `userDataSourceConfigApi`).
     static func saveNightscoutConfig(_ config: NightscoutConfig) async throws {
         try await performWithRefresh {
             var req = try authorizedRequest(path: "/api/user/data-source-config", method: "POST")
@@ -346,17 +593,72 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - Private utilities
+    // MARK: - AI insights
 
-    /// Derives a status string from a glucose value — mirrors the web frontend's status logic.
-    private static func glucoseStatus(_ value: Double?, unit: String?) -> String {
+    static func fetchAiRetrospective(windowHours: Int = 12) async throws -> AiAnalysisResult {
+        try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/ai-insights/retrospective", method: "POST")
+            struct Body: Encodable { let windowHours: Int }
+            req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours))
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            let decoder = JSONDecoder()
+            return try decoder.decode(AiAnalysisResult.self, from: data)
+        }
+    }
+
+    // MARK: - Nutrition
+
+    static func analyzeNutrition(ingredientsText: String, fallbackCarbs: Double?) async throws -> NutritionSnapshot {
+        try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/nutrition/analyze", method: "POST")
+            struct Body: Encodable {
+                let ingredientsText: String
+                let fallbackCarbs: Double?
+            }
+            req.httpBody = try JSONEncoder().encode(Body(ingredientsText: ingredientsText, fallbackCarbs: fallbackCarbs))
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try JSONDecoder().decode(NutritionSnapshot.self, from: data)
+        }
+    }
+
+    // MARK: - Version
+
+    static func fetchBackendVersion() async throws -> BackendVersionPayload {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/version/")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try JSONDecoder().decode(BackendVersionPayload.self, from: data)
+        }
+    }
+
+    static func checkCompatibility() async throws -> CompatibilityPayload {
+        try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/version/check-compatibility", method: "POST")
+            struct Body: Encodable {
+                let clientType: String
+                let clientVersion: String
+            }
+            let body = Body(clientType: ClientVersion.clientPlatform, clientVersion: ClientVersion.resolvedSemanticVersion())
+            req.httpBody = try JSONEncoder().encode(body)
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try JSONDecoder().decode(CompatibilityPayload.self, from: data)
+        }
+    }
+
+    // MARK: - Glucose status (Nightscout mg/dL)
+
+    static func glucoseStatus(_ value: Double?, unit: String?) -> String {
         guard let v = value else { return "unknown" }
         let mgdl = unit?.lowercased().contains("mmol") == true ? v * 18.018 : v
         switch mgdl {
-        case ..<54:  return "critical"
-        case ..<70:  return "low"
+        case ..<54: return "critical"
+        case ..<70: return "low"
         case ...180: return "normal"
-        default:     return "high"
+        default: return "high"
         }
     }
 }

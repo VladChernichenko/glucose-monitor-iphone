@@ -4,6 +4,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView {
@@ -16,6 +17,31 @@ struct ContentView: View {
         }
         .onAppear {
             appState.checkAuthentication()
+            if appState.isAuthenticated {
+                Task {
+                    await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
+                    appState.checkAuthentication()
+                }
+                appState.startAutoRefreshIfNeeded()
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            guard newPhase == .active, appState.isAuthenticated else { return }
+            Task {
+                await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
+                await MainActor.run { appState.checkAuthentication() }
+            }
+        }
+        .onChange(of: appState.isAuthenticated) { ok in
+            if ok {
+                Task {
+                    await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
+                    await MainActor.run { appState.checkAuthentication() }
+                }
+                appState.startAutoRefreshIfNeeded()
+            } else {
+                appState.stopAutoRefresh()
+            }
         }
     }
 }
@@ -24,6 +50,10 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showAI = false
+    @State private var showNutrition = false
+    @State private var showVersion = false
+    @State private var noteToEdit: BackendAPI.GlucoseNote?
 
     var body: some View {
         NavigationStack {
@@ -32,11 +62,13 @@ struct DashboardView: View {
                     notSignedInPlaceholder
                 } else {
                     ScrollView {
-                        VStack(spacing: 20) {
-                            glucoseCard
-                            if let calc = appState.calculations {
-                                calculationsCard(calc)
+                        VStack(spacing: 16) {
+                            TimelineView(.periodic(from: .now, by: 1)) { context in
+                                compactGlucoseCard(at: context.date)
                             }
+                            chartSection
+                            recentNotesSection
+                            quickActions
                             if let msg = appState.errorMessage {
                                 Text(msg)
                                     .font(.footnote)
@@ -47,6 +79,7 @@ struct DashboardView: View {
                         }
                         .padding()
                     }
+                    .refreshable { await appState.refreshAll() }
                 }
             }
             .navigationTitle("Glucose Monitor")
@@ -64,116 +97,297 @@ struct DashboardView: View {
                     .disabled(appState.isLoading || !appState.isAuthenticated)
                 }
             }
+            .sheet(isPresented: $showAI) { AIInsightsSheet() }
+            .sheet(isPresented: $showNutrition) { NutritionAnalyzerSheet() }
+            .sheet(isPresented: $showVersion) { VersionInfoSheet() }
+            .sheet(item: $noteToEdit) { note in
+                EditNoteSheet(note: note) { body in
+                    await appState.updateNote(id: note.id, body: body)
+                }
+                .environmentObject(appState)
+            }
             .task {
-                if appState.isAuthenticated && appState.currentReading == nil {
+                guard appState.isAuthenticated else { return }
+                if appState.currentReading == nil {
                     await appState.refreshAll()
+                } else if appState.notes.isEmpty {
+                    await appState.fetchNotes()
                 }
             }
         }
     }
 
-    // MARK: Cards
+    // MARK: - Compact glucose card (widget-style current to prediction + stacked COB/IOB)
 
-    private var glucoseCard: some View {
-        VStack(spacing: 12) {
+    private static let dashboardGlucoseOrange = Color(red: 1, green: 0.58, blue: 0)
+    private static let dashboardCobTint = Color(red: 0.92, green: 0.55, blue: 0.12)
+    private static let dashboardIobTint = Color(red: 0.35, green: 0.45, blue: 0.95)
+
+    private func compactGlucoseCard(at date: Date) -> some View {
+        let calc = appState.calculations
+        let pre = PreBolusTimer.state(notes: appState.notes, now: date)
+        let cobStr = calc.map { String(format: "%.1f g", $0.activeCarbsOnBoard) } ?? "--"
+        let iobStr = appState.displayedIOB.map { String(format: "%.2f u", $0) } ?? "--"
+
+        return Group {
             if appState.isLoading && appState.currentReading == nil {
-                ProgressView("Loading…")
+                ProgressView("Loading...")
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 20)
             } else if let r = appState.currentReading, let v = r.value {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(formatGlucose(v, unit: r.unit))
-                        .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                    Text(unitLabel(r.unit))
-                        .font(.title3)
-                        .foregroundColor(.secondary)
-                    if let arrow = r.trendArrow, !arrow.isEmpty {
-                        Text(arrow)
-                            .font(.system(size: 36, weight: .medium))
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            glucosePredictionHeadline(current: v, unit: r.unit, calc: calc)
+                                .minimumScaleFactor(0.55)
+                                .lineLimit(1)
+
+                            HStack(alignment: .center, spacing: 10) {
+                                if let arrow = r.trendArrow, !arrow.isEmpty {
+                                    Text(arrow)
+                                        .font(.system(size: 22, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let status = r.status {
+                                    statusBadge(status)
+                                }
+                            }
+
+                            if let ts = r.timestamp {
+                                (Text("Updated ") + Text(ts, style: .relative) + Text(" ago"))
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            compactStackedMetric(
+                                icon: "fork.knife",
+                                title: "COB",
+                                value: cobStr,
+                                tint: Self.dashboardCobTint
+                            )
+                            compactStackedMetric(
+                                icon: "syringe.fill",
+                                title: "IOB",
+                                value: iobStr,
+                                tint: Self.dashboardIobTint
+                            )
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color.primary.opacity(0.04))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                        )
                     }
-                }
 
-                if let status = r.status {
-                    statusBadge(status)
-                }
-
-                if let ts = r.timestamp {
-                    Text("Updated ")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                    + Text(ts, style: .relative)
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
-                    + Text(" ago")
-                        .font(.footnote)
-                        .foregroundColor(.secondary)
+                    if pre.visible {
+                        HStack(spacing: 6) {
+                            Image(systemName: "timer")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.green)
+                            Text("Pre-bolus \(pre.label)")
+                                .font(.caption.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(.green)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Color.green.opacity(0.12)))
+                    }
                 }
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "drop.circle")
-                        .font(.system(size: 44))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 40))
+                        .foregroundStyle(.secondary)
                     Text("No reading yet")
-                        .foregroundColor(.secondary)
-                    Text("Tap ↻ to refresh")
-                        .font(.footnote)
-                        .foregroundColor(.secondary.opacity(0.75))
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text("Pull down to refresh")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
                 }
-                .padding()
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
-    }
-
-    private func calculationsCard(_ calc: BackendAPI.GlucoseCalculationsResponse) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Active Calculations")
-                .font(.headline)
-
-            HStack(spacing: 0) {
-                calculationCell(
-                    icon: "fork.knife",
-                    value: String(format: "%.0f g", calc.activeCarbsOnBoard),
-                    label: "COB"
-                )
-                Divider().frame(height: 44)
-                calculationCell(
-                    icon: "cross.vial",
-                    value: String(format: "%.1f u", calc.activeInsulinOnBoard),
-                    label: "IOB"
-                )
-                Divider().frame(height: 44)
-                calculationCell(
-                    icon: trendIcon(calc.predictionTrend),
-                    value: formatGlucose(calc.twoHourPrediction, unit: appState.currentReading?.unit),
-                    label: "2 h Pred."
-                )
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.07), radius: 10, y: 3)
+    }
+
+    @ViewBuilder
+    private func glucosePredictionHeadline(current: Double, unit: String?, calc: BackendAPI.GlucoseCalculationsResponse?) -> some View {
+        let unitStr = unitLabel(unit)
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+            if let calc {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(formatGlucose(current, unit: unit))
+                    Text("\u{2192}")
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.85))
+                    Text(formatBackendGlucoseMmol(calc.twoHourPrediction, displayUnit: unit))
+                }
+                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(Self.dashboardGlucoseOrange)
+            } else {
+                Text(formatGlucose(current, unit: unit))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Self.dashboardGlucoseOrange)
+            }
+            Text(" \(unitStr)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func compactStackedMetric(icon: String, title: String, value: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 16, alignment: .center)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(tint.opacity(0.9))
+                Text(value)
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+
+    // MARK: - Chart
+
+    private var chartSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Glucose")
+                .font(.headline)
+            GlucoseHistoryChart(
+                history: appState.glucoseHistory,
+                prediction: appState.predictionChartPoints(),
+                notes: appState.notes
+            )
+        }
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
     }
 
-    private func calculationCell(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.headline.monospacedDigit())
-            Text(label)
+    // MARK: - Recent notes (12h)
+
+    private var recentNotesSection: some View {
+        let slice = recentNotesLast12Hours
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Recent notes (12h)")
+                .font(.headline)
+            if slice.isEmpty {
+                Text("No notes in the last 12 hours.")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                // swipeActions only apply inside a List (not plain VStack/ScrollView rows).
+                List {
+                    ForEach(slice) { note in
+                        RecentNoteRow(note: note)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.visible)
+                            .contentShape(Rectangle())
+                            .onTapGesture { noteToEdit = note }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    Task { await appState.deleteNote(id: note.id) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .scrollDisabled(true)
+                .environment(\.defaultMinListRowHeight, 72)
+                .frame(height: CGFloat(slice.count) * 100)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
+    }
+
+    private var recentNotesLast12Hours: [BackendAPI.GlucoseNote] {
+        let now = Date()
+        let start = now.addingTimeInterval(-12 * 3600)
+        return appState.notes
+            .filter {
+                guard let t = $0.timestamp else { return false }
+                return t >= start && t <= now
+            }
+            .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
+            .prefix(8)
+            .map { $0 }
+    }
+
+    // MARK: - Quick actions
+
+    private var quickActions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Actions")
+                .font(.headline)
+            VStack(spacing: 0) {
+                Button { showAI = true } label: {
+                    quickActionRow(title: "AI insights", systemImage: "sparkles")
+                }
+                Divider()
+                Button { showNutrition = true } label: {
+                    quickActionRow(title: "Nutrition GI/GL", systemImage: "leaf")
+                }
+                Divider()
+                Button { showVersion = true } label: {
+                    quickActionRow(title: "Version & compatibility", systemImage: "info.circle")
+                }
+                Divider()
+                NavigationLink(destination: SettingsView()) {
+                    quickActionRow(title: "Data source & account", systemImage: "gearshape")
+                }
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
+    }
+
+    private func quickActionRow(title: String, systemImage: String) -> some View {
+        HStack {
+            Label(title, systemImage: systemImage)
+                .font(.subheadline)
+            Spacer()
+            Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .foregroundColor(.primary)
     }
 
     // MARK: Placeholder
@@ -219,15 +433,66 @@ struct DashboardView: View {
             : String(format: "%.1f", value)
     }
 
+    /// Backend predictions are mmol/L; convert when the UI shows mg/dL (Nightscout).
+    private func formatBackendGlucoseMmol(_ mmol: Double, displayUnit: String?) -> String {
+        if displayUnit?.lowercased().contains("mg") == true {
+            return String(format: "%.0f", mmol * 18.018)
+        }
+        return String(format: "%.1f", mmol)
+    }
+
     private func unitLabel(_ unit: String?) -> String {
         (unit ?? "mmol/L").lowercased().contains("mg") ? "mg/dL" : "mmol/L"
     }
 
-    private func trendIcon(_ trend: String) -> String {
-        switch trend.lowercased() {
-        case "rising":  return "arrow.up.right"
-        case "falling": return "arrow.down.right"
-        default:        return "arrow.right"
+}
+
+// MARK: - Recent note row (dashboard)
+
+private struct RecentNoteRow: View {
+    let note: BackendAPI.GlucoseNote
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Circle()
+                .fill(Color.green.opacity(0.6))
+                .frame(width: 8, height: 8)
+                .padding(.top, 6)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(note.meal.isEmpty ? "Note" : note.meal)
+                    .font(.subheadline.weight(.medium))
+                if let ts = note.timestamp {
+                    Text(ts, format: .dateTime.month(.abbreviated).day().hour().minute())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                HStack(spacing: 8) {
+                    if note.carbs > 0 {
+                        Text(String(format: "%.0f g", note.carbs))
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                    if note.insulin > 0 {
+                        Text(String(format: "%.1f u", note.insulin))
+                            .font(.caption2)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.purple.opacity(0.15))
+                            .clipShape(Capsule())
+                    }
+                    if let gv = appState.glucoseMmolForNoteRowDisplay(note) {
+                        Label(String(format: "%.1f", gv), systemImage: "drop.fill")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
         }
+        .padding(.vertical, 6)
     }
 }
