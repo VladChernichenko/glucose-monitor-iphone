@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// iOS API layer: notes, COB, calculations, insulin, Nightscout, AI insights, nutrition, version.
 enum BackendAPI {
@@ -14,6 +15,7 @@ enum BackendAPI {
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
+        let photoUrl: String?
     }
 
     struct NoteInput: Encodable {
@@ -45,6 +47,7 @@ enum BackendAPI {
         return f.string(from: date)
     }
 
+    /// COB tuning; `carbRatio` is mmol/L glucose rise per **10 g** carbs (no insulin), matching backend `(COB_g / 10) * carbRatio`.
     struct COBSettings: Codable {
         var carbRatio: Double
         var isf: Double
@@ -397,6 +400,56 @@ enum BackendAPI {
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
         }
+    }
+
+    /// Crop `image` to a center square, compress to JPEG at 0.72 quality, upload as multipart/form-data.
+    /// Returns the updated note (with `photoUrl` set by the backend).
+    static func uploadNotePhoto(noteId: String, image: UIImage) async throws -> GlucoseNote {
+        let squareImage = cropToSquare(image)
+        guard let jpeg = squareImage.jpegData(compressionQuality: 0.72) else {
+            throw GlucoseMonitorAPI.APIError.decoding(
+                NSError(domain: "BackendAPI", code: 0,
+                        userInfo: [NSLocalizedDescriptionKey: "Could not compress image"])
+            )
+        }
+
+        return try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/notes/\(noteId)/photo", method: "POST")
+            let boundary = "Boundary-\(UUID().uuidString)"
+            req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+            var body = Data()
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"meal.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(jpeg)
+            body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+            req.httpBody = body
+
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(GlucoseNote.self, from: data)
+        }
+    }
+
+    private static func cropToSquare(_ image: UIImage) -> UIImage {
+        let side = min(image.size.width, image.size.height)
+        let origin = CGPoint(
+            x: (image.size.width  - side) / 2,
+            y: (image.size.height - side) / 2
+        )
+        let cropRect = CGRect(origin: origin, size: CGSize(width: side, height: side))
+        let scale = image.scale
+        let scaledRect = CGRect(
+            x: cropRect.origin.x    * scale,
+            y: cropRect.origin.y    * scale,
+            width: cropRect.width   * scale,
+            height: cropRect.height * scale
+        )
+        if let cgImg = image.cgImage?.cropping(to: scaledRect) {
+            return UIImage(cgImage: cgImg, scale: scale, orientation: image.imageOrientation)
+        }
+        return image
     }
 
     // MARK: - COB Settings

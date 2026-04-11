@@ -1,10 +1,12 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Root
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showCamera = false
 
     var body: some View {
         TabView {
@@ -14,6 +16,24 @@ struct ContentView: View {
                 .tabItem { Label("Notes", systemImage: "note.text") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+        // Invisible 44pt strip on the right edge — mirrors the lock-screen camera swipe.
+        // Placed here so it works from any tab without blocking centre-screen gestures.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 40, coordinateSpace: .global)
+                .onEnded { value in
+                    let screenWidth = UIScreen.main.bounds.width
+                    let startedAtRightEdge = value.startLocation.x >= screenWidth - 60
+                    let isLeftSwipe  = value.translation.width < -60
+                    let isHorizontal = abs(value.translation.width) > abs(value.translation.height) * 1.5
+                    if startedAtRightEdge && isLeftSwipe && isHorizontal {
+                        showCamera = true
+                    }
+                }
+        )
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraSheet()
+                .ignoresSafeArea()
         }
         .onAppear {
             appState.checkAuthentication()
@@ -54,6 +74,7 @@ struct DashboardView: View {
     @State private var showNutrition = false
     @State private var showVersion = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
+    @State private var photoTargetNote: BackendAPI.GlucoseNote?
 
     var body: some View {
         NavigationStack {
@@ -106,6 +127,12 @@ struct DashboardView: View {
                 }
                 .environmentObject(appState)
             }
+            .fullScreenCover(item: $photoTargetNote) { note in
+                NotePhotoCaptureSheet(noteId: note.id) { image in
+                    await appState.uploadNotePhoto(noteId: note.id, image: image)
+                }
+                .ignoresSafeArea()
+            }
             .task {
                 guard appState.isAuthenticated else { return }
                 if appState.currentReading == nil {
@@ -135,10 +162,12 @@ struct DashboardView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
             } else if let r = appState.currentReading, let v = r.value {
+                let displayUnit = appState.preferredGlucoseUnit
+                let displayValue = convertGlucose(v, from: r.unit, to: displayUnit)
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
-                            glucosePredictionHeadline(current: v, unit: r.unit, calc: calc)
+                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc)
                                 .minimumScaleFactor(0.55)
                                 .lineLimit(1)
 
@@ -229,7 +258,7 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func glucosePredictionHeadline(current: Double, unit: String?, calc: BackendAPI.GlucoseCalculationsResponse?) -> some View {
+    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?) -> some View {
         let unitStr = unitLabel(unit)
         HStack(alignment: .firstTextBaseline, spacing: 0) {
             if let calc {
@@ -295,8 +324,20 @@ struct DashboardView: View {
     private var recentNotesSection: some View {
         let slice = recentNotesLast12Hours
         return VStack(alignment: .leading, spacing: 8) {
-            Text("Recent notes (12h)")
-                .font(.headline)
+            HStack {
+                Text("Recent notes (12h)")
+                    .font(.headline)
+                Spacer()
+                if let mostRecent = slice.first {
+                    Button {
+                        photoTargetNote = mostRecent
+                    } label: {
+                        Image(systemName: "camera")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
             if slice.isEmpty {
                 Text("No notes in the last 12 hours.")
                     .font(.subheadline)
@@ -311,6 +352,14 @@ struct DashboardView: View {
                             .listRowSeparator(.visible)
                             .contentShape(Rectangle())
                             .onTapGesture { noteToEdit = note }
+                            .swipeActions(edge: .leading) {
+                                Button {
+                                    photoTargetNote = note
+                                } label: {
+                                    Label("Photo", systemImage: "camera")
+                                }
+                                .tint(.blue)
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task { await appState.deleteNote(id: note.id) }
@@ -427,22 +476,30 @@ struct DashboardView: View {
             .clipShape(Capsule())
     }
 
-    private func formatGlucose(_ value: Double, unit: String?) -> String {
-        (unit ?? "mmol/L").lowercased().contains("mg")
+    /// Convert a glucose value between units. `from` is the source unit string (nil treated as mmol/L).
+    private func convertGlucose(_ value: Double, from sourceUnit: String?, to targetUnit: String) -> Double {
+        let srcIsMg = (sourceUnit ?? "mmol/L").lowercased().contains("mg")
+        let dstIsMg = targetUnit.lowercased().contains("mg")
+        if srcIsMg == dstIsMg { return value }
+        return srcIsMg ? value / 18.018 : value * 18.018
+    }
+
+    private func formatGlucose(_ value: Double, unit: String) -> String {
+        unit.lowercased().contains("mg")
             ? String(format: "%.0f", value)
             : String(format: "%.1f", value)
     }
 
-    /// Backend predictions are mmol/L; convert when the UI shows mg/dL (Nightscout).
-    private func formatBackendGlucoseMmol(_ mmol: Double, displayUnit: String?) -> String {
-        if displayUnit?.lowercased().contains("mg") == true {
+    /// Backend predictions are mmol/L; convert to the display unit.
+    private func formatBackendGlucoseMmol(_ mmol: Double, displayUnit: String) -> String {
+        if displayUnit.lowercased().contains("mg") {
             return String(format: "%.0f", mmol * 18.018)
         }
         return String(format: "%.1f", mmol)
     }
 
-    private func unitLabel(_ unit: String?) -> String {
-        (unit ?? "mmol/L").lowercased().contains("mg") ? "mg/dL" : "mmol/L"
+    private func unitLabel(_ unit: String) -> String {
+        unit.lowercased().contains("mg") ? "mg/dL" : "mmol/L"
     }
 
 }
@@ -492,7 +549,48 @@ private struct RecentNoteRow: View {
                 }
             }
             Spacer(minLength: 0)
+            if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
+                NotePhotoThumbnail(urlString: photoUrl)
+            }
         }
         .padding(.vertical, 6)
+    }
+}
+
+private struct NotePhotoThumbnail: View {
+    let urlString: String
+    @State private var image: UIImage?
+
+    var body: some View {
+        Group {
+            if let img = image {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            } else {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.15))
+                    .frame(width: 52, height: 52)
+                    .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
+            }
+        }
+        .task(id: urlString) {
+            image = await loadImage(from: urlString)
+        }
+    }
+
+    private func loadImage(from urlString: String) async -> UIImage? {
+        let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
+        let fullURL: String
+        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
+            fullURL = urlString
+        } else {
+            fullURL = base + (urlString.hasPrefix("/") ? urlString : "/\(urlString)")
+        }
+        guard let url = URL(string: fullURL),
+              let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
+        return UIImage(data: data)
     }
 }

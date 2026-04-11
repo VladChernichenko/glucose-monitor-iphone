@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -scheme GlucoseMonitor -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build)",
+      "Bash(xcodebuild -scheme GlucoseMonitorWidget -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build)",
+      "Bash(xcodebuild -list -project /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/GlucoseMonitor.xcodeproj)",
+      "Bash(xcodebuild -scheme GlucoseMonitorWidgetExtension -destination 'platform=iOS Simulator,name=iPhone 16' -configuration Debug build)",
+      "Bash(python3 -c \"import cairosvg\")",
+      "Bash(qlmanage -t -s 1024 -o /tmp/ /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/icon_source.svg)",
+      "Read(//private/tmp/**)",
+      "Bash(sips -s format png /tmp/icon_source.svg.png --out /tmp/icon_1024.png --resampleHeightWidth 1024 1024)",
+      "Bash(sips -g pixelWidth -g pixelHeight /tmp/icon_1024.png)",
+      "Bash(swift:*)",
+      "Bash(pkill -f xcodebuild)",
+      "Bash(grep -v \"^$\")",
+      "Bash(/usr/libexec/PlistBuddy -c 'Add :NSCameraUsageDescription string '\\\\''Take a photo of your meal to log it with your glucose reading.'\\\\''' /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/GlucoseMonitor/Info.plist)",
+      "Bash(/usr/libexec/PlistBuddy -c 'Add :NSPhotoLibraryAddUsageDescription string '\\\\''Meal photos are saved to your photo library.'\\\\''' /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/GlucoseMonitor/Info.plist)",
+      "Bash(xcodebuild -scheme GlucoseMonitor -destination 'platform=iOS Simulator,name=iPhone 16' build)"
+    ]
+  }
+}

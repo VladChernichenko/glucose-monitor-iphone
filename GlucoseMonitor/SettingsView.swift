@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 private enum BackendPreset: String, CaseIterable, Identifiable {
     case local
@@ -28,6 +27,9 @@ struct SettingsView: View {
     @State private var password = ""
     @State private var signInStatus = ""
 
+    // Display
+    @State private var glucoseUnit = "mmol/L"
+
     // Data source
     @State private var dataSource = "libre"
 
@@ -42,9 +44,9 @@ struct SettingsView: View {
     @State private var nightscoutSecret = ""
     @State private var nightscoutStatus = ""
 
-    // COB Settings
+    // COB Settings (carbRatio = mmol/L rise per 10 g carbs, no insulin; matches backend formula (COB/10)?ratio)
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 10, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
+        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
     )
     @State private var cobStatus = ""
 
@@ -60,6 +62,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                displaySection
                 backendSection
                 dataSourceSection
                 if dataSource == "libre" { libreSection }
@@ -70,6 +73,7 @@ struct SettingsView: View {
                     accountSection
                 }
             }
+            .dismissKeyboardOnInteraction()
             .navigationTitle("Settings")
             .onAppear(perform: loadStoredValues)
             .task {
@@ -81,6 +85,20 @@ struct SettingsView: View {
     }
 
     // MARK: - Sections
+
+    private var displaySection: some View {
+        Section("Display") {
+            Picker("Glucose Units", selection: $glucoseUnit) {
+                Text("mmol/L").tag("mmol/L")
+                Text("mg/dL").tag("mg/dL")
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: glucoseUnit) { newValue in
+                GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
+                appState.setPreferredGlucoseUnit(newValue)
+            }
+        }
+    }
 
     private var backendSection: some View {
         Section("Backend") {
@@ -107,7 +125,7 @@ struct SettingsView: View {
                 .onChange(of: password) { _ in persistAppLoginCredentials() }
 
             Button("Sign In") {
-                dismissKeyboard()
+                hideKeyboard()
                 Task { await signIn() }
             }
             .disabled(isBusy || username.isEmpty || password.isEmpty)
@@ -182,9 +200,19 @@ struct SettingsView: View {
     }
 
     private var cobSection: some View {
-        Section("Carb Absorption (COB)") {
-            numericRow(label: "Carb Ratio (g/u)", placeholder: "10", value: $cobSettings.carbRatio)
-            numericRow(label: "ISF (mmol/L per u)", placeholder: "2.5", value: $cobSettings.isf)
+        Section {
+            numericRow(
+                label: "Carb ratio (mmol/L per 10 g)",
+                placeholder: "2.0",
+                value: $cobSettings.carbRatio,
+                fractionDigits: 1...2
+            )
+            numericRow(
+                label: "ISF (mmol/L per u)",
+                placeholder: "2.5",
+                value: $cobSettings.isf,
+                fractionDigits: 1...2
+            )
 
             Button("Save COB Settings") {
                 Task { await saveCOB() }
@@ -196,6 +224,14 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundColor(cobStatus.hasPrefix("OK") ? .green : .red)
             }
+        } header: {
+            Text("Carb absorption")
+        } footer: {
+            Text(
+                "Carb ratio: expected mmol/L rise from 10 g carbs absorbed when insulin is not acting. "
+                    + "Predictions use (active COB in g ? 10) ? this value."
+            )
+            .font(.footnote)
         }
     }
 
@@ -266,6 +302,7 @@ struct SettingsView: View {
         librePassword = ud.string(forKey: GlucoseMonitorAPI.StorageKey.librePassword) ?? ""
         patientId     = ud.string(forKey: GlucoseMonitorAPI.StorageKey.patientId) ?? ""
         dataSource    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
+        glucoseUnit   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
     }
 
     private func persistAppLoginCredentials() {
@@ -388,24 +425,29 @@ struct SettingsView: View {
 
     // MARK: - Helpers
 
-    private func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-    }
-
     private static func normalizeURLString(_ raw: String) -> String {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         while s.hasSuffix("/") { s.removeLast() }
         return s
     }
 
-    private func numericRow(label: String, placeholder: String, value: Binding<Double>) -> some View {
+    private func numericRow(
+        label: String,
+        placeholder: String,
+        value: Binding<Double>,
+        fractionDigits: ClosedRange<Int> = 0...2
+    ) -> some View {
         HStack {
             Text(label)
             Spacer()
-            TextField(placeholder, value: value, format: .number)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 90)
+            TextField(
+                placeholder,
+                value: value,
+                format: .number.precision(.fractionLength(fractionDigits))
+            )
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.trailing)
+            .frame(width: 90)
         }
     }
 }

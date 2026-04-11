@@ -1,5 +1,7 @@
 import Charts
+import Photos
 import SwiftUI
+import UIKit
 
 // MARK: - Chart model
 
@@ -362,6 +364,7 @@ struct NutritionAnalyzerSheet: View {
                     }
                 }
             }
+            .dismissKeyboardOnInteraction()
             .navigationTitle("Nutrition GI/GL")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -459,6 +462,96 @@ struct VersionInfoSheet: View {
             compatibility = try await c
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Meal Camera
+
+/// Wraps UIImagePickerController for camera capture.
+/// On success the image is saved to the photo library and the sheet dismisses.
+struct CameraSheet: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: CameraSheet
+        init(_ parent: CameraSheet) { self.parent = parent }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                saveToPhotoLibrary(image)
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
+private func saveToPhotoLibrary(_ image: UIImage) {
+    PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+        guard status == .authorized || status == .limited else { return }
+        PHPhotoLibrary.shared().performChanges {
+            PHAssetChangeRequest.creationRequestForAsset(from: image)
+        }
+    }
+}
+
+// MARK: - Note photo capture
+
+/// Camera sheet that delivers the captured image via a callback (for attaching to a note).
+struct NotePhotoCaptureSheet: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    let noteId: String
+    let onCapture: (UIImage) async -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .camera
+        picker.cameraCaptureMode = .photo
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    final class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: NotePhotoCaptureSheet
+        init(_ parent: NotePhotoCaptureSheet) { self.parent = parent }
+
+        func imagePickerController(
+            _ picker: UIImagePickerController,
+            didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]
+        ) {
+            if let image = info[.originalImage] as? UIImage {
+                Task {
+                    await parent.onCapture(image)
+                }
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
         }
     }
 }

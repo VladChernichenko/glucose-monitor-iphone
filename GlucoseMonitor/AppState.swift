@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 import WidgetKit
 
 /// Observable app state (auth, dashboard data, notes); mirrors web AuthContext + EnhancedDashboard.
@@ -13,6 +14,7 @@ final class AppState: ObservableObject {
     @Published var notes: [BackendAPI.GlucoseNote] = []
     @Published var glucoseHistory: [GlucoseChartPoint] = []
     @Published var errorMessage: String?
+    @Published var preferredGlucoseUnit: String = "mmol/L"
 
     private var autoRefreshTask: Task<Void, Never>?
 
@@ -21,6 +23,14 @@ final class AppState: ObservableObject {
     func checkAuthentication() {
         let token = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.accessToken)
         isAuthenticated = !(token?.isEmpty ?? true)
+        let stored = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
+        preferredGlucoseUnit = stored ?? "mmol/L"
+    }
+
+    func setPreferredGlucoseUnit(_ unit: String) {
+        preferredGlucoseUnit = unit
+        GlucoseMonitorAPI.sharedDefaults().set(unit, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
+        persistWidgetSnapshot()
     }
 
     func logout() async {
@@ -146,13 +156,16 @@ final class AppState: ObservableObject {
     }
 
     private func persistWidgetSnapshot() {
-        // Widget always shows mmol/L (chart + backend prediction are mmol; avoids mg/dL clutter on small UI).
-        let displayVal = currentGlucoseMmolForAPI()
+        let displayUnit = preferredGlucoseUnit
+        let isMg = displayUnit.lowercased().contains("mg")
+        let mmol = currentGlucoseMmolForAPI()
+        let displayVal = mmol.map { isMg ? $0 * 18.018 : $0 }
         let delta: Double?
         if glucoseHistory.count >= 2 {
             let last = glucoseHistory[glucoseHistory.count - 1]
             let prev = glucoseHistory[glucoseHistory.count - 2]
-            delta = last.mmol - prev.mmol
+            let deltaMmol = last.mmol - prev.mmol
+            delta = isMg ? deltaMmol * 18.018 : deltaMmol
         } else {
             delta = nil
         }
@@ -163,7 +176,7 @@ final class AppState: ObservableObject {
         let snap = LockScreenWidgetSnapshot(
             savedAt: Date(),
             glucoseValue: displayVal,
-            glucoseUnit: "mmol/L",
+            glucoseUnit: displayUnit,
             trendArrow: currentReading?.trendArrow,
             deltaValue: delta,
             cobGrams: calculations?.activeCarbsOnBoard,
@@ -268,5 +281,13 @@ final class AppState: ObservableObject {
         try? await BackendAPI.deleteNote(id: id)
         notes.removeAll { $0.id == id }
         await refreshCalculations()
+    }
+
+    func uploadNotePhoto(noteId: String, image: UIImage) async {
+        if let updated = try? await BackendAPI.uploadNotePhoto(noteId: noteId, image: image) {
+            if let idx = notes.firstIndex(where: { $0.id == noteId }) {
+                notes[idx] = updated
+            }
+        }
     }
 }

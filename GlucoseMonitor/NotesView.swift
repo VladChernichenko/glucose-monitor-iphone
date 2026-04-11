@@ -1,9 +1,4 @@
 import SwiftUI
-import UIKit
-
-private func resignKeyboard() {
-    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-}
 
 private func formReadonlyRow(label: String, valueText: String) -> some View {
     HStack {
@@ -17,10 +12,23 @@ private func formReadonlyRow(label: String, valueText: String) -> some View {
 
 // MARK: - Notes List
 
+// MARK: - Sheet state
+
+private enum NoteSheet: Identifiable {
+    case add
+    case edit(BackendAPI.GlucoseNote)
+
+    var id: String {
+        switch self {
+        case .add: return "add"
+        case .edit(let n): return n.id
+        }
+    }
+}
+
 struct NotesView: View {
     @EnvironmentObject var appState: AppState
-    @State private var showingAddNote = false
-    @State private var noteToEdit: BackendAPI.GlucoseNote?
+    @State private var activeSheet: NoteSheet?
 
     private var sortedNotes: [BackendAPI.GlucoseNote] {
         appState.notes.sorted {
@@ -40,7 +48,7 @@ struct NotesView: View {
                         ForEach(sortedNotes) { note in
                             NoteRowView(note: note)
                                 .contentShape(Rectangle())
-                                .onTapGesture { noteToEdit = note }
+                                .onTapGesture { activeSheet = .edit(note) }
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button(role: .destructive) {
                                         Task { await appState.deleteNote(id: note.id) }
@@ -58,17 +66,19 @@ struct NotesView: View {
                     addNoteButton
                 }
             }
-            .sheet(isPresented: $showingAddNote) {
-                AddNoteSheet { input in
-                    await appState.createNote(input)
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .add:
+                    AddNoteSheet { input in
+                        await appState.createNote(input)
+                    }
+                    .environmentObject(appState)
+                case .edit(let note):
+                    EditNoteSheet(note: note) { body in
+                        await appState.updateNote(id: note.id, body: body)
+                    }
+                    .environmentObject(appState)
                 }
-                .environmentObject(appState)
-            }
-            .sheet(item: $noteToEdit) { note in
-                EditNoteSheet(note: note) { body in
-                    await appState.updateNote(id: note.id, body: body)
-                }
-                .environmentObject(appState)
             }
             .task(id: appState.isAuthenticated) {
                 guard appState.isAuthenticated else { return }
@@ -80,7 +90,7 @@ struct NotesView: View {
 
     private var addNoteButton: some View {
         Button {
-            showingAddNote = true
+            activeSheet = .add
         } label: {
             Image(systemName: "plus")
         }
@@ -221,11 +231,11 @@ struct AddNoteSheet: View {
                 await appState.refreshGlucoseOnly()
             }
             .navigationBarTitleDisplayMode(.inline)
-            .scrollDismissesKeyboard(.interactively)
+            .dismissKeyboardOnInteraction()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        resignKeyboard()
+                        hideKeyboard()
                         dismiss()
                     }
                 }
@@ -239,7 +249,7 @@ struct AddNoteSheet: View {
 
     private func saveTapped() {
         guard !isSaving else { return }
-        resignKeyboard()
+        hideKeyboard()
         Task {
             await MainActor.run { isSaving = true }
             let input = BackendAPI.NoteInput(
@@ -255,7 +265,7 @@ struct AddNoteSheet: View {
             // Let the text-input session tear down before dismissing the sheet (avoids RTIInputSystemClient / emoji keyboard console noise).
             try? await Task.sleep(nanoseconds: 80_000_000)
             await MainActor.run {
-                resignKeyboard()
+                hideKeyboard()
                 isSaving = false
                 dismiss()
             }
@@ -339,11 +349,11 @@ struct EditNoteSheet: View {
                 await appState.refreshGlucoseOnly()
             }
             .navigationBarTitleDisplayMode(.inline)
-            .scrollDismissesKeyboard(.interactively)
+            .dismissKeyboardOnInteraction()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
-                        resignKeyboard()
+                        hideKeyboard()
                         dismiss()
                     }
                 }
@@ -357,7 +367,7 @@ struct EditNoteSheet: View {
 
     private func saveTapped() {
         guard !isSaving else { return }
-        resignKeyboard()
+        hideKeyboard()
         Task {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
@@ -373,7 +383,7 @@ struct EditNoteSheet: View {
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)
             await MainActor.run {
-                resignKeyboard()
+                hideKeyboard()
                 isSaving = false
                 dismiss()
             }
