@@ -104,11 +104,14 @@ enum BackendAPI {
         private static func parseBackendDate(_ s: String) -> Date? {
             let df = DateFormatter()
             df.locale = Locale(identifier: "en_US_POSIX")
-            df.timeZone = TimeZone(secondsFromGMT: 0)
+            // Backend sends naive local time (no timezone suffix), so interpret
+            // it in the device's current timezone — not UTC.
+            df.timeZone = TimeZone.current
             for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"] {
                 df.dateFormat = format
                 if let d = df.date(from: s) { return d }
             }
+            // Fall back to ISO-8601 with explicit timezone (Z / ±HH:MM)
             let iso = ISO8601DateFormatter()
             iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             if let d = iso.date(from: s) { return d }
