@@ -186,11 +186,9 @@ struct AddNoteSheet: View {
     @State private var carbs: Int = 0       // steps of 10 g
     @State private var insulin: Int = 0     // steps of 1 u
     @State private var comment = ""
-    @State private var absorptionMode = "medium"
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let absorptionModes = ["fast", "medium", "slow"]
     private let carbOptions   = Array(stride(from: 0, through: 200, by: 10))
     private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
 
@@ -209,6 +207,17 @@ struct AddNoteSheet: View {
 
                 Section("Amounts") {
                     VStack(alignment: .leading, spacing: 2) {
+                        Text("Insulin (u)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Insulin", selection: $insulin) {
+                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("Carbs (g)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -219,28 +228,12 @@ struct AddNoteSheet: View {
                         .frame(height: 120)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Insulin (u)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Picker("Insulin", selection: $insulin) {
-                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 120)
-                    }
+                   
 
                     formReadonlyRow(
                         label: "Glucose at time",
                         valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: nil)
                     )
-                }
-
-                Section("Absorption") {
-                    Picker("Mode", selection: $absorptionMode) {
-                        ForEach(absorptionModes, id: \.self) { Text($0.capitalized) }
-                    }
-                    .pickerStyle(.segmented)
                 }
 
                 Section("Comment") {
@@ -281,7 +274,7 @@ struct AddNoteSheet: View {
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
                 glucoseValue: appState.glucoseMmolForNewNote(at: noteDate),
-                absorptionMode: absorptionMode
+                absorptionMode: nil
             )
             await onCreate(input)
             try? await Task.sleep(nanoseconds: 80_000_000)
@@ -307,11 +300,9 @@ struct EditNoteSheet: View {
     @State private var carbs: Int           // steps of 10 g
     @State private var insulin: Int         // steps of 1 u
     @State private var comment: String
-    @State private var absorptionMode: String
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let absorptionModes = ["fast", "medium", "slow"]
     private let carbOptions    = Array(stride(from: 0, through: 200, by: 10))
     private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
 
@@ -326,7 +317,6 @@ struct EditNoteSheet: View {
         _carbs = State(initialValue: roundedCarbs)
         _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
-        _absorptionMode = State(initialValue: note.absorptionMode ?? "medium")
     }
 
     var body: some View {
@@ -341,16 +331,7 @@ struct EditNoteSheet: View {
                     }
                 }
                 Section("Amounts") {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Carbs (g)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Picker("Carbs", selection: $carbs) {
-                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 120)
-                    }
+                  
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Insulin (u)")
@@ -362,17 +343,22 @@ struct EditNoteSheet: View {
                         .pickerStyle(.wheel)
                         .frame(height: 120)
                     }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Carbs (g)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Carbs", selection: $carbs) {
+                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
 
                     formReadonlyRow(
                         label: "Glucose at time",
                         valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: note.glucoseValue)
                     )
-                }
-                Section("Absorption") {
-                    Picker("Mode", selection: $absorptionMode) {
-                        ForEach(absorptionModes, id: \.self) { Text($0.capitalized) }
-                    }
-                    .pickerStyle(.segmented)
                 }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical)
@@ -412,8 +398,7 @@ struct EditNoteSheet: View {
                 insulin: Double(insulin),
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
-                glucoseValue: nil,
-                absorptionMode: absorptionMode
+                glucoseValue: nil
             )
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)

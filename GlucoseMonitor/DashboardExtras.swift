@@ -157,8 +157,8 @@ struct GlucoseHistoryChart: View {
                     series: .value("Series", "prediction")
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(Color.purple.opacity(0.75))
-                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 4]))
+                .foregroundStyle(Color.blue)
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
             }
 
             ForEach(notesOnChart) { note in
@@ -169,9 +169,9 @@ struct GlucoseHistoryChart: View {
                 }
             }
 
-            // Vertical "now" line
+            // Vertical "now" line — black in light mode, white in dark mode
             RuleMark(x: .value("Now", Date()))
-                .foregroundStyle(Color.white.opacity(0.55))
+                .foregroundStyle(Color.primary.opacity(0.75))
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
         }
     }

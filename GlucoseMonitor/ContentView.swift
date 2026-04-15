@@ -71,6 +71,7 @@ struct ContentView: View {
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddNote = false
+    @State private var showExtendedForecast = false
     @State private var showAI = false
     @State private var showNutrition = false
     @State private var showVersion = false
@@ -179,9 +180,14 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
-                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc)
+                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, expanded: showExtendedForecast)
                                 .minimumScaleFactor(0.55)
                                 .lineLimit(1)
+                                .animation(.easeInOut(duration: 0.2), value: showExtendedForecast)
+                                .onTapGesture {
+                                    guard calc?.predictionPath?.isEmpty == false else { return }
+                                    withAnimation(.easeInOut(duration: 0.2)) { showExtendedForecast.toggle() }
+                                }
 
                             HStack(alignment: .center, spacing: 10) {
                                 if let arrow = r.trendArrow, !arrow.isEmpty {
@@ -270,29 +276,63 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?) -> some View {
+    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, expanded: Bool = false) -> some View {
         let unitStr = unitLabel(unit)
-        HStack(alignment: .firstTextBaseline, spacing: 0) {
-            if let calc {
-                HStack(alignment: .firstTextBaseline, spacing: 5) {
+        let fourHour = calc?.predictionPath?.last?.predictedGlucose
+
+        if let calc {
+            VStack(alignment: .leading, spacing: 2) {
+                // Label row
+                HStack(spacing: 0) {
+                    Text("Now")
+                        .frame(minWidth: 60, alignment: .leading)
+                    Spacer().frame(width: 36)
+                    Text("2h forecast")
+                    if expanded, fourHour != nil {
+                        Spacer().frame(width: 36)
+                        Text("4h forecast")
+                    }
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+                // Number row
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(formatGlucose(current, unit: unit))
+                        .frame(minWidth: 60, alignment: .leading)
                     Text("\u{2192}")
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.85))
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
                     Text(formatBackendGlucoseMmol(calc.twoHourPrediction, displayUnit: unit))
+                    if expanded, let fh = fourHour {
+                        Text("\u{2192}")
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
+                        Text(formatBackendGlucoseMmol(fh, displayUnit: unit))
+                    }
+                    Text(unitStr)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(Self.dashboardGlucoseOrange)
-            } else {
-                Text(formatGlucose(current, unit: unit))
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Self.dashboardGlucoseOrange)
             }
-            Text(" \(unitStr)")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Now")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(formatGlucose(current, unit: unit))
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Self.dashboardGlucoseOrange)
+                    Text(unitStr)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
     }
 
