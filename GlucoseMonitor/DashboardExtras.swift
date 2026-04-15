@@ -75,17 +75,17 @@ struct GlucoseHistoryChart: View {
         if mn == mx {
             return mn.addingTimeInterval(-1800)...mx.addingTimeInterval(1800)
         }
-        // Cap the right edge at now + 2 h so the prediction window doesn't stretch the chart.
-        let cap = Date().addingTimeInterval(2 * 3600)
+        // Cap the right edge at now + 4 h (DIA) so the chart doesn't stretch indefinitely.
+        let cap = Date().addingTimeInterval(4 * 3600)
         return mn...(mx < cap ? mx : cap)
     }
 
-    /// Prediction points starting exactly at "now", capped to 2 hours ahead.
-    /// Drops past points, caps at +2 h, then prepends a synthetic anchor at Date()
+    /// Prediction points starting exactly at "now", capped to 4 hours ahead.
+    /// Drops past points, caps at +4 h (DIA), then prepends a synthetic anchor at Date()
     /// so the curve originates right on the "now" line without stretching the x-axis.
     private var futurePrediction: [PredictionChartPoint] {
         let now = Date()
-        let cap  = now.addingTimeInterval(2 * 3600)
+        let cap  = now.addingTimeInterval(4 * 3600)
         let future = prediction.filter { $0.time > now && $0.time <= cap }
         guard !future.isEmpty else { return [] }
         let anchorMmol = history.last?.mmol ?? future[0].mmol

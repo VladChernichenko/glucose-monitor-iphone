@@ -3,6 +3,110 @@ import SwiftUI
 import UIKit
 import WidgetKit
 
+// MARK: - Local glucose prediction (IOB + COB + trend)
+
+/// Builds a prediction path using:
+///   • OpenAPS exponential IOB curve
+///   • Linear carb absorption (duration depends on absorption mode)
+///   • Short-horizon trend extrapolation (asymptotic, 15-min time constant)
+///
+/// Parameters are population-average defaults for T1D.
+private enum GlucosePrediction {
+
+    /// Insulin Sensitivity Factor: mmol/L drop per unit of insulin.
+    static let isf: Double = 2.5
+    /// Insulin-to-Carb ratio: grams covered per unit.
+    static let icr: Double = 10.0
+    private static let stepMinutes: Double = 5
+
+    /// Generate prediction points from `now` forward.
+    /// Horizon: until active IOB + COB expire, clamped to [2 h, 4 h].
+    static func localPath(
+        currentGlucose: Double,
+        history: [GlucoseChartPoint],
+        notes: [BackendAPI.GlucoseNote],
+        now: Date = Date()
+    ) -> [PredictionChartPoint] {
+        guard currentGlucose > 0 else { return [] }
+
+        let velocity   = recentVelocity(history: history, now: now)
+        let horizonMin = horizon(notes: notes, now: now)
+        let iobNow     = InsulinIOB.currentIOBFromNotes(notes: notes, at: now)
+
+        var points: [PredictionChartPoint] = []
+        var t = stepMinutes
+        while t <= horizonMin {
+            let future = now.addingTimeInterval(t * 60)
+
+            // Trend: asymptotic toward (velocity × 15 min), time-constant 15 min
+            let trend = velocity * 15.0 * (1.0 - exp(-t / 15.0))
+
+            // Insulin drop: ISF × IOB consumed between now and future
+            let iobFuture   = InsulinIOB.currentIOBFromNotes(notes: notes, at: future)
+            let insulinDrop = isf * max(0, iobNow - iobFuture)
+
+            // Carb rise: (ISF/ICR) × grams absorbed now→future
+            let carbRise = (isf / icr) * totalCarbsAbsorbed(notes: notes, from: now, to: future)
+
+            let predicted = max(2.0, min(22.0, currentGlucose + trend - insulinDrop + carbRise))
+            points.append(PredictionChartPoint(time: future, mmol: predicted))
+            t += stepMinutes
+        }
+        return points
+    }
+
+    // MARK: Helpers
+
+    private static func recentVelocity(history: [GlucoseChartPoint], now: Date) -> Double {
+        let window = history.filter { now.timeIntervalSince($0.time) <= 20 * 60 }
+        guard window.count >= 2, let first = window.first, let last = window.last else { return 0 }
+        let dtMin = last.time.timeIntervalSince(first.time) / 60
+        guard dtMin > 1 else { return 0 }
+        return (last.mmol - first.mmol) / dtMin
+    }
+
+    private static func horizon(notes: [BackendAPI.GlucoseNote], now: Date) -> Double {
+        var maxMin = 120.0
+        for note in notes {
+            guard let t0 = note.timestamp, t0 <= now else { continue }
+            if note.insulin > 0 {
+                let left = t0.addingTimeInterval(4 * 3600).timeIntervalSince(now) / 60
+                if left > 0 { maxMin = max(maxMin, left) }
+            }
+            if note.carbs > 0 {
+                let dur  = absorptionDuration(for: note.absorptionMode)
+                let left = t0.addingTimeInterval(dur * 60).timeIntervalSince(now) / 60
+                if left > 0 { maxMin = max(maxMin, left) }
+            }
+        }
+        return min(240, maxMin)
+    }
+
+    private static func totalCarbsAbsorbed(
+        notes: [BackendAPI.GlucoseNote],
+        from: Date,
+        to: Date
+    ) -> Double {
+        notes.reduce(0.0) { sum, note in
+            guard let t0 = note.timestamp, note.carbs > 0, t0 <= from else { return sum }
+            let dur      = absorptionDuration(for: note.absorptionMode)
+            let fracFrom = min(1, max(0, from.timeIntervalSince(t0) / 60 / dur))
+            let fracTo   = min(1, max(0, to.timeIntervalSince(t0)   / 60 / dur))
+            return sum + note.carbs * (fracTo - fracFrom)
+        }
+    }
+
+    private static func absorptionDuration(for mode: String?) -> Double {
+        switch mode?.lowercased() {
+        case "fast": return 90
+        case "slow": return 300
+        default:     return 180
+        }
+    }
+}
+
+// MARK: - App state
+
 /// Observable app state (auth, dashboard data, notes); mirrors web AuthContext + EnhancedDashboard.
 @MainActor
 final class AppState: ObservableObject {
@@ -108,11 +212,21 @@ final class AppState: ObservableObject {
     }
 
     func predictionChartPoints() -> [PredictionChartPoint] {
-        guard let path = calculations?.predictionPath, !path.isEmpty else { return [] }
-        return path.compactMap { p -> PredictionChartPoint? in
-            guard let y = p.predictedGlucose else { return nil }
-            return PredictionChartPoint(time: p.timestamp, mmol: y)
+        // Prefer backend prediction path when the server provides it.
+        if let path = calculations?.predictionPath, !path.isEmpty {
+            let pts = path.compactMap { p -> PredictionChartPoint? in
+                guard let y = p.predictedGlucose else { return nil }
+                return PredictionChartPoint(time: p.timestamp, mmol: y)
+            }
+            if !pts.isEmpty { return pts }
         }
+        // Fall back to local IOB + COB model so the curve is always visible.
+        guard let mmol = currentGlucoseMmolForAPI() else { return [] }
+        return GlucosePrediction.localPath(
+            currentGlucose: mmol,
+            history: glucoseHistory,
+            notes: notes
+        )
     }
 
     // MARK: - Refresh
