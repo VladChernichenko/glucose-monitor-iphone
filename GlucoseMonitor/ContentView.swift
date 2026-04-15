@@ -6,7 +6,6 @@ import UIKit
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showCamera = false
 
     var body: some View {
         TabView {
@@ -16,24 +15,6 @@ struct ContentView: View {
                 .tabItem { Label("Notes", systemImage: "note.text") }
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
-        }
-        // Invisible 44pt strip on the right edge — mirrors the lock-screen camera swipe.
-        // Placed here so it works from any tab without blocking centre-screen gestures.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 40, coordinateSpace: .global)
-                .onEnded { value in
-                    let screenWidth = UIScreen.main.bounds.width
-                    let startedAtRightEdge = value.startLocation.x >= screenWidth - 60
-                    let isLeftSwipe  = value.translation.width < -60
-                    let isHorizontal = abs(value.translation.width) > abs(value.translation.height) * 1.5
-                    if startedAtRightEdge && isLeftSwipe && isHorizontal {
-                        showCamera = true
-                    }
-                }
-        )
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraSheet()
-                .ignoresSafeArea()
         }
         .onAppear {
             appState.checkAuthentication()
@@ -76,7 +57,6 @@ struct DashboardView: View {
     @State private var showNutrition = false
     @State private var showVersion = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
-    @State private var photoTargetNote: BackendAPI.GlucoseNote?
 
     var body: some View {
         NavigationStack {
@@ -139,12 +119,6 @@ struct DashboardView: View {
                     await appState.updateNote(id: note.id, body: body)
                 }
                 .environmentObject(appState)
-            }
-            .fullScreenCover(item: $photoTargetNote) { note in
-                NotePhotoCaptureSheet(noteId: note.id) { image in
-                    await appState.uploadNotePhoto(noteId: note.id, image: image)
-                }
-                .ignoresSafeArea()
             }
             .task {
                 guard appState.isAuthenticated else { return }
@@ -386,15 +360,6 @@ struct DashboardView: View {
                 Text("Recent notes (12h)")
                     .font(.headline)
                 Spacer()
-                if let mostRecent = slice.first {
-                    Button {
-                        photoTargetNote = mostRecent
-                    } label: {
-                        Image(systemName: "camera")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
             if slice.isEmpty {
                 Text("No notes in the last 12 hours.")
@@ -410,14 +375,6 @@ struct DashboardView: View {
                             .listRowSeparator(.visible)
                             .contentShape(Rectangle())
                             .onTapGesture { noteToEdit = note }
-                            .swipeActions(edge: .leading) {
-                                Button {
-                                    photoTargetNote = note
-                                } label: {
-                                    Label("Photo", systemImage: "camera")
-                                }
-                                .tint(.blue)
-                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     Task { await appState.deleteNote(id: note.id) }
