@@ -183,14 +183,16 @@ struct AddNoteSheet: View {
 
     @State private var noteDate = Date()
     @State private var meal = "Lunch"
-    @State private var carbs = ""
-    @State private var insulin = ""
+    @State private var carbs: Int = 0       // steps of 10 g
+    @State private var insulin: Int = 0     // steps of 1 u
     @State private var comment = ""
     @State private var absorptionMode = "medium"
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private let absorptionModes = ["fast", "medium", "slow"]
+    private let carbOptions   = Array(stride(from: 0, through: 200, by: 10))
+    private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
 
     var body: some View {
         NavigationStack {
@@ -206,8 +208,28 @@ struct AddNoteSheet: View {
                 }
 
                 Section("Amounts") {
-                    amountRow(label: "Carbs (g)", placeholder: "0", text: $carbs)
-                    amountRow(label: "Insulin (u)", placeholder: "0", text: $insulin)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Carbs (g)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Carbs", selection: $carbs) {
+                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Insulin (u)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Insulin", selection: $insulin) {
+                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
+
                     formReadonlyRow(
                         label: "Glucose at time",
                         valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: nil)
@@ -254,32 +276,20 @@ struct AddNoteSheet: View {
             await MainActor.run { isSaving = true }
             let input = BackendAPI.NoteInput(
                 timestamp: BackendAPI.formatNoteTimestampForRequest(noteDate),
-                carbs: Double(carbs) ?? 0,
-                insulin: Double(insulin) ?? 0,
+                carbs: Double(carbs),
+                insulin: Double(insulin),
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
                 glucoseValue: appState.glucoseMmolForNewNote(at: noteDate),
                 absorptionMode: absorptionMode
             )
             await onCreate(input)
-            // Let the text-input session tear down before dismissing the sheet (avoids RTIInputSystemClient / emoji keyboard console noise).
             try? await Task.sleep(nanoseconds: 80_000_000)
             await MainActor.run {
                 hideKeyboard()
                 isSaving = false
                 dismiss()
             }
-        }
-    }
-
-    private func amountRow(label: String, placeholder: String, text: Binding<String>) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField(placeholder, text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 90)
         }
     }
 }
@@ -294,22 +304,27 @@ struct EditNoteSheet: View {
 
     @State private var noteDate: Date
     @State private var meal: String
-    @State private var carbs: String
-    @State private var insulin: String
+    @State private var carbs: Int           // steps of 10 g
+    @State private var insulin: Int         // steps of 1 u
     @State private var comment: String
     @State private var absorptionMode: String
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private let absorptionModes = ["fast", "medium", "slow"]
+    private let carbOptions    = Array(stride(from: 0, through: 200, by: 10))
+    private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
-        _carbs = State(initialValue: note.carbs > 0 ? String(format: "%.0f", note.carbs) : "")
-        _insulin = State(initialValue: note.insulin > 0 ? String(format: "%.1f", note.insulin) : "")
+        // Round to nearest picker step; clamp to range.
+        let roundedCarbs = min(200, max(0, Int((note.carbs / 10).rounded()) * 10))
+        let roundedInsulin = min(30, max(0, Int(note.insulin.rounded())))
+        _carbs = State(initialValue: roundedCarbs)
+        _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
         _absorptionMode = State(initialValue: note.absorptionMode ?? "medium")
     }
@@ -326,8 +341,28 @@ struct EditNoteSheet: View {
                     }
                 }
                 Section("Amounts") {
-                    amountRow(label: "Carbs (g)", placeholder: "0", text: $carbs)
-                    amountRow(label: "Insulin (u)", placeholder: "0", text: $insulin)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Carbs (g)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Carbs", selection: $carbs) {
+                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Insulin (u)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Picker("Insulin", selection: $insulin) {
+                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(height: 120)
+                    }
+
                     formReadonlyRow(
                         label: "Glucose at time",
                         valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: note.glucoseValue)
@@ -387,17 +422,6 @@ struct EditNoteSheet: View {
                 isSaving = false
                 dismiss()
             }
-        }
-    }
-
-    private func amountRow(label: String, placeholder: String, text: Binding<String>) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField(placeholder, text: text)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 90)
         }
     }
 }

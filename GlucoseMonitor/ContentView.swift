@@ -70,6 +70,7 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showAddNote = false
     @State private var showAI = false
     @State private var showNutrition = false
     @State private var showVersion = false
@@ -103,7 +104,6 @@ struct DashboardView: View {
                     .refreshable { await appState.refreshAll() }
                 }
             }
-            .navigationTitle("Glucose Monitor")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -117,6 +117,18 @@ struct DashboardView: View {
                     }
                     .disabled(appState.isLoading || !appState.isAuthenticated)
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showAddNote = true } label: {
+                        Image(systemName: "plus")
+                    }
+                    .disabled(!appState.isAuthenticated)
+                }
+            }
+            .sheet(isPresented: $showAddNote) {
+                AddNoteSheet { input in
+                    await appState.createNote(input)
+                }
+                .environmentObject(appState)
             }
             .sheet(isPresented: $showAI) { AIInsightsSheet() }
             .sheet(isPresented: $showNutrition) { NutritionAnalyzerSheet() }
@@ -317,6 +329,12 @@ struct DashboardView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
+        .overlay {
+            ChartLongPressOverlay(minimumDuration: 0.3) {
+                guard appState.isAuthenticated else { return }
+                showAddNote = true
+            }
+        }
     }
 
     // MARK: - Recent notes (12h)
@@ -554,6 +572,63 @@ private struct RecentNoteRow: View {
             }
         }
         .padding(.vertical, 6)
+    }
+}
+
+// MARK: - UIKit long-press bridge (SwiftUI gestures are cancelled by Chart internals)
+//
+// Behaviour mirrors the lock-screen torch:
+//   • touch-down  → immediate haptic ("press")
+//   • lift after ≥ minimumDuration → second haptic ("release") + action fires
+//   • lift before threshold           → nothing
+
+private struct ChartLongPressOverlay: UIViewRepresentable {
+    let minimumDuration: TimeInterval
+    let onLongPress: () -> Void
+
+    func makeUIView(context: Context) -> LongPressTrackingView {
+        LongPressTrackingView(minimumDuration: minimumDuration, onLongPress: onLongPress)
+    }
+
+    func updateUIView(_ uiView: LongPressTrackingView, context: Context) {}
+}
+
+final class LongPressTrackingView: UIView {
+    private let minimumDuration: TimeInterval
+    private let onLongPress: () -> Void
+    private var touchDownTime: Date?
+
+    init(minimumDuration: TimeInterval, onLongPress: @escaping () -> Void) {
+        self.minimumDuration = minimumDuration
+        self.onLongPress = onLongPress
+        super.init(frame: .zero)
+        backgroundColor = .clear
+        isMultipleTouchEnabled = false
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        touchDownTime = Date()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()  // "press down" click
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+        defer { touchDownTime = nil }
+        guard let t = touchDownTime,
+              Date().timeIntervalSince(t) >= minimumDuration else { return }
+        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()   // "release" click
+        onLongPress()
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+        touchDownTime = nil
+    }
+
+    // Pass all hits through so chart interactions still work.
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        let hit = super.hitTest(point, with: event)
+        return hit == self ? self : nil
     }
 }
 

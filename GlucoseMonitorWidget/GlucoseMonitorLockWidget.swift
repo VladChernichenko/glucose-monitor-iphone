@@ -33,7 +33,6 @@ struct GlucoseLockScreenWidget: Widget {
         .containerBackgroundRemovable(false)
         // Use the system slot edge-to-edge; slot width is still fixed by iOS (use the center row below the time for the widest lock placement).
         .contentMarginsDisabled()
-        .configurationDisplayName("Glucose Monitor")
         .description("Lock Screen: place in the wide center row below the time for maximum width. Home Screen: Large is full-width. Open the app to refresh.")
         .supportedFamilies([
             .accessoryRectangular,

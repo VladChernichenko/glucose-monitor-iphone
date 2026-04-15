@@ -75,7 +75,22 @@ struct GlucoseHistoryChart: View {
         if mn == mx {
             return mn.addingTimeInterval(-1800)...mx.addingTimeInterval(1800)
         }
-        return mn...mx
+        // Cap the right edge at now + 2 h so the prediction window doesn't stretch the chart.
+        let cap = Date().addingTimeInterval(2 * 3600)
+        return mn...(mx < cap ? mx : cap)
+    }
+
+    /// Prediction points starting exactly at "now", capped to 2 hours ahead.
+    /// Drops past points, caps at +2 h, then prepends a synthetic anchor at Date()
+    /// so the curve originates right on the "now" line without stretching the x-axis.
+    private var futurePrediction: [PredictionChartPoint] {
+        let now = Date()
+        let cap  = now.addingTimeInterval(2 * 3600)
+        let future = prediction.filter { $0.time > now && $0.time <= cap }
+        guard !future.isEmpty else { return [] }
+        let anchorMmol = history.last?.mmol ?? future[0].mmol
+        let anchor = PredictionChartPoint(time: now, mmol: anchorMmol)
+        return [anchor] + future
     }
 
     private var notesOnChart: [BackendAPI.GlucoseNote] {
@@ -128,19 +143,22 @@ struct GlucoseHistoryChart: View {
             ForEach(history) { p in
                 LineMark(
                     x: .value("Time", p.time),
-                    y: .value("mmol/L", p.mmol)
+                    y: .value("mmol/L", p.mmol),
+                    series: .value("Series", "history")
                 )
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(.blue)
             }
-            ForEach(prediction) { p in
+
+            ForEach(futurePrediction) { p in
                 LineMark(
                     x: .value("Time", p.time),
-                    y: .value("Pred", p.mmol)
+                    y: .value("Pred", p.mmol),
+                    series: .value("Series", "prediction")
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(.purple.opacity(0.65))
-                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
+                .foregroundStyle(Color.purple.opacity(0.75))
+                .lineStyle(StrokeStyle(lineWidth: 2, dash: [6, 4]))
             }
 
             ForEach(notesOnChart) { note in
@@ -150,6 +168,11 @@ struct GlucoseHistoryChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
                 }
             }
+
+            // Vertical "now" line
+            RuleMark(x: .value("Now", Date()))
+                .foregroundStyle(Color.white.opacity(0.55))
+                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
         }
     }
 }
@@ -159,17 +182,37 @@ struct GlucoseHistoryChart: View {
 private struct ChartNoteMarkersOverlay: ViewModifier {
     let notes: [BackendAPI.GlucoseNote]
 
+    /// Max pixel gap between two notes before their carb labels are rendered separately.
+    private static let groupingThreshold: CGFloat = 32
+
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
             content.chartOverlay { proxy in
                 GeometryReader { geometry in
                     let plotFrame = proxy.plotFrame.map { geometry[$0] } ?? .zero
-                    ForEach(notes) { note in
-                        if let t = note.timestamp,
-                           let xInPlot = proxy.position(forX: t) {
-                            let x = plotFrame.minX + xInPlot
-                            ChartNoteMarkerView(note: note, x: x, plotTop: plotFrame.minY, plotBottom: plotFrame.maxY)
+
+                    // Resolve every note to its pixel x position inside the plot.
+                    let positioned: [(note: BackendAPI.GlucoseNote, x: CGFloat)] = notes
+                        .compactMap { note in
+                            guard let t = note.timestamp,
+                                  let xInPlot = proxy.position(forX: t) else { return nil }
+                            return (note, plotFrame.minX + xInPlot)
                         }
+                        .sorted { $0.x < $1.x }
+
+                    // ── Carb labels: grouped & summed ──────────────────────────
+                    let carbItems = positioned.filter { $0.note.carbs > 0 }
+                    let carbGroups = Self.groupByProximity(carbItems,
+                                                          threshold: Self.groupingThreshold)
+                    ForEach(Array(carbGroups.enumerated()), id: \.offset) { _, group in
+                        let totalCarbs = group.map(\.note.carbs).reduce(0, +)
+                        let centerX    = group.map(\.x).reduce(0, +) / CGFloat(group.count)
+                        CarbGroupLabel(carbs: totalCarbs, x: centerX, y: plotFrame.minY + 18)
+                    }
+
+                    // ── Insulin bars: one per note ─────────────────────────────
+                    ForEach(positioned.filter { $0.note.insulin > 0 }, id: \.note.id) { item in
+                        InsulinBarLabel(note: item.note, x: item.x, y: plotFrame.maxY - 18)
                     }
                 }
             }
@@ -177,55 +220,84 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
             content
         }
     }
+
+    /// Greedy left-to-right grouping: a new group starts whenever the gap
+    /// to the previous item exceeds `threshold` pixels.
+    private static func groupByProximity(
+        _ items: [(note: BackendAPI.GlucoseNote, x: CGFloat)],
+        threshold: CGFloat
+    ) -> [[(note: BackendAPI.GlucoseNote, x: CGFloat)]] {
+        guard !items.isEmpty else { return [] }
+        var groups: [[(note: BackendAPI.GlucoseNote, x: CGFloat)]] = []
+        var current: [(note: BackendAPI.GlucoseNote, x: CGFloat)] = [items[0]]
+        for item in items.dropFirst() {
+            if item.x - current.last!.x <= threshold {
+                current.append(item)
+            } else {
+                groups.append(current)
+                current = [item]
+            }
+        }
+        groups.append(current)
+        return groups
+    }
 }
 
-private struct ChartNoteMarkerView: View {
-    let note: BackendAPI.GlucoseNote
+// Carb chip shown once per proximity group, displaying the summed value.
+private struct CarbGroupLabel: View {
+    let carbs: Double
     let x: CGFloat
-    let plotTop: CGFloat
-    let plotBottom: CGFloat
+    let y: CGFloat
 
-    private var insulinLabel: String {
-        let u = note.insulin
-        guard u > 0 else { return "" }
-        if abs(u - round(u)) < 0.05 {
-            return String(format: "%.0f", u)
-        }
-        return String(format: "%.1f", u)
+    private var label: String {
+        carbs.truncatingRemainder(dividingBy: 1) < 0.05
+            ? String(format: "%.0fg", carbs)
+            : String(format: "%.1fg", carbs)
     }
 
     var body: some View {
-        ZStack {
-            if note.carbs > 0 {
-                Text(String(format: "%.0fg", note.carbs))
-                    .font(.caption2.weight(.semibold))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color(red: 1, green: 0.92, blue: 0.35))
-                    )
-                    .overlay(alignment: .bottom) {
-                        TrianglePointer()
-                            .fill(Color(red: 1, green: 0.92, blue: 0.35))
-                            .frame(width: 10, height: 5)
-                            .offset(y: 4)
-                    }
-                    .position(x: x, y: plotTop + 18)
+        Text(label)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color(red: 1, green: 0.92, blue: 0.35))
+            )
+            .overlay(alignment: .bottom) {
+                TrianglePointer()
+                    .fill(Color(red: 1, green: 0.92, blue: 0.35))
+                    .frame(width: 10, height: 5)
+                    .offset(y: 4)
             }
+            .position(x: x, y: y)
+    }
+}
 
-            if note.insulin > 0 {
-                VStack(spacing: 2) {
-                    Text(insulinLabel)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.primary)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.blue.opacity(0.4))
-                        .frame(width: 7, height: 16)
-                }
-                .position(x: x, y: plotBottom - 18)
-            }
+// Insulin bar shown individually for every note that has insulin.
+private struct InsulinBarLabel: View {
+    let note: BackendAPI.GlucoseNote
+    let x: CGFloat
+    let y: CGFloat
+
+    private var label: String {
+        let u = note.insulin
+        return abs(u - round(u)) < 0.05
+            ? String(format: "%.0f", u)
+            : String(format: "%.1f", u)
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.primary)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.blue.opacity(0.4))
+                .frame(width: 7, height: 16)
         }
+        .position(x: x, y: y)
     }
 }
 
