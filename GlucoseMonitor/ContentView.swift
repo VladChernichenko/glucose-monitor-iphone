@@ -124,7 +124,7 @@ struct DashboardView: View {
                 guard appState.isAuthenticated else { return }
                 if appState.currentReading == nil {
                     await appState.refreshAll()
-                } else if appState.notes.isEmpty {
+                } else {
                     await appState.fetchNotes()
                 }
             }
@@ -360,8 +360,23 @@ struct DashboardView: View {
                 Text("Recent notes (12h)")
                     .font(.headline)
                 Spacer()
+                if appState.isLoadingNotes {
+                    ProgressView()
+                        .scaleEffect(0.75)
+                }
             }
-            if slice.isEmpty {
+            if appState.isLoadingNotes && appState.notes.isEmpty {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("Loading notes…")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+            } else if let err = appState.notesLoadError {
+                Label(err, systemImage: "exclamationmark.triangle")
+                    .font(.subheadline)
+                    .foregroundColor(.orange)
+            } else if slice.isEmpty {
                 Text("No notes in the last 12 hours.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)

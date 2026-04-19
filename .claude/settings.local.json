@@ -15,7 +15,14 @@
       "Bash(grep -v \"^$\")",
       "Bash(/usr/libexec/PlistBuddy -c 'Add :NSCameraUsageDescription string '\\\\''Take a photo of your meal to log it with your glucose reading.'\\\\''' /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/GlucoseMonitor/Info.plist)",
       "Bash(/usr/libexec/PlistBuddy -c 'Add :NSPhotoLibraryAddUsageDescription string '\\\\''Meal photos are saved to your photo library.'\\\\''' /Users/vlad/IdeaProjects/glucose-monitor-project/glucose-monitor-iphone/GlucoseMonitor/Info.plist)",
-      "Bash(xcodebuild -scheme GlucoseMonitor -destination 'platform=iOS Simulator,name=iPhone 16' build)"
+      "Bash(xcodebuild -scheme GlucoseMonitor -destination 'platform=iOS Simulator,name=iPhone 16' build)",
+      "Bash(./gradlew compileJava)",
+      "Bash(curl -s http://localhost:8080/v3/api-docs)",
+      "Bash(./gradlew dependencies *)",
+      "Bash(./gradlew --stop)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

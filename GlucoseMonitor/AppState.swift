@@ -14,6 +14,8 @@ final class AppState: ObservableObject {
     @Published var currentReading: GlucoseMonitorAPI.LibreGlucoseCurrent?
     @Published var calculations: BackendAPI.GlucoseCalculationsResponse?
     @Published var notes: [BackendAPI.GlucoseNote] = []
+    @Published var isLoadingNotes = false
+    @Published var notesLoadError: String? = nil
     @Published var glucoseHistory: [GlucoseChartPoint] = []
     @Published var errorMessage: String?
     @Published var preferredGlucoseUnit: String = "mmol/L"
@@ -41,6 +43,8 @@ final class AppState: ObservableObject {
         currentReading = nil
         calculations = nil
         notes = []
+        isLoadingNotes = false
+        notesLoadError = nil
         glucoseHistory = []
         errorMessage = nil
         autoRefreshTask?.cancel()
@@ -258,7 +262,14 @@ final class AppState: ObservableObject {
     // MARK: - Notes
 
     func fetchNotes() async {
-        notes = (try? await BackendAPI.fetchNotes()) ?? []
+        isLoadingNotes = true
+        notesLoadError = nil
+        defer { isLoadingNotes = false }
+        do {
+            notes = try await BackendAPI.fetchNotes()
+        } catch {
+            notesLoadError = "Failed to load notes"
+        }
     }
 
     func createNote(_ input: BackendAPI.NoteInput) async {
