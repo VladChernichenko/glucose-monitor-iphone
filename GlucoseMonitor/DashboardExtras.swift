@@ -210,9 +210,14 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
                         CarbGroupLabel(carbs: totalCarbs, x: centerX, y: plotFrame.minY + 18)
                     }
 
-                    // ── Insulin bars: one per note ─────────────────────────────
-                    ForEach(positioned.filter { $0.note.insulin > 0 }, id: \.note.id) { item in
-                        InsulinBarLabel(note: item.note, x: item.x, y: plotFrame.maxY - 18)
+                    // ── Insulin bars: grouped & summed ────────────────────────
+                    let insulinItems = positioned.filter { $0.note.insulin > 0 }
+                    let insulinGroups = Self.groupByProximity(insulinItems,
+                                                             threshold: Self.groupingThreshold)
+                    ForEach(Array(insulinGroups.enumerated()), id: \.offset) { _, group in
+                        let totalInsulin = group.map(\.note.insulin).reduce(0, +)
+                        let centerX      = group.map(\.x).reduce(0, +) / CGFloat(group.count)
+                        InsulinBarLabel(insulin: totalInsulin, x: centerX, y: plotFrame.maxY - 18)
                     }
                 }
             }
@@ -275,17 +280,16 @@ private struct CarbGroupLabel: View {
     }
 }
 
-// Insulin bar shown individually for every note that has insulin.
+// Insulin bar shown once per proximity group, displaying the summed value.
 private struct InsulinBarLabel: View {
-    let note: BackendAPI.GlucoseNote
+    let insulin: Double
     let x: CGFloat
     let y: CGFloat
 
     private var label: String {
-        let u = note.insulin
-        return abs(u - round(u)) < 0.05
-            ? String(format: "%.0f", u)
-            : String(format: "%.1f", u)
+        abs(insulin - round(insulin)) < 0.05
+            ? String(format: "%.0f", insulin)
+            : String(format: "%.1f", insulin)
     }
 
     var body: some View {
