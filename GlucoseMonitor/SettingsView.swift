@@ -10,9 +10,10 @@ private enum BackendPreset: String, CaseIterable, Identifiable {
         case .remote: return "Remote"
         }
     }
+    /// Static URL used only for preset matching; actual local URL is built from the stored IP.
     var url: String {
         switch self {
-        case .local: return "http://192.168.100.8:8080"
+        case .local: return GlucoseMonitorAPI.localBackendURL()
         case .remote: return GlucoseMonitorAPI.defaultBackendBaseURL
         }
     }
@@ -23,6 +24,7 @@ struct SettingsView: View {
 
     // Backend
     @State private var backendPreset: BackendPreset = .remote
+    @State private var localIP = ""
     @State private var username = ""
     @State private var password = ""
     @State private var signInStatus = ""
@@ -107,9 +109,26 @@ struct SettingsView: View {
                     Text(preset.title).tag(preset)
                 }
             }
-            .pickerStyle(.menu)
+            .pickerStyle(.segmented)
             .onChange(of: backendPreset) { newValue in
                 GlucoseMonitorAPI.storeBackendBaseURL(newValue.url)
+            }
+            if backendPreset == .local {
+                HStack {
+                    Text("IP")
+                        .foregroundColor(.secondary)
+                    TextField("192.168.1.10", text: $localIP)
+                        .keyboardType(.numbersAndPunctuation)
+                        .autocorrectionDisabled()
+                        .autocapitalization(.none)
+                        .onChange(of: localIP) { newIP in
+                            // Strip everything except digits and dots
+                            let filtered = newIP.filter { $0.isNumber || $0 == "." }
+                            if filtered != newIP { localIP = filtered; return }
+                            GlucoseMonitorAPI.storeLocalIP(filtered)
+                            GlucoseMonitorAPI.storeBackendBaseURL(GlucoseMonitorAPI.localBackendURL())
+                        }
+                }
             }
             Text(backendPreset.url)
                 .font(.caption)
@@ -282,13 +301,14 @@ struct SettingsView: View {
 
     private func loadStoredValues() {
         let ud = GlucoseMonitorAPI.sharedDefaults()
+        localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
         let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
         let normStored = storedBackend.isEmpty ? "" : Self.normalizeURLString(storedBackend)
-        let nLocal = Self.normalizeURLString(BackendPreset.local.url)
+        let nLocal = Self.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
         let nRemote = Self.normalizeURLString(BackendPreset.remote.url)
         if normStored.isEmpty {
             backendPreset = .remote
-        } else if normStored == nLocal {
+        } else if normStored == nLocal && !localIP.isEmpty {
             backendPreset = .local
         } else if normStored == nRemote {
             backendPreset = .remote

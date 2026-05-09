@@ -196,7 +196,7 @@ struct AddNoteSheet: View {
         NavigationStack {
             Form {
                 Section("Time") {
-                    DatePicker("Date & time", selection: $noteDate, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                 }
 
                 Section("Meal") {
@@ -323,7 +323,7 @@ struct EditNoteSheet: View {
         NavigationStack {
             Form {
                 Section("Time") {
-                    DatePicker("Date & time", selection: $noteDate, displayedComponents: [.date, .hourAndMinute])
+                    DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                 }
                 Section("Meal") {
                     Picker("Type", selection: $meal) {

@@ -62,6 +62,8 @@ struct GlucoseHistoryChart: View {
     let history: [GlucoseChartPoint]
     let prediction: [PredictionChartPoint]
     let notes: [BackendAPI.GlucoseNote]
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
 
     /// mmol/L band matching common target range (shown like Libre-style charts).
     private static let targetLowMmol: Double = 4
@@ -111,19 +113,33 @@ struct GlucoseHistoryChart: View {
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 160)
             } else {
-                chartCore
-                    .chartXAxis {
-                        AxisMarks(values: .automatic) { _ in
-                            AxisGridLine()
-                            AxisTick()
-                            AxisValueLabel(format: .dateTime.hour().minute())
+                ZStack {
+                    chartCore
+                        .chartXAxis {
+                            AxisMarks(values: .automatic) { _ in
+                                AxisGridLine()
+                                AxisTick()
+                                AxisValueLabel(format: .dateTime.hour().minute())
+                            }
                         }
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
-                    .frame(height: 220)
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+                        .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
+                }
+                .frame(height: 220)
+                .scaleEffect(scale, anchor: .topLeading)
+                .gesture(
+                    MagnificationGesture()
+                        .onChanged { value in
+                            scale = lastScale * value
+                        }
+                        .onEnded { value in
+                            let newScale = lastScale * value
+                            lastScale = max(1.0, min(3.0, newScale))
+                            scale = lastScale
+                        }
+                )
             }
         }
     }

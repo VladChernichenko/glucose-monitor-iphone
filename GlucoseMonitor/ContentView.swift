@@ -539,6 +539,7 @@ struct DashboardView: View {
 private struct RecentNoteRow: View {
     let note: BackendAPI.GlucoseNote
     @EnvironmentObject private var appState: AppState
+    @State private var confirmDelete = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -581,6 +582,21 @@ private struct RecentNoteRow: View {
             Spacer(minLength: 0)
             if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
                 NotePhotoThumbnail(urlString: photoUrl)
+            }
+            Button {
+                confirmDelete = true
+            } label: {
+                Text("Del")
+                    .font(.caption2.weight(.medium))
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+            .frame(alignment: .center)
+            .alert("Delete note?", isPresented: $confirmDelete) {
+                Button("Yes", role: .destructive) {
+                    Task { await appState.deleteNote(id: note.id) }
+                }
+                Button("No", role: .cancel) {}
             }
         }
         .padding(.vertical, 6)
