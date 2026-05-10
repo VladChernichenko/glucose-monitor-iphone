@@ -333,45 +333,91 @@ private struct TrianglePointer: Shape {
     }
 }
 
+// MARK: - Lightweight markdown renderer
+
+/// Renders a markdown string using SwiftUI primitives.
+/// Supports: # / ## / ### headers, **bold**, *italic*, `code`, bullet lists (- / *), horizontal rules (---).
+/// Inline bold/italic/code is handled via iOS 15 AttributedString markdown parsing.
+struct MarkdownTextView: View {
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                lineView(for: line)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var lines: [String] { text.components(separatedBy: "\n") }
+
+    @ViewBuilder
+    private func lineView(for line: String) -> some View {
+        if line.hasPrefix("### ") {
+            inlineText(String(line.dropFirst(4))).font(.title3.bold())
+        } else if line.hasPrefix("## ") {
+            inlineText(String(line.dropFirst(3))).font(.title2.bold())
+        } else if line.hasPrefix("# ") {
+            inlineText(String(line.dropFirst(2))).font(.title.bold())
+        } else if line == "---" || line == "***" || line == "___" {
+            Divider()
+        } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
+            HStack(alignment: .top, spacing: 6) {
+                Text("•").font(.body)
+                inlineText(String(line.dropFirst(2))).font(.body)
+            }
+        } else if line.isEmpty {
+            Spacer().frame(height: 4)
+        } else {
+            inlineText(line).font(.body)
+        }
+    }
+
+    /// Parses inline markdown (bold, italic, code) via AttributedString.
+    private func inlineText(_ raw: String) -> Text {
+        if let attributed = try? AttributedString(markdown: raw) {
+            return Text(attributed)
+        }
+        return Text(raw)
+    }
+}
+
 // MARK: - AI insights
 
 struct AIInsightsSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var isLoading = false
+    @State private var isStreaming = false
+    @State private var streamedMarkdown = ""
     @State private var errorMessage: String?
-    @State private var result: BackendAPI.AiAnalysisResult?
+    @State private var streamTask: Task<Void, Never>?
 
     var body: some View {
         NavigationStack {
             Group {
-                if isLoading {
-                    ProgressView("Analyzing last 12 hours...")
+                if isStreaming && streamedMarkdown.isEmpty {
+                    ProgressView("Analyzing last 12 hours…")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let err = errorMessage {
-                    Text(err)
-                        .foregroundColor(.red)
-                        .padding()
-                } else if let r = result {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            if let s = r.summary, !s.isEmpty {
-                                Text(s)
-                                    .font(.body)
-                            }
-                            if let recs = r.recommendations, !recs.isEmpty {
-                                Text("Recommendations")
-                                    .font(.headline)
-                                ForEach(Array(recs.enumerated()), id: \.offset) { _, item in
-                                    if let t = item.text, !t.isEmpty {
-                                        Text("- \(t)")
-                                            .font(.subheadline)
-                                    }
+                        Text(err)
+                            .foregroundColor(.red)
+                            .padding()
+                    }
+                } else if !streamedMarkdown.isEmpty {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            MarkdownTextView(text: streamedMarkdown)
+                                .textSelection(.enabled)
+                            if isStreaming {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                    Text("Generating…")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
-                            }
-                            if let d = r.disclaimer, !d.isEmpty {
-                                Text(d)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                .padding(.top, 8)
                             }
                         }
                         .padding()
@@ -387,25 +433,38 @@ struct AIInsightsSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("Close") {
+                        streamTask?.cancel()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Run") { Task { await run() } }
-                    .disabled(isLoading)
+                    Button("Run") { startStream() }
+                        .disabled(isStreaming)
                 }
             }
-            .task { await run() }
+            .task { startStream() }
+            .onDisappear { streamTask?.cancel() }
         }
     }
 
-    private func run() async {
-        isLoading = true
+    private func startStream() {
+        streamTask?.cancel()
+        streamedMarkdown = ""
         errorMessage = nil
-        defer { isLoading = false }
-        do {
-            result = try await BackendAPI.fetchAiRetrospective(windowHours: 12)
-        } catch {
-            errorMessage = error.localizedDescription
+        isStreaming = true
+
+        streamTask = Task {
+            do {
+                try await BackendAPI.streamAiRetrospective(windowHours: 12) { token in
+                    streamedMarkdown += token
+                }
+            } catch is CancellationError {
+                // dismissed — no error message needed
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isStreaming = false
         }
     }
 }

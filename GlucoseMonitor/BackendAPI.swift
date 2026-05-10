@@ -663,6 +663,38 @@ enum BackendAPI {
         }
     }
 
+    /// Streams markdown tokens from the backend NDJSON endpoint.
+    /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.
+    /// Returns when the `{"type":"done"}` event is received or the stream ends.
+    static func streamAiRetrospective(
+        windowHours: Int = 12,
+        onToken: @MainActor @escaping (String) -> Void
+    ) async throws {
+        struct Body: Encodable { let windowHours: Int }
+        struct StreamEvent: Decodable {
+            let type: String
+            let token: String?
+        }
+
+        var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
+        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours))
+
+        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
+        try checkStatus(resp, data: Data())
+
+        for try await line in bytes.lines {
+            guard !line.isEmpty,
+                  let data = line.data(using: .utf8),
+                  let event = try? JSONDecoder().decode(StreamEvent.self, from: data)
+            else { continue }
+
+            if event.type == "done" { break }
+            if event.type == "token", let tok = event.token {
+                await onToken(tok)
+            }
+        }
+    }
+
     // MARK: - Nutrition
 
     static func analyzeNutrition(ingredientsText: String, fallbackCarbs: Double?) async throws -> NutritionSnapshot {
