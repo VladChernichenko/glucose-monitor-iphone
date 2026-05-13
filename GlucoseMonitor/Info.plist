@@ -13,5 +13,7 @@
 	<string>Take a photo of your meal to log it with your glucose reading.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Meal photos are saved to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a meal photo from your library to analyze its nutrition.</string>
 </dict>
 </plist>

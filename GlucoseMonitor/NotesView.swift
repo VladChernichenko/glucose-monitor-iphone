@@ -434,13 +434,14 @@ struct EditNoteSheet: View {
 
 struct CameraPickerView: UIViewControllerRepresentable {
     @Binding var isPresented: Bool
+    var sourceType: UIImagePickerController.SourceType = .camera
     let onCapture: (UIImage) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(sourceType) ? sourceType : .photoLibrary
         picker.delegate = context.coordinator
         return picker
     }
@@ -481,14 +482,16 @@ struct FoodScanSheet: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var showCamera = true
+    @State private var showCamera = false
+    @State private var showLibrary = false
+    @State private var showSourcePicker = true
     @State private var step: FoodScanStep = .analyzing
     @State private var capturedImage: UIImage?
 
     var body: some View {
         NavigationStack {
             Group {
-                if showCamera {
+                if showCamera || showLibrary {
                     Color.black.ignoresSafeArea()
                 } else {
                     switch step {
@@ -513,10 +516,26 @@ struct FoodScanSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .confirmationDialog("Choose Image Source", isPresented: $showSourcePicker, titleVisibility: .visible) {
+                Button("Take Photo") { showCamera = true }
+                Button("Choose from Library") { showLibrary = true }
+                Button("Cancel", role: .cancel) { dismiss() }
+            }
             .fullScreenCover(isPresented: $showCamera, onDismiss: {
                 if capturedImage == nil { dismiss() }
             }) {
-                CameraPickerView(isPresented: $showCamera) { image in
+                CameraPickerView(isPresented: $showCamera, sourceType: .camera) { image in
+                    Task { @MainActor in
+                        capturedImage = image
+                        await analyze(image)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+            .fullScreenCover(isPresented: $showLibrary, onDismiss: {
+                if capturedImage == nil { dismiss() }
+            }) {
+                CameraPickerView(isPresented: $showLibrary, sourceType: .photoLibrary) { image in
                     Task { @MainActor in
                         capturedImage = image
                         await analyze(image)
@@ -554,7 +573,7 @@ struct FoodScanSheet: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            Button("Try Again") { showCamera = true }
+            Button("Try Again") { showSourcePicker = true }
                 .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
