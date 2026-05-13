@@ -205,6 +205,7 @@ struct AddNoteSheet: View {
     @State private var carbs: Int = 0       // steps of 10 g
     @State private var insulin: Int = 0     // steps of 1 u
     @State private var comment = ""
+    @State private var manualGlucose = ""   // mmol/L typed by user
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
@@ -247,12 +248,7 @@ struct AddNoteSheet: View {
                         .frame(height: 120)
                     }
 
-                   
-
-                    formReadonlyRow(
-                        label: "Glucose at time",
-                        valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: nil)
-                    )
+                    glucoseInputRow(cgmValue: appState.glucoseMmolForNewNote(at: noteDate))
                 }
 
                 Section("Comment") {
@@ -263,6 +259,7 @@ struct AddNoteSheet: View {
             .navigationTitle("Add Note")
             .task {
                 await appState.refreshGlucoseOnly()
+                prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
             }
             .navigationBarTitleDisplayMode(.inline)
             .dismissKeyboardOnInteraction()
@@ -281,18 +278,44 @@ struct AddNoteSheet: View {
         }
     }
 
+    @ViewBuilder
+    private func glucoseInputRow(cgmValue: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Glucose (mmol/L)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                TextField(cgmValue.map { String(format: "%.1f", $0) } ?? "e.g. 5.5",
+                          text: $manualGlucose)
+                    .keyboardType(.decimalPad)
+                if let cgm = cgmValue, manualGlucose.isEmpty {
+                    Text(String(format: "%.1f", cgm))
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
+            }
+        }
+    }
+
+    private func prefillGlucoseIfEmpty(_ value: Double?) {
+        guard manualGlucose.isEmpty, let v = value else { return }
+        manualGlucose = String(format: "%.1f", v)
+    }
+
     private func saveTapped() {
         guard !isSaving else { return }
         hideKeyboard()
         Task {
             await MainActor.run { isSaving = true }
+            let glucoseVal = Double(manualGlucose.replacingOccurrences(of: ",", with: "."))
+                ?? appState.glucoseMmolForNewNote(at: noteDate)
             let input = BackendAPI.NoteInput(
                 timestamp: BackendAPI.formatNoteTimestampForRequest(noteDate),
                 carbs: Double(carbs),
                 insulin: Double(insulin),
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
-                glucoseValue: appState.glucoseMmolForNewNote(at: noteDate),
+                glucoseValue: glucoseVal,
                 absorptionMode: nil
             )
             await onCreate(input)
@@ -319,6 +342,7 @@ struct EditNoteSheet: View {
     @State private var carbs: Int           // steps of 10 g
     @State private var insulin: Int         // steps of 1 u
     @State private var comment: String
+    @State private var manualGlucose: String
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
@@ -330,12 +354,12 @@ struct EditNoteSheet: View {
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
-        // Round to nearest picker step; clamp to range.
         let roundedCarbs = min(200, max(0, Int((note.carbs / 10).rounded()) * 10))
         let roundedInsulin = min(30, max(0, Int(note.insulin.rounded())))
         _carbs = State(initialValue: roundedCarbs)
         _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
+        _manualGlucose = State(initialValue: note.glucoseValue.map { String(format: "%.1f", $0) } ?? "")
     }
 
     var body: some View {
@@ -374,10 +398,7 @@ struct EditNoteSheet: View {
                         .frame(height: 120)
                     }
 
-                    formReadonlyRow(
-                        label: "Glucose at time",
-                        valueText: appState.formattedGlucoseAtNoteTime(noteDate, storedOnNote: note.glucoseValue)
-                    )
+                    editGlucoseRow()
                 }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical)
@@ -405,19 +426,31 @@ struct EditNoteSheet: View {
         }
     }
 
+    @ViewBuilder
+    private func editGlucoseRow() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Glucose (mmol/L)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            TextField("e.g. 5.5", text: $manualGlucose)
+                .keyboardType(.decimalPad)
+        }
+    }
+
     private func saveTapped() {
         guard !isSaving else { return }
         hideKeyboard()
         Task {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
+            let glucoseVal = Double(manualGlucose.replacingOccurrences(of: ",", with: "."))
             let body = BackendAPI.UpdateNoteBody(
                 timestamp: ts,
                 carbs: Double(carbs),
                 insulin: Double(insulin),
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
-                glucoseValue: nil
+                glucoseValue: glucoseVal
             )
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)
