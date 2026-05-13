@@ -222,28 +222,38 @@ struct DashboardView: View {
                         .background(Capsule().fill(Color.green.opacity(0.12)))
                     }
                 }
-            } else if let lastNote = appState.notes
-                        .filter({ $0.glucoseValue != nil && $0.timestamp != nil })
-                        .sorted(by: { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) })
-                        .first,
-                      let gv = lastNote.glucoseValue,
-                      let ts = lastNote.timestamp {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Manual reading")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(String(format: "%.1f", gv))
-                            .font(.system(size: 40, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(Color.orange)
-                        Text("mmol/L")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.secondary)
+            } else if let manual = appState.latestManualGlucose {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            glucosePredictionHeadline(
+                                current: manual.value,
+                                unit: "mmol/L",
+                                calc: calc,
+                                expanded: showExtendedForecast
+                            )
+                            .minimumScaleFactor(0.55)
+                            .lineLimit(1)
+                            .animation(.easeInOut(duration: 0.2), value: showExtendedForecast)
+                            .onTapGesture {
+                                guard calc?.predictionPath?.isEmpty == false else { return }
+                                withAnimation(.easeInOut(duration: 0.2)) { showExtendedForecast.toggle() }
+                            }
+                            (Text("Manual · ") + Text(manual.timestamp, style: .relative) + Text(" ago"))
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            compactStackedMetric(icon: "fork.knife",  title: "COB", value: cobStr, tint: Self.dashboardCobTint)
+                            compactStackedMetric(icon: "syringe.fill", title: "IOB", value: iobStr, tint: Self.dashboardIobTint)
+                        }
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.primary.opacity(0.04)))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.primary.opacity(0.06), lineWidth: 1))
                     }
-                    (Text("From note · ") + Text(ts, style: .relative) + Text(" ago"))
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {

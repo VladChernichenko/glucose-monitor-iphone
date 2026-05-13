@@ -54,13 +54,29 @@ final class AppState: ObservableObject {
     }
 
     /// Glucose value in mmol/L for `POST /api/glucose-calculations/` (web sends mmol).
+    /// Falls back to the most recent manually logged note glucoseValue (within 4h) when no CGM.
     func currentGlucoseMmolForAPI() -> Double? {
-        guard let v = currentReading?.value else { return nil }
-        let unit = currentReading?.unit ?? "mmol/L"
-        if unit.lowercased().contains("mg") {
-            return v / 18.018
+        if let v = currentReading?.value {
+            let unit = currentReading?.unit ?? "mmol/L"
+            return unit.lowercased().contains("mg") ? v / 18.018 : v
         }
-        return v
+        let cutoff = Date().addingTimeInterval(-4 * 3600)
+        return notes
+            .filter { $0.glucoseValue != nil && ($0.timestamp ?? .distantPast) >= cutoff }
+            .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
+            .first?.glucoseValue
+    }
+
+    /// Most recent manually logged glucose from notes (within 4h), regardless of CGM.
+    var latestManualGlucose: (value: Double, timestamp: Date)? {
+        let cutoff = Date().addingTimeInterval(-4 * 3600)
+        guard let note = notes
+            .filter({ $0.glucoseValue != nil && ($0.timestamp ?? .distantPast) >= cutoff })
+            .sorted(by: { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) })
+            .first,
+              let gv = note.glucoseValue, let ts = note.timestamp
+        else { return nil }
+        return (gv, ts)
     }
 
     /// Nearest chart point in mmol/L to `target` if within `maxDelta` seconds.
@@ -283,7 +299,7 @@ final class AppState: ObservableObject {
     func updateNote(id: String, body: BackendAPI.UpdateNoteBody) async {
         if let updated = try? await BackendAPI.updateNote(id: id, body: body) {
             if let idx = notes.firstIndex(where: { $0.id == id }) {
-                notes[idx] = updated
+                notes[idx] = updated  // note with new glucoseValue in place before calculations
             }
             await refreshGlucoseOnly()
             await refreshCalculations()
