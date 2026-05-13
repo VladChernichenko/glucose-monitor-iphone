@@ -17,11 +17,13 @@ private func formReadonlyRow(label: String, valueText: String) -> some View {
 private enum NoteSheet: Identifiable {
     case add
     case edit(BackendAPI.GlucoseNote)
+    case foodScan
 
     var id: String {
         switch self {
         case .add: return "add"
         case .edit(let n): return n.id
+        case .foodScan: return "foodScan"
         }
     }
 }
@@ -63,7 +65,10 @@ struct NotesView: View {
             .navigationTitle("Notes")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    addNoteButton
+                    HStack(spacing: 4) {
+                        scanFoodButton
+                        addNoteButton
+                    }
                 }
             }
             .sheet(item: $activeSheet) { sheet in
@@ -76,6 +81,11 @@ struct NotesView: View {
                 case .edit(let note):
                     EditNoteSheet(note: note) { body in
                         await appState.updateNote(id: note.id, body: body)
+                    }
+                    .environmentObject(appState)
+                case .foodScan:
+                    FoodScanSheet { input in
+                        await appState.createNote(input)
                     }
                     .environmentObject(appState)
                 }
@@ -93,6 +103,15 @@ struct NotesView: View {
             activeSheet = .add
         } label: {
             Image(systemName: "plus")
+        }
+        .disabled(!appState.isAuthenticated)
+    }
+
+    private var scanFoodButton: some View {
+        Button {
+            activeSheet = .foodScan
+        } label: {
+            Image(systemName: "camera.viewfinder")
         }
         .disabled(!appState.isAuthenticated)
     }
@@ -408,5 +427,274 @@ struct EditNoteSheet: View {
                 dismiss()
             }
         }
+    }
+}
+
+// MARK: - Camera Picker
+
+struct CameraPickerView: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onCapture: (UIImage) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(.camera) ? .camera : .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: CameraPickerView
+        init(_ parent: CameraPickerView) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            guard let image = info[.originalImage] as? UIImage else {
+                parent.isPresented = false
+                return
+            }
+            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            parent.isPresented = false
+            parent.onCapture(image)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
+        }
+    }
+}
+
+// MARK: - Food Scan Sheet
+
+private enum FoodScanStep {
+    case analyzing
+    case result(BackendAPI.NutritionSnapshot)
+    case error(String)
+}
+
+struct FoodScanSheet: View {
+    let onCreate: (BackendAPI.NoteInput) async -> Void
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var showCamera = true
+    @State private var step: FoodScanStep = .analyzing
+    @State private var capturedImage: UIImage?
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if showCamera {
+                    Color.black.ignoresSafeArea()
+                } else {
+                    switch step {
+                    case .analyzing:
+                        analyzingView
+                    case .result(let snap):
+                        NutritionResultView(
+                            snapshot: snap,
+                            image: capturedImage,
+                            onCreate: onCreate
+                        )
+                        .environmentObject(appState)
+                    case .error(let msg):
+                        errorView(msg)
+                    }
+                }
+            }
+            .navigationTitle("Scan Food")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .fullScreenCover(isPresented: $showCamera, onDismiss: {
+                if capturedImage == nil { dismiss() }
+            }) {
+                CameraPickerView(isPresented: $showCamera) { image in
+                    Task { @MainActor in
+                        capturedImage = image
+                        await analyze(image)
+                    }
+                }
+                .ignoresSafeArea()
+            }
+        }
+    }
+
+    private var analyzingView: some View {
+        VStack(spacing: 20) {
+            if let img = capturedImage {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 240)
+                    .cornerRadius(12)
+                    .padding(.horizontal)
+            }
+            ProgressView("Recognizing nutrition…")
+                .font(.headline)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundColor(.orange)
+            Text("Analysis failed")
+                .font(.title2.bold())
+            Text(message)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button("Try Again") { showCamera = true }
+                .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @MainActor
+    private func analyze(_ image: UIImage) async {
+        step = .analyzing
+        do {
+            let snap = try await BackendAPI.analyzePhotoNutrition(image: image)
+            step = .result(snap)
+        } catch {
+            step = .error(error.localizedDescription)
+        }
+    }
+}
+
+// MARK: - Nutrition Result View
+
+struct NutritionResultView: View {
+    let snapshot: BackendAPI.NutritionSnapshot
+    let image: UIImage?
+    let onCreate: (BackendAPI.NoteInput) async -> Void
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var meal = "Lunch"
+    @State private var isSaving = false
+    private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
+
+    var body: some View {
+        List {
+            if let img = image {
+                Section {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 200)
+                        .frame(maxWidth: .infinity)
+                        .cornerRadius(10)
+                        .listRowInsets(EdgeInsets())
+                }
+            }
+
+            Section("Detected foods") {
+                if let foods = snapshot.normalizedFoods, !foods.isEmpty {
+                    ForEach(foods, id: \.self) { food in
+                        Text(food.capitalized)
+                    }
+                } else {
+                    Text("No foods identified")
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Section("Nutrition") {
+                nutritionRow("Carbs", value: snapshot.totalCarbs, unit: "g")
+                nutritionRow("Fiber", value: snapshot.fiber, unit: "g")
+                nutritionRow("Protein", value: snapshot.protein, unit: "g")
+                nutritionRow("Fat", value: snapshot.fat, unit: "g")
+                nutritionRow("Glycemic Index", value: snapshot.estimatedGi, unit: "")
+                nutritionRow("Glycemic Load", value: snapshot.glycemicLoad, unit: "")
+                if let speed = snapshot.absorptionSpeedClass {
+                    HStack {
+                        Text("Absorption")
+                        Spacer()
+                        Text(speed.capitalized)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Section("Add to note as") {
+                Picker("Meal type", selection: $meal) {
+                    ForEach(meals, id: \.self) { Text($0) }
+                }
+            }
+
+            Section {
+                Button(action: addToNote) {
+                    if isSaving {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        Text("Add to Note")
+                            .frame(maxWidth: .infinity)
+                            .bold()
+                    }
+                }
+                .disabled(isSaving)
+            }
+        }
+        .navigationTitle("Nutrition")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func nutritionRow(_ label: String, value: Double?, unit: String) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            if let v = value {
+                Text(unit.isEmpty ? String(format: "%.0f", v) : String(format: "%.1f %@", v, unit))
+                    .foregroundColor(.secondary)
+            } else {
+                Text("—").foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func addToNote() {
+        guard !isSaving else { return }
+        isSaving = true
+        let carbs = Int((snapshot.totalCarbs ?? 0).rounded())
+        let input = BackendAPI.NoteInput(
+            timestamp: BackendAPI.formatNoteTimestampForRequest(Date()),
+            carbs: Double(carbs),
+            insulin: 0,
+            meal: meal,
+            comment: buildComment(),
+            glucoseValue: appState.glucoseMmolForNewNote(at: Date()),
+            absorptionMode: snapshot.absorptionMode
+        )
+        Task {
+            await onCreate(input)
+            try? await Task.sleep(nanoseconds: 80_000_000)
+            await MainActor.run {
+                isSaving = false
+                dismiss()
+            }
+        }
+    }
+
+    private func buildComment() -> String? {
+        var parts: [String] = []
+        if let foods = snapshot.normalizedFoods, !foods.isEmpty {
+            parts.append(foods.joined(separator: ", "))
+        }
+        if let gi = snapshot.estimatedGi {
+            parts.append("GI \(Int(gi))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

@@ -455,6 +455,26 @@ enum BackendAPI {
         return image
     }
 
+    private static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+        let side = max(image.size.width, image.size.height)
+        guard side > maxSide else { return image }
+        let scale = maxSide / side
+        let newSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: newSize)) }
+    }
+
+    /// Tries decreasing JPEG quality until the data fits under 1 MB (LogMeal's hard limit).
+    private static func compressUnder1MB(_ image: UIImage) -> Data? {
+        let limit = 1_000_000
+        for quality in [0.6, 0.5, 0.4, 0.3] {
+            if let data = image.jpegData(compressionQuality: quality), data.count < limit {
+                return data
+            }
+        }
+        return image.jpegData(compressionQuality: 0.2)
+    }
+
     // MARK: - COB Settings
 
     static func fetchCOBSettings() async throws -> COBSettings {
@@ -696,6 +716,40 @@ enum BackendAPI {
     }
 
     // MARK: - Nutrition
+
+    /// Send a meal photo to the backend vision LLM and get a NutritionSnapshot back.
+    static func analyzePhotoNutrition(image: UIImage) async throws -> NutritionSnapshot {
+        let squareImage = cropToSquare(image)
+        let resized = resizeImage(squareImage, maxSide: 1024)
+        guard let jpeg = compressUnder1MB(resized) else {
+            throw GlucoseMonitorAPI.APIError.decoding(
+                NSError(domain: "BackendAPI", code: 0,
+                        userInfo: [NSLocalizedDescriptionKey: "Could not compress image under 1 MB"])
+            )
+        }
+        return try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/nutrition/analyze-image", method: "POST")
+            let boundary = "Boundary-\(UUID().uuidString)"
+            req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            var body = Data()
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"photo\"; filename=\"meal.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(jpeg)
+            body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+            req.httpBody = body
+            req.timeoutInterval = 300
+            let session = URLSession(configuration: {
+                let c = URLSessionConfiguration.default
+                c.timeoutIntervalForRequest = 300
+                c.timeoutIntervalForResource = 300
+                return c
+            }())
+            let (data, resp) = try await session.data(for: req)
+            try checkStatus(resp, data: data)
+            return try JSONDecoder().decode(NutritionSnapshot.self, from: data)
+        }
+    }
 
     static func analyzeNutrition(ingredientsText: String, fallbackCarbs: Double?) async throws -> NutritionSnapshot {
         try await performWithRefresh {
