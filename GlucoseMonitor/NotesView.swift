@@ -205,12 +205,13 @@ struct AddNoteSheet: View {
     @State private var carbs: Int = 0       // steps of 10 g
     @State private var insulin: Int = 0     // steps of 1 u
     @State private var comment = ""
-    @State private var manualGlucose = ""   // mmol/L typed by user
+    @State private var glucoseWheelValue: Double = 0.0  // 0.0 = not set
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private let carbOptions   = Array(stride(from: 0, through: 200, by: 10))
     private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
+    private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1).map { (($0 * 10).rounded() / 10) }
 
     var body: some View {
         NavigationStack {
@@ -248,7 +249,7 @@ struct AddNoteSheet: View {
                         .frame(height: 120)
                     }
 
-                    glucoseInputRow(cgmValue: appState.glucoseMmolForNewNote(at: noteDate))
+                    glucoseWheelRow()
                 }
 
                 Section("Comment") {
@@ -260,6 +261,7 @@ struct AddNoteSheet: View {
             .task {
                 await appState.refreshGlucoseOnly()
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
+
             }
             .navigationBarTitleDisplayMode(.inline)
             .dismissKeyboardOnInteraction()
@@ -279,27 +281,26 @@ struct AddNoteSheet: View {
     }
 
     @ViewBuilder
-    private func glucoseInputRow(cgmValue: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+    private func glucoseWheelRow() -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             Text("Glucose (mmol/L)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            HStack {
-                TextField(cgmValue.map { String(format: "%.1f", $0) } ?? "e.g. 5.5",
-                          text: $manualGlucose)
-                    .keyboardType(.decimalPad)
-                if let cgm = cgmValue, manualGlucose.isEmpty {
-                    Text(String(format: "%.1f", cgm))
-                        .foregroundStyle(.secondary)
-                        .font(.subheadline)
+            Picker("Glucose", selection: $glucoseWheelValue) {
+                Text("—").tag(0.0)
+                ForEach(Self.glucoseOptions.dropFirst(), id: \.self) { v in
+                    Text(String(format: "%.1f", v)).tag(v)
                 }
             }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
         }
     }
 
     private func prefillGlucoseIfEmpty(_ value: Double?) {
-        guard manualGlucose.isEmpty, let v = value else { return }
-        manualGlucose = String(format: "%.1f", v)
+        guard glucoseWheelValue == 0.0, let v = value else { return }
+        let snapped = (v * 10).rounded() / 10
+        glucoseWheelValue = Self.glucoseOptions.contains(snapped) ? snapped : 0.0
     }
 
     private func saveTapped() {
@@ -307,8 +308,8 @@ struct AddNoteSheet: View {
         hideKeyboard()
         Task {
             await MainActor.run { isSaving = true }
-            let glucoseVal = Double(manualGlucose.replacingOccurrences(of: ",", with: "."))
-                ?? appState.glucoseMmolForNewNote(at: noteDate)
+            let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue
+                : appState.glucoseMmolForNewNote(at: noteDate)
             let input = BackendAPI.NoteInput(
                 timestamp: BackendAPI.formatNoteTimestampForRequest(noteDate),
                 carbs: Double(carbs),
@@ -342,12 +343,13 @@ struct EditNoteSheet: View {
     @State private var carbs: Int           // steps of 10 g
     @State private var insulin: Int         // steps of 1 u
     @State private var comment: String
-    @State private var manualGlucose: String
+    @State private var glucoseWheelValue: Double
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private let carbOptions    = Array(stride(from: 0, through: 200, by: 10))
     private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
+    private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1).map { (($0 * 10).rounded() / 10) }
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
@@ -359,7 +361,8 @@ struct EditNoteSheet: View {
         _carbs = State(initialValue: roundedCarbs)
         _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
-        _manualGlucose = State(initialValue: note.glucoseValue.map { String(format: "%.1f", $0) } ?? "")
+        let snapped = note.glucoseValue.map { (($0 * 10).rounded() / 10) } ?? 0.0
+        _glucoseWheelValue = State(initialValue: snapped)
     }
 
     var body: some View {
@@ -428,12 +431,18 @@ struct EditNoteSheet: View {
 
     @ViewBuilder
     private func editGlucoseRow() -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text("Glucose (mmol/L)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField("e.g. 5.5", text: $manualGlucose)
-                .keyboardType(.decimalPad)
+            Picker("Glucose", selection: $glucoseWheelValue) {
+                Text("—").tag(0.0)
+                ForEach(Self.glucoseOptions.dropFirst(), id: \.self) { v in
+                    Text(String(format: "%.1f", v)).tag(v)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
         }
     }
 
@@ -443,7 +452,7 @@ struct EditNoteSheet: View {
         Task {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
-            let glucoseVal = Double(manualGlucose.replacingOccurrences(of: ",", with: "."))
+            let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue : nil
             let body = BackendAPI.UpdateNoteBody(
                 timestamp: ts,
                 carbs: Double(carbs),
