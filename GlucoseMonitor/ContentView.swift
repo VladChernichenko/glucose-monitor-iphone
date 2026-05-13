@@ -222,6 +222,30 @@ struct DashboardView: View {
                         .background(Capsule().fill(Color.green.opacity(0.12)))
                     }
                 }
+            } else if let lastNote = appState.notes
+                        .filter({ $0.glucoseValue != nil && $0.timestamp != nil })
+                        .sorted(by: { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) })
+                        .first,
+                      let gv = lastNote.glucoseValue,
+                      let ts = lastNote.timestamp {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Manual reading")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(String(format: "%.1f", gv))
+                            .font(.system(size: 40, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(Color.orange)
+                        Text("mmol/L")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    (Text("From note · ") + Text(ts, style: .relative) + Text(" ago"))
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 VStack(spacing: 8) {
                     Image(systemName: "drop.circle")

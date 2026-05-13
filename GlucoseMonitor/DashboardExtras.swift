@@ -185,6 +185,23 @@ struct GlucoseHistoryChart: View {
                 }
             }
 
+            // Manual glucose readings from notes (orange dots)
+            ForEach(notesOnChart.filter { $0.glucoseValue != nil }) { note in
+                if let t = note.timestamp, let gv = note.glucoseValue {
+                    PointMark(
+                        x: .value("Time", t),
+                        y: .value("mmol/L", gv)
+                    )
+                    .symbolSize(80)
+                    .foregroundStyle(Color.orange)
+                    .annotation(position: .top, spacing: 4) {
+                        Text(String(format: "%.1f", gv))
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(Color.orange)
+                    }
+                }
+            }
+
             // Vertical "now" line — black in light mode, white in dark mode
             RuleMark(x: .value("Now", Date()))
                 .foregroundStyle(Color.primary.opacity(0.75))
