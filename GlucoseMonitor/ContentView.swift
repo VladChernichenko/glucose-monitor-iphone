@@ -144,11 +144,11 @@ struct DashboardView: View {
         let iobStr = appState.displayedIOB.map { String(format: "%.2f u", $0) } ?? "--"
 
         return Group {
-            if appState.isLoading && appState.currentReading == nil {
+            if appState.isLoading && appState.freshCGMReading == nil {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-            } else if let r = appState.currentReading, let v = r.value {
+            } else if let r = appState.freshCGMReading, let v = r.value {
                 let displayUnit = appState.preferredGlucoseUnit
                 let displayValue = convertGlucose(v, from: r.unit, to: displayUnit)
                 VStack(alignment: .leading, spacing: 10) {

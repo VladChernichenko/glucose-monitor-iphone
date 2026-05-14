@@ -56,7 +56,9 @@ final class AppState: ObservableObject {
     /// Glucose value in mmol/L for `POST /api/glucose-calculations/` (web sends mmol).
     /// Falls back to the most recent manually logged note glucoseValue (within 4h) when no CGM.
     func currentGlucoseMmolForAPI() -> Double? {
-        if let v = currentReading?.value {
+        let cgmStaleCutoff = Date().addingTimeInterval(-30 * 60)
+        if let v = currentReading?.value,
+           let ts = currentReading?.timestamp, ts >= cgmStaleCutoff {
             let unit = currentReading?.unit ?? "mmol/L"
             return unit.lowercased().contains("mg") ? v / 18.018 : v
         }
@@ -65,6 +67,13 @@ final class AppState: ObservableObject {
             .filter { $0.glucoseValue != nil && ($0.timestamp ?? .distantPast) >= cutoff }
             .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
             .first?.glucoseValue
+    }
+
+    /// CGM reading only if received within the last 30 minutes; nil if stale.
+    var freshCGMReading: GlucoseMonitorAPI.LibreGlucoseCurrent? {
+        guard let r = currentReading, let ts = r.timestamp,
+              ts >= Date().addingTimeInterval(-30 * 60) else { return nil }
+        return r
     }
 
     /// Most recent manually logged glucose from notes (within 4h), regardless of CGM.
