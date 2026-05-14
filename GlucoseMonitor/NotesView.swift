@@ -660,6 +660,13 @@ struct NutritionResultView: View {
                 }
             }
 
+            // Pre-bolus recommendation banner
+            if let pause = snapshot.preBolusPauseMinutes {
+                Section {
+                    preBolusBanner(pause: pause)
+                }
+            }
+
             Section("Detected foods") {
                 if let foods = snapshot.normalizedFoods, !foods.isEmpty {
                     ForEach(foods, id: \.self) { food in
@@ -686,6 +693,32 @@ struct NutritionResultView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                if let strategy = snapshot.bolusStrategy {
+                    HStack {
+                        Text("Bolus type")
+                        Spacer()
+                        Text(strategy)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                if let h = snapshot.suggestedDurationHours {
+                    HStack {
+                        Text("Absorption window")
+                        Spacer()
+                        Text(String(format: "%.0f h", h))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            // Glucose forecast based on food type
+            if let curve = snapshot.curveDescription {
+                Section("Glucose curve") {
+                    Text(curve)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    glucoseForecastRow()
+                }
             }
 
             Section("Add to note as") {
@@ -710,6 +743,87 @@ struct NutritionResultView: View {
         }
         .navigationTitle("Nutrition")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private func preBolusBanner(pause: Int) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "syringe.fill")
+                .font(.title2)
+                .foregroundStyle(.white)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(Color.purple))
+            VStack(alignment: .leading, spacing: 2) {
+                if pause == 0 {
+                    Text("Bolus at meal start")
+                        .font(.headline)
+                    Text("Split or post-meal bolus — inject when you begin eating")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Inject \(pause) min before eating")
+                        .font(.headline)
+                    Text(preBolusPauseReason(pause: pause))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    private func preBolusPauseReason(pause: Int) -> String {
+        switch pause {
+        case 20...: return "High-GI food — early injection prevents post-meal spike"
+        case 15..<20: return "Medium-GI food — pre-bolus improves peak control"
+        case 10..<15: return "Low-medium GI — short head-start recommended"
+        default:     return "Low-GI / high-fiber — minimal pre-bolus needed"
+        }
+    }
+
+    @ViewBuilder
+    private func glucoseForecastRow() -> some View {
+        let calc = appState.calculations
+        let cur = appState.currentGlucoseMmolForAPI()
+        HStack(spacing: 0) {
+            forecastCell(label: "Now", value: cur)
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity)
+            forecastCell(label: "2 h", value: calc?.twoHourPrediction)
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity)
+            forecastCell(label: "4 h", value: calc?.fourHourPrediction)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func forecastCell(label: String, value: Double?) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+            if let v = value {
+                Text(String(format: "%.1f", v))
+                    .font(.title3.bold())
+                    .foregroundStyle(glucoseColor(v))
+            } else {
+                Text("—")
+                    .font(.title3.bold())
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func glucoseColor(_ mmol: Double) -> Color {
+        if mmol < 4.0 { return .red }
+        if mmol > 10.0 { return .orange }
+        return .green
     }
 
     private func nutritionRow(_ label: String, value: Double?, unit: String) -> some View {

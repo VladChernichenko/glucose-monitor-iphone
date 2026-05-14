@@ -124,6 +124,7 @@ enum BackendAPI {
         let activeCarbsOnBoard: Double
         let activeInsulinOnBoard: Double
         let twoHourPrediction: Double
+        let fourHourPrediction: Double?
         let predictionTrend: String
         let confidence: Double
         let factors: PredictionFactors?
@@ -289,6 +290,13 @@ enum BackendAPI {
         let glycemicLoad: Double?
         let absorptionSpeedClass: String?
         let normalizedFoods: [String]?
+        // Glycemic pattern fields
+        let patternName: String?
+        let bolusStrategy: String?
+        let suggestedDurationHours: Double?
+        let mealSequencingPriority: Int?
+        let curveDescription: String?
+        let preBolusPauseMinutes: Int?
     }
 
     struct BackendVersionPayload: Decodable {
