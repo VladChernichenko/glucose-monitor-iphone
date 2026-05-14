@@ -137,8 +137,8 @@ enum BackendAPI {
         }
 
         enum CodingKeys: String, CodingKey {
-            case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, predictionTrend, confidence
-            case factors, predictionPath
+            case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
+            case predictionTrend, confidence, factors, predictionPath
         }
 
         init(from decoder: Decoder) throws {
@@ -146,6 +146,7 @@ enum BackendAPI {
             activeCarbsOnBoard = Self.decodeFlexible(c, key: .activeCarbsOnBoard) ?? 0
             activeInsulinOnBoard = Self.decodeFlexible(c, key: .activeInsulinOnBoard) ?? 0
             twoHourPrediction = Self.decodeFlexible(c, key: .twoHourPrediction) ?? 0
+            fourHourPrediction = Self.decodeFlexible(c, key: .fourHourPrediction)
             predictionTrend = try c.decodeIfPresent(String.self, forKey: .predictionTrend) ?? "stable"
             confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
             factors = try? c.decode(PredictionFactors.self, forKey: .factors)
