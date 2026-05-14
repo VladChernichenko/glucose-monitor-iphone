@@ -223,11 +223,12 @@ struct DashboardView: View {
                     }
                 }
             } else if let manual = appState.latestManualGlucose {
+                let effectiveCurrent = appState.effectiveManualGlucoseMmol ?? manual.value
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
                             glucosePredictionHeadline(
-                                current: manual.value,
+                                current: effectiveCurrent,
                                 unit: "mmol/L",
                                 calc: calc,
                                 expanded: showExtendedForecast

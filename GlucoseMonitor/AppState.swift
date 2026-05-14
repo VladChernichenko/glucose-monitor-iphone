@@ -88,6 +88,26 @@ final class AppState: ObservableObject {
         return (gv, ts)
     }
 
+    /// Effective current glucose in manual mode: prediction-path value at now (accounts for IOB
+    /// decay since logging time), or the raw logged value if no path is available.
+    var effectiveManualGlucoseMmol: Double? {
+        guard let manual = latestManualGlucose else { return nil }
+        guard let path = calculations?.predictionPath, !path.isEmpty,
+              let iob = displayedIOB, iob > 0 else {
+            return manual.value
+        }
+        let now = Date()
+        guard let nearest = path.compactMap({ p -> (TimeInterval, Double)? in
+            guard let g = p.predictedGlucose else { return nil }
+            return (abs(p.timestamp.timeIntervalSince(now)), g)
+        }).min(by: { $0.0 < $1.0 }) else {
+            return manual.value
+        }
+        // Only use path value if it's within 10 minutes of now
+        guard nearest.0 <= 10 * 60 else { return manual.value }
+        return nearest.1
+    }
+
     /// Nearest chart point in mmol/L to `target` if within `maxDelta` seconds.
     func glucoseMmolFromChartNearest(to target: Date, maxDelta: TimeInterval = 24 * 3600) -> Double? {
         guard !glucoseHistory.isEmpty else { return nil }
