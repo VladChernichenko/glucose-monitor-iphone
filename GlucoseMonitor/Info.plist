@@ -11,6 +11,10 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo of your meal to log it with your glucose reading.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Not used.</string>
+	<key>com.apple.developer.arkit</key>
+	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Meal photos are saved to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

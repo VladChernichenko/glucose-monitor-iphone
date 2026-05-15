@@ -526,15 +526,33 @@ struct FoodScanSheet: View {
 
     @State private var showCamera = false
     @State private var showLibrary = false
+    @State private var showARScanner = false
     @State private var showSourcePicker = true
     @State private var step: FoodScanStep = .analyzing
     @State private var capturedImage: UIImage?
+    /// Volume report from the AR pipeline (attached alongside nutrition snap when available)
+    @State private var arVolumeReport: FoodVolumeReport?
 
     var body: some View {
         NavigationStack {
             Group {
                 if showCamera || showLibrary {
                     Color.black.ignoresSafeArea()
+                } else if showARScanner {
+                    ARFoodScannerView(
+                        onResult: { report in
+                            Task { @MainActor in
+                                showARScanner = false
+                                arVolumeReport = report
+                                await analyzeARReport(report)
+                            }
+                        },
+                        onDismiss: {
+                            showARScanner = false
+                            if case .analyzing = step { dismiss() }
+                        }
+                    )
+                    .ignoresSafeArea()
                 } else {
                     switch step {
                     case .analyzing:
@@ -543,6 +561,7 @@ struct FoodScanSheet: View {
                         NutritionResultView(
                             snapshot: snap,
                             image: capturedImage,
+                            arVolumeReport: arVolumeReport,
                             onCreate: onCreate
                         )
                         .environmentObject(appState)
@@ -558,7 +577,8 @@ struct FoodScanSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .confirmationDialog("Choose Image Source", isPresented: $showSourcePicker, titleVisibility: .visible) {
+            .confirmationDialog("Choose Analysis Method", isPresented: $showSourcePicker, titleVisibility: .visible) {
+                Button("AR Volume Scan") { showARScanner = true }
                 Button("Take Photo") { showCamera = true }
                 Button("Choose from Library") { showLibrary = true }
                 Button("Cancel", role: .cancel) { dismiss() }
@@ -569,7 +589,7 @@ struct FoodScanSheet: View {
                 CameraPickerView(isPresented: $showCamera, sourceType: .camera) { image in
                     Task { @MainActor in
                         capturedImage = image
-                        await analyze(image)
+                        await analyzePhoto(image)
                     }
                 }
                 .ignoresSafeArea()
@@ -580,7 +600,7 @@ struct FoodScanSheet: View {
                 CameraPickerView(isPresented: $showLibrary, sourceType: .photoLibrary) { image in
                     Task { @MainActor in
                         capturedImage = image
-                        await analyze(image)
+                        await analyzePhoto(image)
                     }
                 }
                 .ignoresSafeArea()
@@ -621,8 +641,10 @@ struct FoodScanSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Analysis paths
+
     @MainActor
-    private func analyze(_ image: UIImage) async {
+    private func analyzePhoto(_ image: UIImage) async {
         step = .analyzing
         do {
             let snap = try await BackendAPI.analyzePhotoNutrition(image: image)
@@ -631,6 +653,50 @@ struct FoodScanSheet: View {
             step = .error(error.localizedDescription)
         }
     }
+
+    /// Convert AR volume report → text description → backend nutrition analysis.
+    /// The backend enriches the mass-based description with GI/GL/pattern data.
+    @MainActor
+    private func analyzeARReport(_ report: FoodVolumeReport) async {
+        step = .analyzing
+        guard !report.detectedObjects.isEmpty else {
+            step = .error("No food detected. Try rescanning from a different angle.")
+            return
+        }
+        do {
+            // Build a food description string: "гречка 120g, котлета 95g"
+            // The backend keyword-GI enrichment pipeline uses this to estimate GI/GL.
+            let description = report.noteDescription
+            let snap = try await BackendAPI.analyzeNutrition(
+                ingredientsText: description,
+                fallbackCarbs: report.detectedObjects.reduce(0) { $0 + $1.estimatedMassG * 0.15 }
+            )
+            step = .result(snap)
+        } catch {
+            // Fallback: build a minimal snapshot directly from mass data
+            step = .result(fallbackSnapshot(from: report))
+        }
+    }
+
+    private func fallbackSnapshot(from report: FoodVolumeReport) -> BackendAPI.NutritionSnapshot {
+        // Estimate carbs as 15% of total mass (rough cross-category average)
+        let totalMass = report.totalMassG
+        return BackendAPI.NutritionSnapshot(
+            absorptionMode: "DEFAULT_DECAY",
+            source: "AR_VOLUME",
+            confidence: report.segmentedPointRatio,
+            totalCarbs: totalMass * 0.15,
+            fiber: nil, protein: nil, fat: nil,
+            estimatedGi: nil, glycemicLoad: nil,
+            absorptionSpeedClass: "DEFAULT",
+            normalizedFoods: report.detectedObjects.map(\.label),
+            patternName: nil, bolusStrategy: nil,
+            suggestedDurationHours: nil,
+            mealSequencingPriority: nil,
+            curveDescription: nil,
+            preBolusPauseMinutes: 15
+        )
+    }
 }
 
 // MARK: - Nutrition Result View
@@ -638,6 +704,8 @@ struct FoodScanSheet: View {
 struct NutritionResultView: View {
     let snapshot: BackendAPI.NutritionSnapshot
     let image: UIImage?
+    /// Optional AR volume report shown as an additional card below the photo
+    var arVolumeReport: FoodVolumeReport? = nil
     let onCreate: (BackendAPI.NoteInput) async -> Void
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -657,6 +725,15 @@ struct NutritionResultView: View {
                         .frame(maxWidth: .infinity)
                         .cornerRadius(10)
                         .listRowInsets(EdgeInsets())
+                }
+            }
+
+            // AR volumetric scan card (shown when AR pipeline was used)
+            if let report = arVolumeReport {
+                Section {
+                    ARVolumeResultCard(report: report)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                        .listRowBackground(Color.clear)
                 }
             }
 
