@@ -49,7 +49,7 @@ public struct FoodVolumeResult: Codable, Equatable {
     }
 }
 
-public struct FoodVolumeReport: Codable {
+public struct FoodVolumeReport: Codable, Equatable {
     public let detectedObjects: [FoodVolumeResult]
     /// Fraction of accumulated feature points assigned to a food segment [0, 1]
     public let segmentedPointRatio: Double
@@ -316,6 +316,12 @@ public final class ARFoodScannerSession: NSObject, ObservableObject {
 
     /// Call from SwiftUI .onAppear / UIViewRepresentable.makeUIView
     public func start() {
+        // Auto-load YOLOv11 CoreML provider if none was injected externally.
+        // Silently falls back to the whole-frame mock when the .mlpackage is absent.
+        if segmentationProvider == nil {
+            segmentationProvider = try? YOLOv11SegmentationProvider()
+        }
+
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = .horizontal
         // VIO: ARKit uses visual-inertial odometry by default — no extra config needed.
