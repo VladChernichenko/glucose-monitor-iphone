@@ -60,7 +60,7 @@ struct ARFoodScannerView: View {
         }
         .onAppear { scanner.start() }
         .onDisappear { scanner.stop() }
-        .onChange(of: scanner.scanState) { _, state in
+        .onChange(of: scanner.scanState) { state in
             if case .done(let report) = state {
                 onResult(report)
             }
