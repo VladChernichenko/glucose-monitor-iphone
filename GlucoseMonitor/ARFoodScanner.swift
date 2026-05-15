@@ -1,10 +1,10 @@
 import ARKit
 import simd
 
-// MARK: - YOLOv11 Integration Interface
+// MARK: - Segmentation Interface
 
-/// Pixel-level segmentation mask for one food item produced by YOLOv11.
-/// In production: fill from a VNCoreMLRequest on the ARFrame capturedImage.
+/// Pixel-level segmentation mask for one food item.
+/// In production: fill from a CoreML model running on the ARFrame capturedImage.
 /// Protocol allows injecting a mock during unit testing.
 public protocol SegmentationProvider {
     /// Run inference on `pixelBuffer` and return one mask per detected food class.
@@ -306,7 +306,7 @@ public final class ARFoodScannerSession: NSObject, ObservableObject {
     private var lastAnalysisFrame: ARFrame?
     private var scanStartDate: Date?
 
-    /// Plug in your YOLOv11 CoreML wrapper here.  Falls back to mock if nil.
+    /// Plug in a CoreML segmentation model here.  Falls back to mock if nil.
     public var segmentationProvider: SegmentationProvider?
 
     /// Horizontal plane anchors detected by ARKit (used as RANSAC seed)
@@ -316,12 +316,6 @@ public final class ARFoodScannerSession: NSObject, ObservableObject {
 
     /// Call from SwiftUI .onAppear / UIViewRepresentable.makeUIView
     public func start() {
-        // Auto-load YOLOv11 CoreML provider if none was injected externally.
-        // Silently falls back to the whole-frame mock when the .mlpackage is absent.
-        if segmentationProvider == nil {
-            segmentationProvider = try? YOLOv11SegmentationProvider()
-        }
-
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = .horizontal
         // VIO: ARKit uses visual-inertial odometry by default — no extra config needed.
@@ -377,7 +371,7 @@ public final class ARFoodScannerSession: NSObject, ObservableObject {
             return
         }
 
-        // ─── Step 2: YOLOv11 segmentation ──────────────────────────────────
+        // ─── Step 2: Food segmentation ─────────────────────────────────────
         let pixelBuffer = frame.capturedImage
         let imgW = CVPixelBufferGetWidth(pixelBuffer)
         let imgH = CVPixelBufferGetHeight(pixelBuffer)
@@ -509,10 +503,10 @@ extension ARFoodScannerSession: ARSessionDelegate {
     }
 }
 
-// MARK: - Mock Segmentation (development placeholder for YOLOv11)
+// MARK: - Mock Segmentation (development placeholder)
 
-/// Returns a single whole-image mask labelled "unknown food".
-/// Replace with a real VNCoreMLRequest wrapping your YOLOv11 CoreML model.
+/// Returns a single whole-image mask labelled "food".
+/// Replace with a real CoreML segmentation model conforming to SegmentationProvider.
 struct MockSegmentationProvider: SegmentationProvider {
     func segment(pixelBuffer: CVPixelBuffer, imageSize: CGSize) async throws -> [FoodSegmentationMask] {
         return mockMasks(imageWidth: Int(imageSize.width), imageHeight: Int(imageSize.height))
