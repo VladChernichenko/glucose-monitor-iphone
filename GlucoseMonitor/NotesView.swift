@@ -202,15 +202,15 @@ struct AddNoteSheet: View {
 
     @State private var noteDate = Date()
     @State private var meal = "Lunch"
-    @State private var carbs: Int = 0       // steps of 10 g
-    @State private var insulin: Int = 0     // steps of 1 u
+    @State private var carbs: Int = 0           // steps of 5 g  (iOS-7 fix)
+    @State private var insulin: Double = 0.0    // steps of 0.5 u (iOS-7 fix)
     @State private var comment = ""
     @State private var glucoseWheelValue: Double = 0.0  // 0.0 = not set
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let carbOptions   = Array(stride(from: 0, through: 200, by: 10))
-    private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
+    private let carbOptions    = Array(stride(from: 0, through: 200, by: 5))         // iOS-7 fix: 5g steps
+    private let insulinOptions = Array(stride(from: 0.0, through: 30.0, by: 0.5))   // iOS-7 fix: 0.5u steps
     private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1).map { (($0 * 10).rounded() / 10) }
 
     var body: some View {
@@ -232,12 +232,13 @@ struct AddNoteSheet: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Picker("Insulin", selection: $insulin) {
-                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
+                            // iOS-7 fix: 0.5u granularity
+                            ForEach(insulinOptions, id: \.self) { Text(String(format: "%.1f u", $0)).tag($0) }
                         }
                         .pickerStyle(.wheel)
                         .frame(height: 120)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Carbs (g)")
                             .font(.caption)
@@ -313,7 +314,7 @@ struct AddNoteSheet: View {
             let input = BackendAPI.NoteInput(
                 timestamp: BackendAPI.formatNoteTimestampForRequest(noteDate),
                 carbs: Double(carbs),
-                insulin: Double(insulin),
+                insulin: insulin,          // iOS-7 fix: already Double (0.5u steps)
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
                 glucoseValue: glucoseVal,
@@ -340,15 +341,15 @@ struct EditNoteSheet: View {
 
     @State private var noteDate: Date
     @State private var meal: String
-    @State private var carbs: Int           // steps of 10 g
-    @State private var insulin: Int         // steps of 1 u
+    @State private var carbs: Int           // steps of 5 g  (iOS-3 fix)
+    @State private var insulin: Double      // steps of 0.5 u (iOS-3 fix)
     @State private var comment: String
     @State private var glucoseWheelValue: Double
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let carbOptions    = Array(stride(from: 0, through: 200, by: 10))
-    private let insulinOptions = Array(stride(from: 0, through: 30,  by: 1))
+    private let carbOptions    = Array(stride(from: 0, through: 200, by: 5))         // iOS-3 fix: 5g steps
+    private let insulinOptions = Array(stride(from: 0.0, through: 30.0, by: 0.5))   // iOS-3 fix: 0.5u steps
     private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1).map { (($0 * 10).rounded() / 10) }
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
@@ -356,8 +357,10 @@ struct EditNoteSheet: View {
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
-        let roundedCarbs = min(200, max(0, Int((note.carbs / 10).rounded()) * 10))
-        let roundedInsulin = min(30, max(0, Int(note.insulin.rounded())))
+        // iOS-3 fix: snap to 5g steps instead of 10g (35g → 35, not 40g)
+        let roundedCarbs = min(200, max(0, Int((note.carbs / 5).rounded()) * 5))
+        // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
+        let roundedInsulin = min(30.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
         _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
@@ -377,14 +380,15 @@ struct EditNoteSheet: View {
                     }
                 }
                 Section("Amounts") {
-                  
+
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Insulin (u)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Picker("Insulin", selection: $insulin) {
-                            ForEach(insulinOptions, id: \.self) { Text("\($0) u").tag($0) }
+                            // iOS-3 fix: 0.5u granularity; insulinOptions is [Double]
+                            ForEach(insulinOptions, id: \.self) { Text(String(format: "%.1f u", $0)).tag($0) }
                         }
                         .pickerStyle(.wheel)
                         .frame(height: 120)
@@ -456,7 +460,7 @@ struct EditNoteSheet: View {
             let body = BackendAPI.UpdateNoteBody(
                 timestamp: ts,
                 carbs: Double(carbs),
-                insulin: Double(insulin),
+                insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
                 glucoseValue: glucoseVal
@@ -500,7 +504,8 @@ struct CameraPickerView: UIViewControllerRepresentable {
                 parent.isPresented = false
                 return
             }
-            UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum — silently saved every
+            // food/note photo to the user's Camera Roll without permission or consent.
             parent.isPresented = false
             parent.onCapture(image)
         }

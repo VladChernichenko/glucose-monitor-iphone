@@ -532,7 +532,7 @@ enum BackendAPI {
                 clientTimeInfo: TimeInfo(
                     timestamp: formatNoteTimestampForRequest(Date()),
                     timezone: tz.identifier,
-                    timezoneOffset: -tz.secondsFromGMT() / 60
+                    timezoneOffset: tz.secondsFromGMT() / 60   // iOS-9 fix: remove erroneous negation; header (line 350) and body must agree
                 )
             )
             req.httpBody = try JSONEncoder().encode(body)

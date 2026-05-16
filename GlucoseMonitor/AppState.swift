@@ -171,10 +171,17 @@ final class AppState: ObservableObject {
     func startAutoRefreshIfNeeded() {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task { [weak self] in
+            var cycle = 0
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 300_000_000_000)
+                try? await Task.sleep(nanoseconds: 300_000_000_000)   // 5-minute glucose tick
                 guard let self, self.isAuthenticated else { continue }
                 await self.refreshGlucoseOnly()
+                cycle += 1
+                // iOS-8 fix: sync notes every other glucose cycle (~10 min) so
+                // notes added on other devices appear without a manual pull-to-refresh.
+                if cycle % 2 == 0 {
+                    await self.fetchNotes()
+                }
             }
         }
     }
@@ -318,27 +325,40 @@ final class AppState: ObservableObject {
     }
 
     func createNote(_ input: BackendAPI.NoteInput) async {
-        if let note = try? await BackendAPI.createNote(input) {
+        // iOS-2 fix: surface errors instead of silently swallowing them with try?
+        do {
+            let note = try await BackendAPI.createNote(input)
             notes.append(note)
             await refreshGlucoseOnly()
             await refreshCalculations()
+        } catch {
+            errorMessage = "Failed to save note: \(error.localizedDescription)"
         }
     }
 
     func updateNote(id: String, body: BackendAPI.UpdateNoteBody) async {
-        if let updated = try? await BackendAPI.updateNote(id: id, body: body) {
+        // iOS-2 fix: surface errors instead of silently swallowing them with try?
+        do {
+            let updated = try await BackendAPI.updateNote(id: id, body: body)
             if let idx = notes.firstIndex(where: { $0.id == id }) {
                 notes[idx] = updated  // note with new glucoseValue in place before calculations
             }
             await refreshGlucoseOnly()
             await refreshCalculations()
+        } catch {
+            errorMessage = "Failed to update note: \(error.localizedDescription)"
         }
     }
 
     func deleteNote(id: String) async {
-        try? await BackendAPI.deleteNote(id: id)
-        notes.removeAll { $0.id == id }
-        await refreshCalculations()
+        // iOS-1 fix: only remove from local list when the backend delete succeeds
+        do {
+            try await BackendAPI.deleteNote(id: id)
+            notes.removeAll { $0.id == id }
+            await refreshCalculations()
+        } catch {
+            errorMessage = "Failed to delete note: \(error.localizedDescription)"
+        }
     }
 
     func uploadNotePhoto(noteId: String, image: UIImage) async {

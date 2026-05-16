@@ -2,7 +2,7 @@ import Foundation
 
 /// OpenAPS exponential IOB (matches web `insulinCalculator.ts` / backend curve).
 enum InsulinIOB {
-    private static let durationHours: Double = 4
+    private static let durationHours: Double = 4.5   // iOS-4 fix: align with backend DEFAULT_DIA_HOURS
     private static let peakMinutes: Double = 55
 
     static func iobOpenApsExponential(insulinUnits: Double, minsAgo: Double, diaHours: Double, peak: Double) -> Double {
