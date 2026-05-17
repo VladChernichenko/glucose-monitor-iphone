@@ -17,6 +17,24 @@ struct PredictionChartPoint: Identifiable, Equatable {
     var id: String { String(format: "p_%.3f", time.timeIntervalSince1970) }
 }
 
+/// Time window for dashboard glucose charts.
+struct GlucoseChartWindow {
+    let historyLookback: TimeInterval?
+    let forecastHorizon: TimeInterval
+    let fixedXDomain: Bool
+
+    static let standard = GlucoseChartWindow(
+        historyLookback: nil,
+        forecastHorizon: 4 * 3600,
+        fixedXDomain: false
+    )
+    static let extended = GlucoseChartWindow(
+        historyLookback: 4 * 3600,
+        forecastHorizon: 8 * 3600,
+        fixedXDomain: true
+    )
+}
+
 // MARK: - Pre-bolus timer (matches web `EnhancedDashboard` logic)
 
 enum PreBolusTimer {
@@ -62,6 +80,7 @@ struct GlucoseHistoryChart: View {
     let history: [GlucoseChartPoint]
     let prediction: [PredictionChartPoint]
     let notes: [BackendAPI.GlucoseNote]
+    var window: GlucoseChartWindow = .standard
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
 
@@ -69,28 +88,39 @@ struct GlucoseHistoryChart: View {
     private static let targetLowMmol: Double = 4
     private static let targetHighMmol: Double = 10
 
+    private var filteredHistory: [GlucoseChartPoint] {
+        guard let lookback = window.historyLookback else { return history }
+        let cutoff = Date().addingTimeInterval(-lookback)
+        return history.filter { $0.time >= cutoff }
+    }
+
     private var xDomain: ClosedRange<Date>? {
-        let t1 = history.map(\.time)
+        let now = Date()
+        if window.fixedXDomain, let lookback = window.historyLookback {
+            let lower = now.addingTimeInterval(-lookback)
+            let upper = now.addingTimeInterval(window.forecastHorizon)
+            return lower...upper
+        }
+        let t1 = filteredHistory.map(\.time)
         let t2 = prediction.map(\.time)
         let all = t1 + t2
         guard let mn = all.min(), let mx = all.max(), mn <= mx else { return nil }
         if mn == mx {
             return mn.addingTimeInterval(-1800)...mx.addingTimeInterval(1800)
         }
-        // Cap the right edge at now + 4 h (DIA) so the chart doesn't stretch indefinitely.
-        let cap = Date().addingTimeInterval(4 * 3600)
+        let cap = now.addingTimeInterval(window.forecastHorizon)
         return mn...(mx < cap ? mx : cap)
     }
 
-    /// Prediction points starting exactly at "now", capped to 4 hours ahead.
-    /// Drops past points, caps at +4 h (DIA), then prepends a synthetic anchor at Date()
+    /// Prediction points starting exactly at "now", capped to forecast horizon.
+    /// Drops past points, then prepends a synthetic anchor at Date()
     /// so the curve originates right on the "now" line without stretching the x-axis.
     private var futurePrediction: [PredictionChartPoint] {
         let now = Date()
-        let cap  = now.addingTimeInterval(4 * 3600)
+        let cap = now.addingTimeInterval(window.forecastHorizon)
         let future = prediction.filter { $0.time > now && $0.time <= cap }
         guard !future.isEmpty else { return [] }
-        let anchorMmol = history.last?.mmol ?? future[0].mmol
+        let anchorMmol = filteredHistory.last?.mmol ?? future[0].mmol
         let anchor = PredictionChartPoint(time: now, mmol: anchorMmol)
         return [anchor] + future
     }
@@ -107,25 +137,31 @@ struct GlucoseHistoryChart: View {
 
     var body: some View {
         Group {
-            if history.isEmpty && prediction.isEmpty {
+            if filteredHistory.isEmpty && futurePrediction.isEmpty {
                 Text("No chart data yet")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, minHeight: 160)
             } else {
                 ZStack {
-                    chartCore
-                        .chartXAxis {
-                            AxisMarks(values: .automatic) { _ in
-                                AxisGridLine()
-                                AxisTick()
-                                AxisValueLabel(format: .dateTime.hour().minute())
-                            }
+                    Group {
+                        if let domain = xDomain {
+                            chartCore.chartXScale(domain: domain)
+                        } else {
+                            chartCore
                         }
-                        .chartYAxis {
-                            AxisMarks(position: .leading)
+                    }
+                    .chartXAxis {
+                        AxisMarks(values: .automatic) { _ in
+                            AxisGridLine()
+                            AxisTick()
+                            AxisValueLabel(format: .dateTime.hour().minute())
                         }
-                        .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading)
+                    }
+                    .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
                 }
                 .frame(height: 220)
                 .scaleEffect(scale, anchor: .topLeading)
@@ -156,7 +192,7 @@ struct GlucoseHistoryChart: View {
                 .foregroundStyle(Color.green.opacity(0.14))
             }
 
-            ForEach(history) { p in
+            ForEach(filteredHistory) { p in
                 LineMark(
                     x: .value("Time", p.time),
                     y: .value("mmol/L", p.mmol),

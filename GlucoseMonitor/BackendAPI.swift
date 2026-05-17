@@ -26,6 +26,10 @@ enum BackendAPI {
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
+        /// Serialised NutritionSnapshot JSON produced by the Nutrition analyser.
+        /// When set, the backend stores it directly and skips server-side re-enrichment,
+        /// preserving `suggestedDurationHours` so 8 h HFHP meals get the correct forecast.
+        let nutritionProfile: String?
     }
 
     struct UpdateNoteBody: Encodable {
@@ -125,6 +129,8 @@ enum BackendAPI {
         let activeInsulinOnBoard: Double
         let twoHourPrediction: Double
         let fourHourPrediction: Double?
+        /// Non-nil only when the HFHP / Dual-Wave path extends beyond 4 h (≥ 8 h window).
+        let eightHourPrediction: Double?
         let predictionTrend: String
         let confidence: Double
         let factors: PredictionFactors?
@@ -138,6 +144,7 @@ enum BackendAPI {
 
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
+            case eightHourPrediction
             case predictionTrend, confidence, factors, predictionPath
         }
 
@@ -147,6 +154,7 @@ enum BackendAPI {
             activeInsulinOnBoard = Self.decodeFlexible(c, key: .activeInsulinOnBoard) ?? 0
             twoHourPrediction = Self.decodeFlexible(c, key: .twoHourPrediction) ?? 0
             fourHourPrediction = Self.decodeFlexible(c, key: .fourHourPrediction)
+            eightHourPrediction = Self.decodeFlexible(c, key: .eightHourPrediction)
             predictionTrend = try c.decodeIfPresent(String.self, forKey: .predictionTrend) ?? "stable"
             confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
             factors = try? c.decode(PredictionFactors.self, forKey: .factors)
@@ -507,7 +515,22 @@ enum BackendAPI {
 
     // MARK: - Glucose calculations
 
-    static func fetchGlucoseCalculations(currentGlucose: Double) async throws -> GlucoseCalculationsResponse {
+    /// A single prospective meal event (analysed but not yet saved to notes).
+    /// Sent to the backend so COB/IOB can include the in-progress meal in the prediction.
+    struct ProspectiveNote: Encodable {
+        let carbs: Double?
+        let insulin: Double?
+        let meal: String
+        /// Serialised NutritionSnapshot JSON — same format stored in Note.nutritionProfile.
+        let nutritionProfileJson: String?
+        /// Minutes ago the meal started; 0 = eating right now.
+        let minutesAgo: Int
+    }
+
+    static func fetchGlucoseCalculations(
+        currentGlucose: Double,
+        prospectiveSnapshot: NutritionSnapshot? = nil
+    ) async throws -> GlucoseCalculationsResponse {
         try await performWithRefresh {
             // Trailing slash matches web axios baseURL + post('/') and Spring `@PostMapping("/")`.
             var req = try authorizedRequest(path: "/api/glucose-calculations/", method: "POST")
@@ -521,11 +544,26 @@ enum BackendAPI {
                 let currentGlucose: Double
                 let includePredictionFactors: Bool
                 let clientTimeInfo: TimeInfo
+                let prospectiveNotes: [ProspectiveNote]?
             }
 
             let tz = TimeZone.current
             // Same as web `getClientTimeInfo()` / note payloads: naive local wall time, not UTC ISO8601 with Z.
             // Backend compares this to note timestamps (also local wall time) for COB windows and decay.
+
+            var prospectiveNotes: [ProspectiveNote]? = nil
+            if let snap = prospectiveSnapshot, let carbs = snap.totalCarbs, carbs > 0 {
+                // Serialise the snapshot fields into the nutritionProfileJson the backend expects.
+                let profileJson = snapshotToNutritionProfileJson(snap)
+                prospectiveNotes = [ProspectiveNote(
+                    carbs: snap.totalCarbs,
+                    insulin: nil,          // no insulin yet — user hasn't dosed
+                    meal: "Prospective",
+                    nutritionProfileJson: profileJson,
+                    minutesAgo: 0
+                )]
+            }
+
             let body = Body(
                 currentGlucose: currentGlucose,
                 includePredictionFactors: true,
@@ -533,7 +571,8 @@ enum BackendAPI {
                     timestamp: formatNoteTimestampForRequest(Date()),
                     timezone: tz.identifier,
                     timezoneOffset: tz.secondsFromGMT() / 60   // iOS-9 fix: remove erroneous negation; header (line 350) and body must agree
-                )
+                ),
+                prospectiveNotes: prospectiveNotes
             )
             req.httpBody = try JSONEncoder().encode(body)
 
@@ -552,6 +591,38 @@ enum BackendAPI {
             }
             return result
         }
+    }
+
+    /// Converts a NutritionSnapshot into the JSON string expected by Note.nutritionProfile /
+    /// ProspectiveNoteDTO.nutritionProfileJson on the backend.
+    static func snapshotToNutritionProfileJson(_ snap: NutritionSnapshot) -> String? {
+        struct ProfileFields: Encodable {
+            let absorptionMode: String?
+            let estimatedGi: Double?
+            let glycemicLoad: Double?
+            let fiber: Double?
+            let protein: Double?
+            let fat: Double?
+            let absorptionSpeedClass: String?
+            let totalCarbs: Double?
+            let patternName: String?
+            let bolusStrategy: String?
+            let suggestedDurationHours: Double?
+        }
+        let fields = ProfileFields(
+            absorptionMode: snap.absorptionMode,
+            estimatedGi: snap.estimatedGi,
+            glycemicLoad: snap.glycemicLoad,
+            fiber: snap.fiber,
+            protein: snap.protein,
+            fat: snap.fat,
+            absorptionSpeedClass: snap.absorptionSpeedClass,
+            totalCarbs: snap.totalCarbs,
+            patternName: snap.patternName,
+            bolusStrategy: snap.bolusStrategy,
+            suggestedDurationHours: snap.suggestedDurationHours
+        )
+        return (try? JSONEncoder().encode(fields)).flatMap { String(data: $0, encoding: .utf8) }
     }
 
     // MARK: - Insulin preferences

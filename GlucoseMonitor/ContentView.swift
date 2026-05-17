@@ -69,7 +69,7 @@ struct DashboardView: View {
                             TimelineView(.periodic(from: .now, by: 1)) { context in
                                 compactGlucoseCard(at: context.date)
                             }
-                            chartSection
+                            extendedChartSection
                             recentNotesSection
                             quickActions
                             if let msg = appState.errorMessage {
@@ -364,26 +364,23 @@ struct DashboardView: View {
 
     // MARK: - Chart
 
-    private var chartSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Glucose")
+    private var extendedChartSection: some View {
+        let is8h = appState.calculations?.eightHourPrediction != nil
+        let window: GlucoseChartWindow = is8h ? .extended : .standard
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(is8h ? "Forecast (4h / 8h)" : "Forecast (4h)")
                 .font(.headline)
             GlucoseHistoryChart(
                 history: appState.glucoseHistory,
                 prediction: appState.predictionChartPoints(),
-                notes: appState.notes
+                notes: appState.notes,
+                window: window
             )
         }
         .padding()
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.07), radius: 8, y: 2)
-        .overlay {
-            ChartLongPressOverlay(minimumDuration: 0.3) {
-                guard appState.isAuthenticated else { return }
-                showAddNote = true
-            }
-        }
     }
 
     // MARK: - Recent notes (12h)
@@ -638,62 +635,6 @@ private struct RecentNoteRow: View {
     }
 }
 
-// MARK: - UIKit long-press bridge (SwiftUI gestures are cancelled by Chart internals)
-//
-// Behaviour mirrors the lock-screen torch:
-//   • touch-down  → immediate haptic ("press")
-//   • lift after ≥ minimumDuration → second haptic ("release") + action fires
-//   • lift before threshold           → nothing
-
-private struct ChartLongPressOverlay: UIViewRepresentable {
-    let minimumDuration: TimeInterval
-    let onLongPress: () -> Void
-
-    func makeUIView(context: Context) -> LongPressTrackingView {
-        LongPressTrackingView(minimumDuration: minimumDuration, onLongPress: onLongPress)
-    }
-
-    func updateUIView(_ uiView: LongPressTrackingView, context: Context) {}
-}
-
-final class LongPressTrackingView: UIView {
-    private let minimumDuration: TimeInterval
-    private let onLongPress: () -> Void
-    private var touchDownTime: Date?
-
-    init(minimumDuration: TimeInterval, onLongPress: @escaping () -> Void) {
-        self.minimumDuration = minimumDuration
-        self.onLongPress = onLongPress
-        super.init(frame: .zero)
-        backgroundColor = .clear
-        isMultipleTouchEnabled = false
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        touchDownTime = Date()
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()  // "press down" click
-    }
-
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        defer { touchDownTime = nil }
-        guard let t = touchDownTime,
-              Date().timeIntervalSince(t) >= minimumDuration else { return }
-        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()   // "release" click
-        onLongPress()
-    }
-
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        touchDownTime = nil
-    }
-
-    // Pass all hits through so chart interactions still work.
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let hit = super.hitTest(point, with: event)
-        return hit == self ? self : nil
-    }
-}
 
 private struct NotePhotoThumbnail: View {
     let urlString: String

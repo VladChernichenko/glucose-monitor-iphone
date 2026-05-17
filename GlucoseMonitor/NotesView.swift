@@ -262,7 +262,11 @@ struct AddNoteSheet: View {
             .task {
                 await appState.refreshGlucoseOnly()
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
-
+            }
+            .onChange(of: noteDate) { _ in
+                // When user picks a past time, auto-fill glucose from the nearest CGM reading
+                glucoseWheelValue = 0.0
+                prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
             }
             .navigationBarTitleDisplayMode(.inline)
             .dismissKeyboardOnInteraction()
@@ -318,7 +322,8 @@ struct AddNoteSheet: View {
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
                 glucoseValue: glucoseVal,
-                absorptionMode: nil
+                absorptionMode: nil,
+                nutritionProfile: nil
             )
             await onCreate(input)
             try? await Task.sleep(nanoseconds: 80_000_000)
@@ -717,6 +722,10 @@ struct NutritionResultView: View {
 
     @State private var meal = "Lunch"
     @State private var isSaving = false
+    /// Prospective prediction: fetched immediately after the view appears by sending
+    /// the analysed snapshot as a "what-if" note to the calculation endpoint.
+    @State private var prospectiveCalc: BackendAPI.GlucoseCalculationsResponse? = nil
+    @State private var isFetchingProspective = false
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
 
     var body: some View {
@@ -825,6 +834,21 @@ struct NutritionResultView: View {
         }
         .navigationTitle("Nutrition")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await fetchProspectivePrediction() }
+    }
+
+    /// Calls the glucose-calculations endpoint with the current snapshot as a prospective note
+    /// so we can show "if you eat this meal right now" predictions rather than the stale
+    /// pre-analysis values stored in appState.calculations.
+    private func fetchProspectivePrediction() async {
+        guard !isFetchingProspective else { return }
+        guard let currentGlucose = appState.currentGlucoseMmolForAPI() else { return }
+        isFetchingProspective = true
+        defer { isFetchingProspective = false }
+        prospectiveCalc = try? await BackendAPI.fetchGlucoseCalculations(
+            currentGlucose: currentGlucose,
+            prospectiveSnapshot: snapshot
+        )
     }
 
     @ViewBuilder
@@ -865,22 +889,42 @@ struct NutritionResultView: View {
 
     @ViewBuilder
     private func glucoseForecastRow() -> some View {
-        let calc = appState.calculations
+        // Prefer the prospective calculation (includes this meal's COB/IOB).
+        // Fall back to the general appState.calculations while it loads.
+        let calc = prospectiveCalc ?? appState.calculations
         let cur = appState.currentGlucoseMmolForAPI()
-        HStack(spacing: 0) {
-            forecastCell(label: "Now", value: cur)
-            Image(systemName: "arrow.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity)
-            forecastCell(label: "2 h", value: calc?.twoHourPrediction)
-            Image(systemName: "arrow.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .frame(maxWidth: .infinity)
-            forecastCell(label: "4 h", value: calc?.fourHourPrediction)
+        let show8h = calc?.eightHourPrediction != nil
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                forecastCell(label: "Now", value: cur)
+                arrow()
+                forecastCell(label: "2 h", value: calc?.twoHourPrediction)
+                arrow()
+                forecastCell(label: "4 h", value: calc?.fourHourPrediction)
+                if show8h {
+                    arrow()
+                    forecastCell(label: "8 h", value: calc?.eightHourPrediction)
+                }
+            }
+            .padding(.vertical, 4)
+            if isFetchingProspective {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Calculating meal impact…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
-        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private func arrow() -> some View {
+        Image(systemName: "arrow.right")
+            .font(.caption)
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity)
     }
 
     @ViewBuilder
@@ -932,7 +976,8 @@ struct NutritionResultView: View {
             meal: meal,
             comment: buildComment(),
             glucoseValue: appState.glucoseMmolForNewNote(at: Date()),
-            absorptionMode: snapshot.absorptionMode
+            absorptionMode: snapshot.absorptionMode,
+            nutritionProfile: BackendAPI.snapshotToNutritionProfileJson(snapshot)
         )
         Task {
             await onCreate(input)
