@@ -444,6 +444,13 @@ struct AIInsightsSheet: View {
     @State private var streamedMarkdown = ""
     @State private var errorMessage: String?
     @State private var streamTask: Task<Void, Never>?
+    @State private var selectedProvider: String = UserDefaults.standard.string(forKey: "ai_provider") ?? "auto"
+
+    private let providerOptions: [(label: String, value: String)] = [
+        ("Auto", "auto"),
+        ("Qwen", "qwen"),
+        ("Ollama", "ollama"),
+    ]
 
     var body: some View {
         NavigationStack {
@@ -482,22 +489,36 @@ struct AIInsightsSheet: View {
                         .padding()
                 }
             }
-            .navigationTitle("AI insights")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") {
-                        streamTask?.cancel()
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Run") { startStream() }
-                        .disabled(isStreaming)
-                }
-            }
+            .toolbar(content: { insightsToolbar })
             .task { startStream() }
             .onDisappear { streamTask?.cancel() }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var insightsToolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Close") {
+                streamTask?.cancel()
+                dismiss()
+            }
+        }
+        ToolbarItem(placement: .principal) {
+            Picker("", selection: $selectedProvider) {
+                ForEach(providerOptions, id: \.value) { option in
+                    Text(option.label).tag(option.value)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 210)
+            .onChange(of: selectedProvider) { newValue in
+                UserDefaults.standard.set(newValue, forKey: "ai_provider")
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Run") { startStream() }
+                .disabled(isStreaming)
         }
     }
 
@@ -507,9 +528,10 @@ struct AIInsightsSheet: View {
         errorMessage = nil
         isStreaming = true
 
+        let provider = selectedProvider
         streamTask = Task {
             do {
-                try await BackendAPI.streamAiRetrospective(windowHours: 12) { token in
+                try await BackendAPI.streamAiRetrospective(windowHours: 12, provider: provider) { token in
                     streamedMarkdown += token
                 }
             } catch is CancellationError {

@@ -106,7 +106,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showAddNote) {
-                AddNoteSheet { input in
+                NoteEditorSheet { input in
                     await appState.createNote(input)
                 }
                 .environmentObject(appState)

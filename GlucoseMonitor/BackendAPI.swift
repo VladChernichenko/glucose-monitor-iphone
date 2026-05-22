@@ -299,6 +299,7 @@ enum BackendAPI {
         let glycemicLoad: Double?
         let absorptionSpeedClass: String?
         let normalizedFoods: [String]?
+        let foodMassBreakdown: [FoodMassBreakdown]?
         // Glycemic pattern fields
         let patternName: String?
         let bolusStrategy: String?
@@ -306,6 +307,19 @@ enum BackendAPI {
         let mealSequencingPriority: Int?
         let curveDescription: String?
         let preBolusPauseMinutes: Int?
+
+        struct FoodMassBreakdown: Decodable, Identifiable {
+            var id: String { label ?? UUID().uuidString }
+            let label: String?
+            let massG: Double?
+            let carbs: Double?
+            let fat: Double?
+            let protein: Double?
+            let fiber: Double?
+            let gi: Double?
+            let offProductName: String?
+            let confidence: Double?
+        }
     }
 
     struct BackendVersionPayload: Decodable {
@@ -766,18 +780,20 @@ enum BackendAPI {
     /// Streams markdown tokens from the backend NDJSON endpoint.
     /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.
     /// Returns when the `{"type":"done"}` event is received or the stream ends.
+    /// - Parameter provider: `"auto"` (default), `"qwen"`, or `"ollama"`.
     static func streamAiRetrospective(
         windowHours: Int = 12,
+        provider: String = "auto",
         onToken: @MainActor @escaping (String) -> Void
     ) async throws {
-        struct Body: Encodable { let windowHours: Int }
+        struct Body: Encodable { let windowHours: Int; let provider: String }
         struct StreamEvent: Decodable {
             let type: String
             let token: String?
         }
 
         var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours))
+        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours, provider: provider))
 
         let (bytes, resp) = try await URLSession.shared.bytes(for: req)
         try checkStatus(resp, data: Data())
