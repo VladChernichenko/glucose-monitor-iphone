@@ -32,8 +32,17 @@
 		700000000000000000000020 /* ARFoodScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000020 /* ARFoodScanner.swift */; };
 		700000000000000000000021 /* FoodDensityDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000021 /* FoodDensityDatabase.swift */; };
 		700000000000000000000022 /* ARFoodScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000022 /* ARFoodScannerView.swift */; };
+		700000000000000000000025 /* NutritionAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000025 /* NutritionAPIService.swift */; };
+		700000000000000000000026 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000026 /* FoodModels.swift */; };
 		700000000000000000000023 /* ARKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000023 /* ARKit.framework */; };
 		700000000000000000000024 /* SceneKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000024 /* SceneKit.framework */; };
+		700000000000000000000031 /* best.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000031 /* best.mlpackage */; };
+		700000000000000000000040 /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000041 /* TestHelpers.swift */; };
+		700000000000000000000041 /* AppStateBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000042 /* AppStateBugTests.swift */; };
+		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
+		700000000000000000000043 /* FoodModelsBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000044 /* FoodModelsBugTests.swift */; };
+		700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000045 /* InsulinIOBBugTests.swift */; };
+		700000000000000000000045 /* InsulinIOBTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000046 /* InsulinIOBTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +59,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 200000000000000000000003;
 			remoteInfo = GlucoseMonitorWidgetExtension;
+		};
+		500000000000000000000006 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 200000000000000000000001;
+			remoteInfo = GlucoseMonitor;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -103,8 +119,18 @@
 		600000000000000000000020 /* ARFoodScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScanner.swift; sourceTree = "<group>"; };
 		600000000000000000000021 /* FoodDensityDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDensityDatabase.swift; sourceTree = "<group>"; };
 		600000000000000000000022 /* ARFoodScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScannerView.swift; sourceTree = "<group>"; };
+		600000000000000000000025 /* NutritionAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIService.swift; sourceTree = "<group>"; };
+		600000000000000000000026 /* FoodModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
 		600000000000000000000023 /* ARKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ARKit.framework; path = System/Library/Frameworks/ARKit.framework; sourceTree = SDKROOT; };
 		600000000000000000000024 /* SceneKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SceneKit.framework; path = System/Library/Frameworks/SceneKit.framework; sourceTree = SDKROOT; };
+		600000000000000000000031 /* best.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = best.mlpackage; sourceTree = "<group>"; };
+		600000000000000000000040 /* GlucoseMonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GlucoseMonitorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		600000000000000000000041 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
+		600000000000000000000042 /* AppStateBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBugTests.swift; sourceTree = "<group>"; };
+		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
+		600000000000000000000044 /* FoodModelsBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsBugTests.swift; sourceTree = "<group>"; };
+		600000000000000000000045 /* InsulinIOBBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBBugTests.swift; sourceTree = "<group>"; };
+		600000000000000000000046 /* InsulinIOBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -131,6 +157,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		300000000000000000000011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -141,6 +174,7 @@
 				800000000000000000000003 /* Shared */,
 				800000000000000000000006 /* GlucoseMonitorWidget */,
 				800000000000000000000004 /* GlucoseMonitorWatch */,
+				800000000000000000000010 /* GlucoseMonitorTests */,
 				800000000000000000000005 /* Products */,
 				800000000000000000000007 /* Frameworks */,
 			);
@@ -160,6 +194,9 @@
 				600000000000000000000020 /* ARFoodScanner.swift */,
 				600000000000000000000021 /* FoodDensityDatabase.swift */,
 				600000000000000000000022 /* ARFoodScannerView.swift */,
+				600000000000000000000025 /* NutritionAPIService.swift */,
+				600000000000000000000026 /* FoodModels.swift */,
+				600000000000000000000031 /* best.mlpackage */,
 				600000000000000000000006 /* Assets.xcassets */,
 			);
 			path = GlucoseMonitor;
@@ -192,6 +229,7 @@
 				600000000000000000000008 /* GlucoseMonitor.app */,
 				600000000000000000000016 /* GlucoseMonitorWidget.appex */,
 				600000000000000000000009 /* GMWatch.app */,
+				600000000000000000000040 /* GlucoseMonitorTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -214,6 +252,19 @@
 				600000000000000000000024 /* SceneKit.framework */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		800000000000000000000010 /* GlucoseMonitorTests */ = {
+			isa = PBXGroup;
+			children = (
+				600000000000000000000041 /* TestHelpers.swift */,
+				600000000000000000000042 /* AppStateBugTests.swift */,
+				600000000000000000000043 /* BackendAPIBugTests.swift */,
+				600000000000000000000044 /* FoodModelsBugTests.swift */,
+				600000000000000000000045 /* InsulinIOBBugTests.swift */,
+				600000000000000000000046 /* InsulinIOBTests.swift */,
+			);
+			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -274,6 +325,24 @@
 			productReference = 600000000000000000000016 /* GlucoseMonitorWidget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		200000000000000000000004 /* GlucoseMonitorTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 900000000000000000000006 /* Build configuration list for PBXNativeTarget "GlucoseMonitorTests" */;
+			buildPhases = (
+				300000000000000000000010 /* Sources */,
+				300000000000000000000011 /* Frameworks */,
+				300000000000000000000012 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				500000000000000000000007 /* PBXTargetDependency */,
+			);
+			name = GlucoseMonitorTests;
+			productName = GlucoseMonitorTests;
+			productReference = 600000000000000000000040 /* GlucoseMonitorTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -289,6 +358,10 @@
 					};
 					200000000000000000000002 = {
 						CreatedOnToolsVersion = 16.2;
+					};
+					200000000000000000000004 = {
+						CreatedOnToolsVersion = 16.2;
+						TestTargetID = 200000000000000000000001;
 					};
 				};
 			};
@@ -308,6 +381,7 @@
 				200000000000000000000001 /* GlucoseMonitor */,
 				200000000000000000000003 /* GlucoseMonitorWidgetExtension */,
 				200000000000000000000002 /* GlucoseMonitorWatch */,
+				200000000000000000000004 /* GlucoseMonitorTests */,
 			);
 		};
 /* End PBXProject section */
@@ -318,6 +392,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				700000000000000000000007 /* Assets.xcassets in Resources */,
+				700000000000000000000031 /* best.mlpackage in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -329,6 +404,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		400000000000000000000012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		300000000000000000000012 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -355,6 +437,8 @@
 				700000000000000000000020 /* ARFoodScanner.swift in Sources */,
 				700000000000000000000021 /* FoodDensityDatabase.swift in Sources */,
 				700000000000000000000022 /* ARFoodScannerView.swift in Sources */,
+				700000000000000000000025 /* NutritionAPIService.swift in Sources */,
+				700000000000000000000026 /* FoodModels.swift in Sources */,
 				700000000000000000000011 /* LockScreenWidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -381,6 +465,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		300000000000000000000010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				700000000000000000000040 /* TestHelpers.swift in Sources */,
+				700000000000000000000041 /* AppStateBugTests.swift in Sources */,
+				700000000000000000000042 /* BackendAPIBugTests.swift in Sources */,
+				700000000000000000000043 /* FoodModelsBugTests.swift in Sources */,
+				700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */,
+				700000000000000000000045 /* InsulinIOBTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -393,6 +490,11 @@
 			isa = PBXTargetDependency;
 			target = 200000000000000000000003 /* GlucoseMonitorWidgetExtension */;
 			targetProxy = 500000000000000000000005 /* PBXContainerItemProxy */;
+		};
+		500000000000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 200000000000000000000001 /* GlucoseMonitor */;
+			targetProxy = 500000000000000000000006 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -617,6 +719,56 @@
 			};
 			name = Release;
 		};
+		A000000000000000000000051 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TRRFV962PL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GlucoseMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GlucoseMonitor";
+			};
+			name = Debug;
+		};
+		A000000000000000000000052 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TRRFV962PL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/GlucoseMonitor.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/GlucoseMonitor";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -652,6 +804,15 @@
 			buildConfigurations = (
 				A000000000000000000000041 /* Debug */,
 				A000000000000000000000042 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		900000000000000000000006 /* Build configuration list for PBXNativeTarget "GlucoseMonitorTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A000000000000000000000051 /* Debug */,
+				A000000000000000000000052 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
