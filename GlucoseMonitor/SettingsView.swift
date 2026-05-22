@@ -38,8 +38,19 @@ struct SettingsView: View {
     // LibreLinkUp
     @State private var libreEmail = ""
     @State private var librePassword = ""
-    @State private var patientId = ""
+    @State private var libreRegion = "eu-EU"
     @State private var libreStatus = ""
+
+    private static let libreRegions: [(label: String, locale: String)] = [
+        ("🇪🇺 Europe",        "en-EU"),
+        ("🇫🇷 France",        "fr-FR"),
+        ("🇩🇪 Germany",       "de-DE"),
+        ("🇬🇧 United Kingdom","en-GB"),
+        ("🇺🇸 United States", "en-US"),
+        ("🇦🇺 Australia",     "en-AU"),
+        ("🇯🇵 Japan",         "ja-JP"),
+        ("🇦🇪 UAE",           "ar-AE"),
+    ]
 
     // Nightscout
     @State private var nightscoutURL = ""
@@ -179,14 +190,20 @@ struct SettingsView: View {
                 .autocorrectionDisabled()
             SecureField("Password", text: $librePassword)
                 .textContentType(.password)
-            TextField("Patient / Connection ID", text: $patientId)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-
+            Picker("Region", selection: $libreRegion) {
+                ForEach(Self.libreRegions, id: \.locale) { region in
+                    Text(region.label).tag(region.locale)
+                }
+            }
+            .pickerStyle(.wheel)
+            .frame(height: 120)
+            .onChange(of: libreRegion) { newValue in
+                GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.libreRegion)
+            }
             Button("Sync LibreLinkUp") {
                 Task { await syncLibre() }
             }
-            .disabled(isBusy || libreEmail.isEmpty || librePassword.isEmpty || patientId.isEmpty || !appState.isAuthenticated)
+            .disabled(isBusy || libreEmail.isEmpty || librePassword.isEmpty || !appState.isAuthenticated)
 
             if !libreStatus.isEmpty {
                 Text(libreStatus)
@@ -320,7 +337,7 @@ struct SettingsView: View {
         password = GlucoseMonitorAPI.storedAppPassword()
         libreEmail    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
         librePassword = ud.string(forKey: GlucoseMonitorAPI.StorageKey.librePassword) ?? ""
-        patientId     = ud.string(forKey: GlucoseMonitorAPI.StorageKey.patientId) ?? ""
+        libreRegion   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreRegion) ?? "en-EU"
         dataSource    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
         glucoseUnit   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
     }
@@ -392,8 +409,7 @@ struct SettingsView: View {
         libreStatus = ""
         defer { isBusy = false }
         do {
-            GlucoseMonitorAPI.savePatientId(patientId)
-            try await GlucoseMonitorAPI.loginLibre(email: libreEmail, password: librePassword)
+            try await GlucoseMonitorAPI.loginLibre(email: libreEmail, password: librePassword, regionLocale: libreRegion)
             libreStatus = "OK: LibreLinkUp synced."
         } catch {
             libreStatus = error.localizedDescription
