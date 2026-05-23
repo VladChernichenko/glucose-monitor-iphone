@@ -24,6 +24,8 @@ final class AppState: ObservableObject {
     @Published var libreAlarms: GlucoseMonitorAPI.LibreAlarms?
 
     private var autoRefreshTask: Task<Void, Never>?
+    private(set) var lastGlucoseRefresh: Date?
+    private var isRefreshing = false
 
     // MARK: - Auth
 
@@ -184,9 +186,15 @@ final class AppState: ObservableObject {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task { [weak self] in
             var cycle = 0
+            // Wall-clock timestamp — survives OS suspension unlike Task.sleep's monotonic clock.
+            var lastFireTime = Date()
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 300_000_000_000)   // 5-minute glucose tick
+                // Wake every minute so we can detect when wall-clock time has passed 5 min
+                // even after a long background suspension (where Task.sleep effectively pauses).
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
                 guard let self, self.isAuthenticated else { continue }
+                guard Date().timeIntervalSince(lastFireTime) >= 5 * 60 else { continue }
+                lastFireTime = Date()
                 await self.refreshGlucoseOnly()
                 cycle += 1
                 // iOS-8 fix: sync notes every other glucose cycle (~10 min) so
@@ -205,10 +213,11 @@ final class AppState: ObservableObject {
 
     /// Full refresh: notes, history, current reading, calculations.
     func refreshAll() async {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, !isRefreshing else { return }
+        isRefreshing = true
         isLoading = true
         errorMessage = nil
-        defer { isLoading = false }
+        defer { isLoading = false; isRefreshing = false }
 
         // Refresh session tokens upfront so all subsequent requests use a valid token.
         await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
@@ -223,15 +232,20 @@ final class AppState: ObservableObject {
 
         // Calculations depend on currentReading being populated first.
         await refreshCalculations()
+        lastGlucoseRefresh = Date()
     }
 
     /// Periodic refresh without reloading the full notes list.
     func refreshGlucoseOnly() async {
-        guard isAuthenticated else { return }
+        guard isAuthenticated, !isRefreshing else { return }
+        isRefreshing = true
+        isLoading = true
+        defer { isLoading = false; isRefreshing = false }
         await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
         await loadGlucoseHistory()
         await refreshCurrentReading()
         await refreshCalculations()
+        lastGlucoseRefresh = Date()
     }
 
     private func persistWidgetSnapshot() {

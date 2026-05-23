@@ -31,6 +31,15 @@ struct ContentView: View {
             Task {
                 await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
                 await MainActor.run { appState.checkAuthentication() }
+                // Refresh glucose when returning from background, but only if enough time
+                // has passed to avoid double-fetching immediately after app launch.
+                let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
+                guard elapsed > 60 else { return }
+                if appState.currentReading == nil {
+                    await appState.refreshAll()
+                } else {
+                    await appState.refreshGlucoseOnly()
+                }
             }
         }
         .onChange(of: appState.isAuthenticated) { ok in
@@ -128,6 +137,12 @@ struct DashboardView: View {
                 if appState.currentReading == nil {
                     await appState.refreshAll()
                 } else {
+                    // On warm re-entry, refresh glucose+calculations if data is older than 90s,
+                    // then always sync notes so remote additions appear promptly.
+                    let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
+                    if elapsed > 90 {
+                        await appState.refreshGlucoseOnly()
+                    }
                     await appState.fetchNotes()
                 }
             }
