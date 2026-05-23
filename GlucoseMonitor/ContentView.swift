@@ -71,6 +71,9 @@ struct DashboardView: View {
                             }
                             extendedChartSection
                             recentNotesSection
+                            if appState.dataSource == "libre" {
+                                sensorAlarmsBar
+                            }
                             quickActions
                             if let msg = appState.errorMessage {
                                 Text(msg)
@@ -144,11 +147,11 @@ struct DashboardView: View {
         let iobStr = appState.displayedIOB.map { String(format: "%.2f u", $0) } ?? "--"
 
         return Group {
-            if appState.isLoading && appState.freshCGMReading == nil {
+            if appState.isLoading && appState.currentReading == nil {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
-            } else if let r = appState.freshCGMReading, let v = r.value {
+            } else if let r = appState.currentReading, let v = r.value {
                 let displayUnit = appState.preferredGlucoseUnit
                 let displayValue = convertGlucose(v, from: r.unit, to: displayUnit)
                 VStack(alignment: .leading, spacing: 10) {
@@ -164,7 +167,7 @@ struct DashboardView: View {
                                 }
 
                             HStack(alignment: .center, spacing: 10) {
-                                if let arrow = r.trendArrow, !arrow.isEmpty {
+                                if let arrow = r.trendArrow, !arrow.isEmpty, arrow != "?" {
                                     Text(arrow)
                                         .font(.system(size: 22, weight: .medium))
                                         .foregroundStyle(.secondary)
@@ -240,7 +243,7 @@ struct DashboardView: View {
                                 guard calc?.predictionPath?.isEmpty == false else { return }
                                 withAnimation(.easeInOut(duration: 0.2)) { showExtendedForecast.toggle() }
                             }
-                            (Text("Manual · ") + Text(manual.timestamp, style: .relative) + Text(" ago"))
+                            (Text("Updated ") + Text(manual.timestamp, style: .relative) + Text(" ago"))
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
@@ -363,6 +366,111 @@ struct DashboardView: View {
     }
 
     // MARK: - Chart
+
+    // MARK: - Sensor & Alarms bar (LLU only)
+
+    @ViewBuilder
+    private var sensorAlarmsBar: some View {
+        VStack(spacing: 8) {
+            // Sensor row
+            if let sensor = appState.sensorInfo, sensor.status != "unknown" {
+                HStack(spacing: 8) {
+                    Image(systemName: sensorStatusIcon(sensor.status))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(sensorStatusColor(sensor))
+                    Text(sensor.sensorModel ?? "FreeStyle Libre")
+                        .font(.caption.weight(.semibold))
+                    Spacer()
+                    if let remaining = sensor.daysRemaining {
+                        Text(sensorRemainingLabel(remaining))
+                            .font(.caption.weight(.medium).monospacedDigit())
+                            .foregroundStyle(sensorStatusColor(sensor))
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(sensorStatusColor(sensor).opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(sensorStatusColor(sensor).opacity(0.18), lineWidth: 1)
+                )
+            }
+
+            // Alarms row — only shown if at least one alarm is enabled
+            if let alarms = appState.libreAlarms,
+               alarms.lowAlarmEnabled || alarms.highAlarmEnabled {
+                let unit = appState.preferredGlucoseUnit
+                let isMg = unit.lowercased().contains("mg")
+                HStack(spacing: 12) {
+                    Image(systemName: "bell.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.orange)
+                    if alarms.lowAlarmEnabled, let lo = alarms.lowThresholdMmol {
+                        let display = isMg ? lo * 18.018 : lo
+                        Label(String(format: isMg ? "Low %.0f" : "Low %.1f", display),
+                              systemImage: "arrow.down")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    if alarms.highAlarmEnabled, let hi = alarms.highThresholdMmol {
+                        let display = isMg ? hi * 18.018 : hi
+                        Label(String(format: isMg ? "High %.0f" : "High %.1f", display),
+                              systemImage: "arrow.up")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                    Spacer()
+                    if alarms.signalLossAlarmEnabled {
+                        Image(systemName: "wifi.slash")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.orange.opacity(0.07))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.orange.opacity(0.15), lineWidth: 1)
+                )
+            }
+        }
+    }
+
+    private func sensorStatusIcon(_ status: String?) -> String {
+        switch status {
+        case "active":  return "sensor.tag.radiowaves.forward.fill"
+        case "warmup":  return "timer"
+        case "expired": return "exclamationmark.triangle.fill"
+        default:        return "sensor.tag.radiowaves.forward"
+        }
+    }
+
+    private func sensorStatusColor(_ sensor: GlucoseMonitorAPI.LibreSensorInfo) -> Color {
+        let remaining = sensor.daysRemaining ?? 99
+        switch sensor.status {
+        case "expired": return .red
+        case "warmup":  return .orange
+        case "active":
+            if remaining <= 1 { return .red }
+            if remaining <= 3 { return .orange }
+            return .green
+        default: return .secondary
+        }
+    }
+
+    private func sensorRemainingLabel(_ days: Int) -> String {
+        if days < 0  { return "Expired" }
+        if days == 0 { return "Expires today" }
+        if days == 1 { return "1 day left" }
+        return "\(days) days left"
+    }
 
     private var extendedChartSection: some View {
         let is8h = appState.calculations?.eightHourPrediction != nil

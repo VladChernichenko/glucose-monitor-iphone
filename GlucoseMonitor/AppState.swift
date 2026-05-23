@@ -19,6 +19,9 @@ final class AppState: ObservableObject {
     @Published var glucoseHistory: [GlucoseChartPoint] = []
     @Published var errorMessage: String?
     @Published var preferredGlucoseUnit: String = "mmol/L"
+    @Published var dataSource: String = "libre"
+    @Published var sensorInfo: GlucoseMonitorAPI.LibreSensorInfo?
+    @Published var libreAlarms: GlucoseMonitorAPI.LibreAlarms?
 
     private var autoRefreshTask: Task<Void, Never>?
 
@@ -29,12 +32,19 @@ final class AppState: ObservableObject {
         isAuthenticated = !(token?.isEmpty ?? true)
         let stored = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
         preferredGlucoseUnit = stored ?? "mmol/L"
+        dataSource = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
     }
 
     func setPreferredGlucoseUnit(_ unit: String) {
         preferredGlucoseUnit = unit
         GlucoseMonitorAPI.sharedDefaults().set(unit, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
         persistWidgetSnapshot()
+    }
+
+    func setDataSource(_ source: String) {
+        dataSource = source
+        GlucoseMonitorAPI.sharedDefaults().set(source, forKey: GlucoseMonitorAPI.StorageKey.dataSource)
+        Task { await refreshAll() }
     }
 
     func logout() async {
@@ -47,6 +57,8 @@ final class AppState: ObservableObject {
         notesLoadError = nil
         glucoseHistory = []
         errorMessage = nil
+        sensorInfo = nil
+        libreAlarms = nil
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
@@ -69,10 +81,10 @@ final class AppState: ObservableObject {
             .first?.glucoseValue
     }
 
-    /// CGM reading only if received within the last 30 minutes; nil if stale.
+    /// CGM reading only if received within the last 4 hours; nil if stale.
     var freshCGMReading: GlucoseMonitorAPI.LibreGlucoseCurrent? {
         guard let r = currentReading, let ts = r.timestamp,
-              ts >= Date().addingTimeInterval(-30 * 60) else { return nil }
+              ts >= Date().addingTimeInterval(-4 * 3600) else { return nil }
         return r
     }
 
@@ -198,9 +210,18 @@ final class AppState: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
 
-        await fetchNotes()
-        await loadGlucoseHistory()
-        await refreshCurrentReading()
+        // Refresh session tokens upfront so all subsequent requests use a valid token.
+        await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
+
+        // Fetch notes, history, and current reading concurrently — they are independent.
+        // For LLU also fetch sensor info and alarms in the same wave (non-critical; never block).
+        async let notesFetch: Void = fetchNotes()
+        async let historyFetch: Void = loadGlucoseHistory()
+        async let readingFetch: Void = refreshCurrentReading()
+        async let sensorFetch: Void = refreshSensorData()
+        _ = await (notesFetch, historyFetch, readingFetch, sensorFetch)
+
+        // Calculations depend on currentReading being populated first.
         await refreshCalculations()
     }
 
@@ -247,14 +268,16 @@ final class AppState: ObservableObject {
     }
 
     private func refreshCurrentReading() async {
-        let source = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
+        // LLU: currentReading is populated from nightscout_chart_data inside
+        // loadGlucoseHistory() so both the chart and the "Updated X ago" label
+        // share the same data source (scheduler DB cache, updated every 5 min).
+        // Calling the live LLU API here caused a mismatch: the live endpoint can
+        // return a reading that is 30-60 min older than what the scheduler has cached,
+        // making the card show "Updated 58 min ago" while the chart looked current.
+        guard dataSource == "nightscout" else { return }
         do {
-            if source == "nightscout" {
-                let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 48)
-                currentReading = Self.latestNightscoutEntry(entries)?.toLibreGlucoseCurrent()
-            } else {
-                currentReading = try await GlucoseMonitorAPI.fetchCurrentGlucose()
-            }
+            let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 48)
+            currentReading = Self.latestNightscoutEntry(entries)?.toLibreGlucoseCurrent()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -273,40 +296,105 @@ final class AppState: ObservableObject {
     }
 
     private func refreshCalculations() async {
-        guard let mmol = currentGlucoseMmolForAPI() else {
+        // Use any available CGM reading regardless of age — the UI already shows "Updated X ago".
+        // Fall back to a recent manual note only when no CGM reading is available at all.
+        let mmol: Double?
+        if let v = currentReading?.value {
+            let unit = currentReading?.unit ?? "mmol/L"
+            mmol = unit.lowercased().contains("mg") ? v / 18.018 : v
+        } else {
+            let cutoff = Date().addingTimeInterval(-4 * 3600)
+            mmol = notes
+                .filter { $0.glucoseValue != nil && ($0.timestamp ?? .distantPast) >= cutoff }
+                .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
+                .first?.glucoseValue
+        }
+        guard let mmol else {
             calculations = nil
             persistWidgetSnapshot()
             return
         }
-        calculations = try? await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
+        do {
+            calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
+        } catch {
+            // Retry once — predictions are important; a transient failure shouldn't blank them.
+            do {
+                calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
+            } catch {
+                calculations = nil
+            }
+        }
         persistWidgetSnapshot()
     }
 
     private func loadGlucoseHistory() async {
-        let source = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
+        let source = dataSource
         do {
             if source == "nightscout" {
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
-                let filtered = entries.filter { $0.type == nil || ($0.type?.lowercased() == "sgv") }
-                let points: [GlucoseChartPoint] = filtered.compactMap { e in
-                    guard let t = e.timestamp, let sgv = e.sgv else { return nil }
-                    return GlucoseChartPoint(time: t, mmol: sgv / 18.018)
-                }
-                .sorted { $0.time < $1.time }
-                glucoseHistory = points
+                glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
             } else {
-                let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
-                let points: [GlucoseChartPoint] = rows.compactMap { r in
-                    guard let t = r.timestamp, let v = r.value else { return nil }
-                    let mmol = r.unit?.lowercased().contains("mmol") == true ? v : v / 18.018
-                    return GlucoseChartPoint(time: t, mmol: mmol)
+                // LLU: read from the cached chart data written by the background scheduler
+                // (runs every 5 min) rather than making a live LLU API call on every refresh.
+                let entries = try await BackendAPI.fetchNightscoutChartData(count: 200)
+                if !entries.isEmpty {
+                    glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
+                    // iOS-11: derive currentReading from the chart cache so the
+                    // "Updated X ago" card and the chart share the same data source.
+                    // The live LLU API can return a reading 30-60 min behind the
+                    // scheduler's DB cache, causing a stale "Updated X ago" display.
+                    if let latest = Self.latestNightscoutEntry(entries) {
+                        currentReading = latest.toLibreGlucoseCurrent()
+                    }
+                } else {
+                    // No cached data yet — fall back to live LLU endpoint.
+                    let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
+                    let points: [GlucoseChartPoint] = rows.compactMap { r in
+                        guard let t = r.timestamp, let v = r.value else { return nil }
+                        let mmol = r.unit?.lowercased().contains("mmol") == true ? v : v / 18.018
+                        return GlucoseChartPoint(time: t, mmol: mmol)
+                    }
+                    .sorted { $0.time < $1.time }
+                    glucoseHistory = points
                 }
-                .sorted { $0.time < $1.time }
-                glucoseHistory = points
             }
         } catch {
             if errorMessage == nil {
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private static func nightscoutEntriesToChartPoints(_ entries: [BackendAPI.NightscoutEntry]) -> [GlucoseChartPoint] {
+        entries
+            .filter { $0.type == nil || ($0.type?.lowercased() == "sgv") }
+            .compactMap { e -> GlucoseChartPoint? in
+                guard let t = e.timestamp, let sgv = e.sgv else { return nil }
+                return GlucoseChartPoint(time: t, mmol: sgv / 18.018)
+            }
+            .sorted { $0.time < $1.time }
+    }
+
+    // MARK: - Sensor info & alarms (LLU only)
+
+    /// Fetches sensor info and alarm configuration concurrently. No-op for Nightscout.
+    private func refreshSensorData() async {
+        guard dataSource == "libre" else { return }
+        async let sensor = GlucoseMonitorAPI.fetchSensorInfo()
+        async let alarms = GlucoseMonitorAPI.fetchAlarms()
+        let (s, a) = await (sensor, alarms)
+        if let s { sensorInfo = s }
+        if let a { libreAlarms = a }
+    }
+
+    /// Call once after a successful LLU login to auto-set the preferred glucose unit
+    /// from the user's LibreLinkUp account profile (saves a manual Settings step).
+    func applyProfileDefaults() async {
+        guard dataSource == "libre" else { return }
+        if let profile = await GlucoseMonitorAPI.fetchUserProfile() {
+            let unit = profile.preferredGlucoseUnit
+            if preferredGlucoseUnit != unit {
+                setPreferredGlucoseUnit(unit)
             }
         }
     }
@@ -320,7 +408,13 @@ final class AppState: ObservableObject {
         do {
             notes = try await BackendAPI.fetchNotes()
         } catch {
-            notesLoadError = "Failed to load notes"
+            // Retry once after a short pause — transient network errors usually clear immediately.
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            do {
+                notes = try await BackendAPI.fetchNotes()
+            } catch {
+                notesLoadError = "Failed to load notes"
+            }
         }
     }
 

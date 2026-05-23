@@ -78,8 +78,8 @@ struct SettingsView: View {
                 displaySection
                 backendSection
                 dataSourceSection
-                if dataSource == "libre" { libreSection }
-                if dataSource == "nightscout" { nightscoutSection }
+                if appState.dataSource == "libre" { libreSection }
+                if appState.dataSource == "nightscout" { nightscoutSection }
                 if appState.isAuthenticated {
                     cobSection
                     insulinSection
@@ -176,6 +176,8 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
             .onChange(of: dataSource) { newValue in
+                // Keep appState and UserDefaults in sync; dashboard picker reads appState.dataSource.
+                appState.dataSource = newValue
                 GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.dataSource)
             }
         }
@@ -338,7 +340,7 @@ struct SettingsView: View {
         libreEmail    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
         librePassword = ud.string(forKey: GlucoseMonitorAPI.StorageKey.librePassword) ?? ""
         libreRegion   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreRegion) ?? "en-EU"
-        dataSource    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.dataSource) ?? "libre"
+        dataSource    = appState.dataSource
         glucoseUnit   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
     }
 
@@ -410,6 +412,8 @@ struct SettingsView: View {
         defer { isBusy = false }
         do {
             try await GlucoseMonitorAPI.loginLibre(email: libreEmail, password: librePassword, regionLocale: libreRegion)
+            // Auto-set preferred glucose unit from the user's LLU account profile.
+            await appState.applyProfileDefaults()
             libreStatus = "OK: LibreLinkUp synced."
         } catch {
             libreStatus = error.localizedDescription

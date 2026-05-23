@@ -24,9 +24,9 @@ struct GlucoseChartWindow {
     let fixedXDomain: Bool
 
     static let standard = GlucoseChartWindow(
-        historyLookback: nil,
+        historyLookback: 2 * 3600,
         forecastHorizon: 4 * 3600,
-        fixedXDomain: false
+        fixedXDomain: true
     )
     static let extended = GlucoseChartWindow(
         historyLookback: 4 * 3600,
@@ -92,6 +92,14 @@ struct GlucoseHistoryChart: View {
         guard let lookback = window.historyLookback else { return history }
         let cutoff = Date().addingTimeInterval(-lookback)
         return history.filter { $0.time >= cutoff }
+    }
+
+    /// History extended by the prediction anchor so the solid line runs continuously to "now",
+    /// eliminating the gap between the last CGM reading and the start of the dashed forecast.
+    private var bridgedHistory: [GlucoseChartPoint] {
+        guard let anchor = futurePrediction.first else { return filteredHistory }
+        if let last = filteredHistory.last, anchor.time <= last.time { return filteredHistory }
+        return filteredHistory + [GlucoseChartPoint(time: anchor.time, mmol: anchor.mmol)]
     }
 
     private var xDomain: ClosedRange<Date>? {
@@ -192,7 +200,7 @@ struct GlucoseHistoryChart: View {
                 .foregroundStyle(Color.green.opacity(0.14))
             }
 
-            ForEach(filteredHistory) { p in
+            ForEach(bridgedHistory) { p in
                 LineMark(
                     x: .value("Time", p.time),
                     y: .value("mmol/L", p.mmol),
