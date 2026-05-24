@@ -309,7 +309,8 @@ enum BackendAPI {
         let preBolusPauseMinutes: Int?
 
         struct FoodMassBreakdown: Decodable, Identifiable {
-            var id: String { label ?? UUID().uuidString }
+            // I2 fix: stored property so id is stable across accesses even when label is nil.
+            let id: String
             let label: String?
             let massG: Double?
             let carbs: Double?
@@ -319,6 +320,25 @@ enum BackendAPI {
             let gi: Double?
             let offProductName: String?
             let confidence: Double?
+
+            private enum CodingKeys: String, CodingKey {
+                case label, massG, carbs, fat, protein, fiber, gi, offProductName, confidence
+            }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                label         = try c.decodeIfPresent(String.self,  forKey: .label)
+                massG         = try c.decodeIfPresent(Double.self,  forKey: .massG)
+                carbs         = try c.decodeIfPresent(Double.self,  forKey: .carbs)
+                fat           = try c.decodeIfPresent(Double.self,  forKey: .fat)
+                protein       = try c.decodeIfPresent(Double.self,  forKey: .protein)
+                fiber         = try c.decodeIfPresent(Double.self,  forKey: .fiber)
+                gi            = try c.decodeIfPresent(Double.self,  forKey: .gi)
+                offProductName = try c.decodeIfPresent(String.self, forKey: .offProductName)
+                confidence    = try c.decodeIfPresent(Double.self,  forKey: .confidence)
+                // Assign a stable id once at decode time.
+                id = label ?? UUID().uuidString
+            }
         }
     }
 
@@ -354,6 +374,13 @@ enum BackendAPI {
     }
 
     // MARK: - Request helpers
+
+    private static let photoAnalysisSession: URLSession = {
+        let c = URLSessionConfiguration.default
+        c.timeoutIntervalForRequest = 300
+        c.timeoutIntervalForResource = 300
+        return URLSession(configuration: c)
+    }()
 
     private static func authorizedRequest(path: String, method: String = "GET") throws -> URLRequest {
         let ud = GlucoseMonitorAPI.sharedDefaults()
@@ -835,13 +862,7 @@ enum BackendAPI {
             body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
             req.httpBody = body
             req.timeoutInterval = 300
-            let session = URLSession(configuration: {
-                let c = URLSessionConfiguration.default
-                c.timeoutIntervalForRequest = 300
-                c.timeoutIntervalForResource = 300
-                return c
-            }())
-            let (data, resp) = try await session.data(for: req)
+            let (data, resp) = try await photoAnalysisSession.data(for: req)
             try checkStatus(resp, data: data)
             return try JSONDecoder().decode(NutritionSnapshot.self, from: data)
         }

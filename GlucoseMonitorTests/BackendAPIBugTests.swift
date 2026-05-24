@@ -224,7 +224,7 @@ final class BackendAPIBugTests: XCTestCase {
             "iOS-10: '2024-05-23T13:49:00Z' must decode to 13:49 UTC.")
     }
 
-    // All three timestamp formats must produce the same Date value.
+    // All three timestamp formats must produce the same Date value (regression guard).
     func testLibreCurrentTimestamp_allFormatsProduceSameDate() throws {
         let naive   = try JSONDecoder().decode(GlucoseMonitorAPI.LibreGlucoseCurrent.self,
                                               from: libreJSON(timestamp: "2024-05-23T13:49:00"))
@@ -269,6 +269,191 @@ final class BackendAPIBugTests: XCTestCase {
             expected.timeIntervalSince1970,
             accuracy: 1.0,
             "iOS-10: Epoch-ms timestamp must decode to the correct UTC instant.")
+    }
+
+    // MARK: - iOS-11: LibreSensorInfo JSON decoding
+
+    // Verifies that the LibreSensorInfo struct correctly decodes the JSON shape
+    // returned by GET /api/libre/connections/{patientId}/sensor.
+    func testLibreSensorInfo_allFields_decodedCorrectly() throws {
+        let json = """
+        {
+            "serialNumber": "FA-12345",
+            "sensorModel": "FreeStyle Libre 3",
+            "activationDate": "2024-05-01T00:00:00.000+00:00",
+            "expiryDate": "2024-05-15T00:00:00.000+00:00",
+            "sensorAgeDays": 5,
+            "sensorMaxDays": 14,
+            "status": "active",
+            "daysRemaining": 9
+        }
+        """.data(using: .utf8)!
+
+        let info = try GlucoseMonitorAPI.jsonDecoder()
+            .decode(GlucoseMonitorAPI.LibreSensorInfo.self, from: json)
+
+        XCTAssertEqual(info.serialNumber, "FA-12345")
+        XCTAssertEqual(info.sensorModel, "FreeStyle Libre 3")
+        XCTAssertEqual(info.sensorAgeDays, 5)
+        XCTAssertEqual(info.sensorMaxDays, 14)
+        XCTAssertEqual(info.status, "active")
+        XCTAssertEqual(info.daysRemaining, 9)
+        XCTAssertNotNil(info.activationDate)
+        XCTAssertNotNil(info.expiryDate)
+    }
+
+    func testLibreSensorInfo_missingOptionalFields_graceful() throws {
+        // All fields are optional in the iOS struct — partial JSON must not throw
+        let json = """
+        { "status": "warmup", "daysRemaining": -2 }
+        """.data(using: .utf8)!
+
+        let info = try GlucoseMonitorAPI.jsonDecoder()
+            .decode(GlucoseMonitorAPI.LibreSensorInfo.self, from: json)
+
+        XCTAssertNil(info.serialNumber)
+        XCTAssertNil(info.sensorModel)
+        XCTAssertEqual(info.status, "warmup")
+        XCTAssertEqual(info.daysRemaining, -2,
+            "Negative daysRemaining (overdue) must decode correctly")
+    }
+
+    func testLibreSensorInfo_expiredStatus_decodesNegativeDaysRemaining() throws {
+        let json = """
+        { "status": "expired", "sensorAgeDays": 15, "sensorMaxDays": 14, "daysRemaining": -1 }
+        """.data(using: .utf8)!
+        let info = try GlucoseMonitorAPI.jsonDecoder()
+            .decode(GlucoseMonitorAPI.LibreSensorInfo.self, from: json)
+        XCTAssertEqual(info.status, "expired")
+        XCTAssertEqual(info.daysRemaining, -1)
+    }
+
+    // MARK: - LibreAlarms JSON decoding
+
+    func testLibreAlarms_allEnabled_decodedCorrectly() throws {
+        let json = """
+        {
+            "lowAlarmEnabled": true,
+            "lowThresholdMgDl": 70.0,
+            "lowThresholdMmol": 3.9,
+            "lowSnoozeMinutes": 30,
+            "highAlarmEnabled": true,
+            "highThresholdMgDl": 180.0,
+            "highThresholdMmol": 10.0,
+            "highSnoozeMinutes": 60,
+            "signalLossAlarmEnabled": true
+        }
+        """.data(using: .utf8)!
+
+        let alarms = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreAlarms.self, from: json)
+
+        XCTAssertTrue(alarms.lowAlarmEnabled)
+        XCTAssertEqual(alarms.lowThresholdMgDl!, 70.0,  accuracy: 0.01)
+        XCTAssertEqual(alarms.lowThresholdMmol!, 3.9,   accuracy: 0.01)
+        XCTAssertEqual(alarms.lowSnoozeMinutes!, 30)
+        XCTAssertTrue(alarms.highAlarmEnabled)
+        XCTAssertEqual(alarms.highThresholdMgDl!, 180.0, accuracy: 0.01)
+        XCTAssertEqual(alarms.highThresholdMmol!, 10.0,  accuracy: 0.01)
+        XCTAssertEqual(alarms.highSnoozeMinutes!, 60)
+        XCTAssertTrue(alarms.signalLossAlarmEnabled)
+    }
+
+    func testLibreAlarms_allDisabled_nullThresholds() throws {
+        let json = """
+        {
+            "lowAlarmEnabled": false,
+            "lowThresholdMgDl": null,
+            "lowThresholdMmol": null,
+            "lowSnoozeMinutes": null,
+            "highAlarmEnabled": false,
+            "highThresholdMgDl": null,
+            "highThresholdMmol": null,
+            "highSnoozeMinutes": null,
+            "signalLossAlarmEnabled": false
+        }
+        """.data(using: .utf8)!
+
+        let alarms = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreAlarms.self, from: json)
+
+        XCTAssertFalse(alarms.lowAlarmEnabled)
+        XCTAssertFalse(alarms.highAlarmEnabled)
+        XCTAssertFalse(alarms.signalLossAlarmEnabled)
+        XCTAssertNil(alarms.lowThresholdMmol)
+        XCTAssertNil(alarms.highThresholdMmol)
+    }
+
+    // MARK: - LibreUserProfile decoding + preferredGlucoseUnit
+
+    func testLibreUserProfile_uomOne_prefersMmol() throws {
+        let json = """
+        { "firstName": "John", "lastName": "Doe",
+          "email": "john@example.com", "country": "GB", "uom": 1 }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreUserProfile.self, from: json)
+
+        XCTAssertEqual(profile.firstName, "John")
+        XCTAssertEqual(profile.uom, 1)
+        XCTAssertEqual(profile.preferredGlucoseUnit, "mmol/L",
+            "uom=1 must map to mmol/L")
+    }
+
+    func testLibreUserProfile_uomTwo_prefersMgDl() throws {
+        let json = """
+        { "firstName": "Jane", "uom": 2 }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreUserProfile.self, from: json)
+
+        XCTAssertEqual(profile.uom, 2)
+        XCTAssertEqual(profile.preferredGlucoseUnit, "mg/dL",
+            "uom=2 must map to mg/dL")
+    }
+
+    func testLibreUserProfile_uomNil_defaultsMmol() throws {
+        // Missing uom → nil → defaults to mmol/L
+        let json = """
+        { "firstName": "Alex" }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreUserProfile.self, from: json)
+
+        XCTAssertNil(profile.uom)
+        XCTAssertEqual(profile.preferredGlucoseUnit, "mmol/L",
+            "nil uom must default to mmol/L")
+    }
+
+    func testLibreUserProfile_uomAsString_decodesCorrectly() throws {
+        // Some LLU regions send uom as a string ("1" or "2") rather than an integer
+        let json = """
+        { "firstName": "Ana", "uom": "2" }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreUserProfile.self, from: json)
+
+        XCTAssertEqual(profile.uom, 2,
+            "uom sent as string '2' must decode to Int 2")
+        XCTAssertEqual(profile.preferredGlucoseUnit, "mg/dL")
+    }
+
+    func testLibreUserProfile_wrappedResponse_decodesData() throws {
+        // Backend sometimes wraps the profile: {"status":0,"data":{...}}
+        // This test verifies the bare-object fallback (WrappedProfile is private)
+        let json = """
+        { "firstName": "Kai", "lastName": "Smith", "uom": 1 }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder()
+            .decode(GlucoseMonitorAPI.LibreUserProfile.self, from: json)
+
+        XCTAssertEqual(profile.firstName, "Kai")
+        XCTAssertEqual(profile.lastName, "Smith")
     }
 
     // Nil/missing timestamp must decode gracefully without throwing.

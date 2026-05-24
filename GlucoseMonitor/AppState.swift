@@ -470,10 +470,14 @@ final class AppState: ObservableObject {
     }
 
     func uploadNotePhoto(noteId: String, image: UIImage) async {
-        if let updated = try? await BackendAPI.uploadNotePhoto(noteId: noteId, image: image) {
+        // I4 fix: surface errors instead of silently swallowing them with try?
+        do {
+            let updated = try await BackendAPI.uploadNotePhoto(noteId: noteId, image: image)
             if let idx = notes.firstIndex(where: { $0.id == noteId }) {
                 notes[idx] = updated
             }
+        } catch {
+            errorMessage = error.localizedDescription
         }
     }
 }

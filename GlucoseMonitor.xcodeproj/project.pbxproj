@@ -44,6 +44,9 @@
 		700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000045 /* InsulinIOBBugTests.swift */; };
 		700000000000000000000045 /* InsulinIOBTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000046 /* InsulinIOBTests.swift */; };
 		700000000000000000000046 /* UIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000047 /* UIBugTests.swift */; };
+		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
+		700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000049 /* NutritionAPIServiceTests.swift */; };
+		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -133,6 +136,9 @@
 		600000000000000000000045 /* InsulinIOBBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000046 /* InsulinIOBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBTests.swift; sourceTree = "<group>"; };
 		600000000000000000000047 /* UIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIBugTests.swift; sourceTree = "<group>"; };
+		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
+		600000000000000000000049 /* NutritionAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIServiceTests.swift; sourceTree = "<group>"; };
+		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -266,6 +272,9 @@
 				600000000000000000000045 /* InsulinIOBBugTests.swift */,
 				600000000000000000000046 /* InsulinIOBTests.swift */,
 				600000000000000000000047 /* UIBugTests.swift */,
+				600000000000000000000048 /* PreBolusTimerTests.swift */,
+				600000000000000000000049 /* NutritionAPIServiceTests.swift */,
+				60000000000000000000004A /* FoodModelsTests.swift */,
 			);
 			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
@@ -479,6 +488,9 @@
 				700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */,
 				700000000000000000000045 /* InsulinIOBTests.swift in Sources */,
 				700000000000000000000046 /* UIBugTests.swift in Sources */,
+				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
+				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
+				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
