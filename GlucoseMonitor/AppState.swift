@@ -25,7 +25,14 @@ final class AppState: ObservableObject {
 
     private var autoRefreshTask: Task<Void, Never>?
     private(set) var lastGlucoseRefresh: Date?
-    private var isRefreshing = false
+    private var fullRefreshTask: Task<Void, Never>?
+    private var glucoseRefreshTask: Task<Void, Never>?
+
+    deinit {
+        autoRefreshTask?.cancel()
+        fullRefreshTask?.cancel()
+        glucoseRefreshTask?.cancel()
+    }
 
     // MARK: - Auth
 
@@ -186,7 +193,7 @@ final class AppState: ObservableObject {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task { [weak self] in
             var cycle = 0
-            // Wall-clock timestamp — survives OS suspension unlike Task.sleep's monotonic clock.
+            // Wall-clock timestamp - survives OS suspension unlike Task.sleep's monotonic clock.
             var lastFireTime = Date()
             while !Task.isCancelled {
                 // Wake every minute so we can detect when wall-clock time has passed 5 min
@@ -213,39 +220,55 @@ final class AppState: ObservableObject {
 
     /// Full refresh: notes, history, current reading, calculations.
     func refreshAll() async {
-        guard isAuthenticated, !isRefreshing else { return }
-        isRefreshing = true
-        isLoading = true
-        errorMessage = nil
-        defer { isLoading = false; isRefreshing = false }
+        guard isAuthenticated else { return }
+        if let existing = fullRefreshTask {
+            await existing.value
+            return
+        }
+        let task = Task { @MainActor in
+            isLoading = true
+            errorMessage = nil
+            defer { isLoading = false }
 
-        // Refresh session tokens upfront so all subsequent requests use a valid token.
-        await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
+            await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
 
-        // Fetch notes, history, and current reading concurrently — they are independent.
-        // For LLU also fetch sensor info and alarms in the same wave (non-critical; never block).
-        async let notesFetch: Void = fetchNotes()
-        async let historyFetch: Void = loadGlucoseHistory()
-        async let readingFetch: Void = refreshCurrentReading()
-        async let sensorFetch: Void = refreshSensorData()
-        _ = await (notesFetch, historyFetch, readingFetch, sensorFetch)
+            async let notesFetch: Void = fetchNotes()
+            async let historyFetch: Void = loadGlucoseHistory()
+            async let readingFetch: Void = refreshCurrentReading()
+            async let sensorFetch: Void = refreshSensorData()
+            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch)
 
-        // Calculations depend on currentReading being populated first.
-        await refreshCalculations()
-        lastGlucoseRefresh = Date()
+            await refreshCalculations()
+            lastGlucoseRefresh = Date()
+        }
+        fullRefreshTask = task
+        defer { fullRefreshTask = nil }
+        await task.value
     }
 
     /// Periodic refresh without reloading the full notes list.
     func refreshGlucoseOnly() async {
-        guard isAuthenticated, !isRefreshing else { return }
-        isRefreshing = true
-        isLoading = true
-        defer { isLoading = false; isRefreshing = false }
-        await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
-        await loadGlucoseHistory()
-        await refreshCurrentReading()
-        await refreshCalculations()
-        lastGlucoseRefresh = Date()
+        guard isAuthenticated else { return }
+        if let full = fullRefreshTask {
+            await full.value
+            return
+        }
+        if let existing = glucoseRefreshTask {
+            await existing.value
+            return
+        }
+        let task = Task { @MainActor in
+            isLoading = true
+            defer { isLoading = false }
+            await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
+            await loadGlucoseHistory()
+            await refreshCurrentReading()
+            await refreshCalculations()
+            lastGlucoseRefresh = Date()
+        }
+        glucoseRefreshTask = task
+        defer { glucoseRefreshTask = nil }
+        await task.value
     }
 
     private func persistWidgetSnapshot() {
@@ -310,7 +333,7 @@ final class AppState: ObservableObject {
     }
 
     private func refreshCalculations() async {
-        // Use any available CGM reading regardless of age — the UI already shows "Updated X ago".
+        // Use any available CGM reading regardless of age - the UI already shows "Updated X ago".
         // Fall back to a recent manual note only when no CGM reading is available at all.
         let mmol: Double?
         if let v = currentReading?.value {
@@ -331,7 +354,7 @@ final class AppState: ObservableObject {
         do {
             calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
         } catch {
-            // Retry once — predictions are important; a transient failure shouldn't blank them.
+            // Retry once - predictions are important; a transient failure shouldn't blank them.
             do {
                 calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
             } catch {
@@ -361,7 +384,7 @@ final class AppState: ObservableObject {
                         currentReading = latest.toLibreGlucoseCurrent()
                     }
                 } else {
-                    // No cached data yet — fall back to live LLU endpoint.
+                    // No cached data yet - fall back to live LLU endpoint.
                     let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
                     let points: [GlucoseChartPoint] = rows.compactMap { r in
                         guard let t = r.timestamp, let v = r.value else { return nil }
@@ -422,7 +445,7 @@ final class AppState: ObservableObject {
         do {
             notes = try await BackendAPI.fetchNotes()
         } catch {
-            // Retry once after a short pause — transient network errors usually clear immediately.
+            // Retry once after a short pause - transient network errors usually clear immediately.
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             do {
                 notes = try await BackendAPI.fetchNotes()
@@ -437,7 +460,6 @@ final class AppState: ObservableObject {
         do {
             let note = try await BackendAPI.createNote(input)
             notes.append(note)
-            await refreshGlucoseOnly()
             await refreshCalculations()
         } catch {
             errorMessage = "Failed to save note: \(error.localizedDescription)"
@@ -451,7 +473,6 @@ final class AppState: ObservableObject {
             if let idx = notes.firstIndex(where: { $0.id == id }) {
                 notes[idx] = updated  // note with new glucoseValue in place before calculations
             }
-            await refreshGlucoseOnly()
             await refreshCalculations()
         } catch {
             errorMessage = "Failed to update note: \(error.localizedDescription)"
