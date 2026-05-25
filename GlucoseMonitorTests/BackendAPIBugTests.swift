@@ -6,37 +6,20 @@ final class BackendAPIBugTests: XCTestCase {
 
     // MARK: - I1: JWT tokens stored in UserDefaults instead of Keychain
 
-    // BUG: I1 — JWT tokens stored in UserDefaults / App Group UserDefaults instead of Keychain
-    // (security risk: other apps in the same App Group can read the token)
-    // CURRENT STATUS: NOT FIXED — GlucoseMonitorAPI.sharedDefaults() returns an App Group
-    // UserDefaults suite ("group.che.glucosemonitor"), which is readable by all apps
-    // sharing the group entitlement.  Tokens should be in Keychain (kSecClassGenericPassword).
-    //
-    // This test DOCUMENTS THE BUG by proving the token IS readable from UserDefaults.
-    // After the fix, the token must NOT be present in UserDefaults for the access-token key;
-    // at that point change the XCTAssertNotNil to XCTAssertNil.
+    // I1: JWT tokens must live in Keychain, not App Group UserDefaults.
     func testJWTStorageUsesKeychain() {
         let key = GlucoseMonitorAPI.StorageKey.accessToken
-
-        // Write a fake token into the App Group defaults (or standard if not in an app group).
         let ud = GlucoseMonitorAPI.sharedDefaults()
-        ud.set("test-insecure-token", forKey: key)
-        ud.synchronize()
 
-        let retrieved = ud.string(forKey: key)
+        GlucoseMonitorAPI.storeSessionTokens(accessToken: "test-keychain-token", refreshToken: nil)
 
-        // This assertion PASSES if the token IS in UserDefaults (proves the bug exists).
-        // After the fix (Keychain storage), ud.string(forKey:) must return nil here
-        // and the assertion must be changed to XCTAssertNil.
-        XCTAssertNotNil(
-            retrieved,
-            "I1: Token was found in UserDefaults — it must be stored in Keychain instead. "
-            + "This assertion documents the current (buggy) behaviour. "
-            + "After the fix, replace XCTAssertNotNil with XCTAssertNil.")
+        XCTAssertNil(
+            ud.string(forKey: key),
+            "I1: Access token must not remain in UserDefaults after Keychain storage.")
+        XCTAssertEqual(GlucoseMonitorAPI.storedAccessToken(), "test-keychain-token")
 
-        // Clean up so we don't pollute other tests.
-        ud.removeObject(forKey: key)
-        ud.synchronize()
+        GlucoseMonitorAPI.clearSession()
+        XCTAssertNil(GlucoseMonitorAPI.storedAccessToken())
     }
 
     // BUG: I1 — Verify the access-token key string is what we expect
@@ -49,28 +32,16 @@ final class BackendAPIBugTests: XCTestCase {
 
     // MARK: - I3: analyzePhotoNutrition creates a new URLSession per call (memory leak)
 
-    // BUG: I3 — analyzePhotoNutrition creates a new URLSession per call, never invalidated
-    // CURRENT STATUS: NOT FIXED — BackendAPI.analyzePhotoNutrition() creates a local
-    // `let session = URLSession(configuration: …)` on each invocation and never calls
-    // session.invalidateAndCancel() or session.finishTasksAndInvalidate().
-    // Each leaked session holds file descriptors, sockets, and daemon connections.
-    //
-    // After the fix, a single static/shared URLSession with the required timeout configuration
-    // should be reused across calls.
-    //
-    // This is a code-structure test — we document the contract and verify via code inspection.
-    func testAnalyzePhotoNutrition_sessionCreation() {
-        // The expected fix: BackendAPI should expose (or use internally) a static URLSession
-        // configured with a 300-second timeout so it is created once and reused.
-        // A unit test that truly verifies session reuse requires swizzling URLSession.init or
-        // dependency injection, which is outside scope here.
-        // This test documents the requirement.
-        XCTAssert(
-            true,
-            "I3: analyzePhotoNutrition must reuse a single static URLSession (configured with "
-            + "a 300-second timeout) instead of creating one per call. "
-            + "Each leaked session accumulates file descriptors and daemon connections. "
-            + "Verified by code inspection of BackendAPI.analyzePhotoNutrition().")
+    // I3: analyzePhotoNutrition reuses a static URLSession (300s timeout).
+    func testAnalyzePhotoNutrition_sessionCreation() throws {
+        let backendAPIPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("GlucoseMonitor/BackendAPI.swift")
+        let source = try String(contentsOf: backendAPIPath, encoding: .utf8)
+        XCTAssertTrue(
+            source.contains("photoAnalysisSession"),
+            "I3: BackendAPI must declare a shared photoAnalysisSession URLSession.")
     }
 
     // MARK: - iOS-9: Timezone offset sign convention and wall-clock timestamps

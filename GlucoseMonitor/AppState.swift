@@ -30,7 +30,7 @@ final class AppState: ObservableObject {
     // MARK: - Auth
 
     func checkAuthentication() {
-        let token = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.accessToken)
+        let token = GlucoseMonitorAPI.storedAccessToken()
         isAuthenticated = !(token?.isEmpty ?? true)
         let stored = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
         preferredGlucoseUnit = stored ?? "mmol/L"

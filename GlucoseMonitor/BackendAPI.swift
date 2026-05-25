@@ -386,7 +386,7 @@ enum BackendAPI {
         let ud = GlucoseMonitorAPI.sharedDefaults()
         let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
 
-        guard let token = ud.string(forKey: GlucoseMonitorAPI.StorageKey.accessToken), !token.isEmpty else {
+        guard let token = GlucoseMonitorAPI.storedAccessToken(), !token.isEmpty else {
             throw GlucoseMonitorAPI.APIError.missingToken
         }
         guard let url = URL(string: base + path) else { throw GlucoseMonitorAPI.APIError.invalidURL }
