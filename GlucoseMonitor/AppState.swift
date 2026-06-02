@@ -81,7 +81,7 @@ final class AppState: ObservableObject {
         if let v = currentReading?.value,
            let ts = currentReading?.timestamp, ts >= cgmStaleCutoff {
             let unit = currentReading?.unit ?? "mmol/L"
-            return unit.lowercased().contains("mg") ? v / 18.018 : v
+            return GlucoseUnit.toMmol(v, unit: unit)
         }
         let cutoff = Date().addingTimeInterval(-4 * 3600)
         return notes
@@ -273,15 +273,14 @@ final class AppState: ObservableObject {
 
     private func persistWidgetSnapshot() {
         let displayUnit = preferredGlucoseUnit
-        let isMg = displayUnit.lowercased().contains("mg")
         let mmol = currentGlucoseMmolForAPI()
-        let displayVal = mmol.map { isMg ? $0 * 18.018 : $0 }
+        let displayVal = mmol.map { GlucoseUnit.fromMmol($0, displayUnit: displayUnit) }
         let delta: Double?
         if glucoseHistory.count >= 2 {
             let last = glucoseHistory[glucoseHistory.count - 1]
             let prev = glucoseHistory[glucoseHistory.count - 2]
             let deltaMmol = last.mmol - prev.mmol
-            delta = isMg ? deltaMmol * 18.018 : deltaMmol
+            delta = GlucoseUnit.fromMmol(deltaMmol, displayUnit: displayUnit)
         } else {
             delta = nil
         }
@@ -338,7 +337,7 @@ final class AppState: ObservableObject {
         let mmol: Double?
         if let v = currentReading?.value {
             let unit = currentReading?.unit ?? "mmol/L"
-            mmol = unit.lowercased().contains("mg") ? v / 18.018 : v
+            mmol = GlucoseUnit.toMmol(v, unit: unit)
         } else {
             let cutoff = Date().addingTimeInterval(-4 * 3600)
             mmol = notes
@@ -388,7 +387,7 @@ final class AppState: ObservableObject {
                     let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
                     let points: [GlucoseChartPoint] = rows.compactMap { r in
                         guard let t = r.timestamp, let v = r.value else { return nil }
-                        let mmol = r.unit?.lowercased().contains("mmol") == true ? v : v / 18.018
+                        let mmol = GlucoseUnit.isMmol(r.unit) ? v : GlucoseUnit.mgdlToMmol(v)
                         return GlucoseChartPoint(time: t, mmol: mmol)
                     }
                     .sorted { $0.time < $1.time }
@@ -407,7 +406,7 @@ final class AppState: ObservableObject {
             .filter { $0.type == nil || ($0.type?.lowercased() == "sgv") }
             .compactMap { e -> GlucoseChartPoint? in
                 guard let t = e.timestamp, let sgv = e.sgv else { return nil }
-                return GlucoseChartPoint(time: t, mmol: sgv / 18.018)
+                return GlucoseChartPoint(time: t, mmol: GlucoseUnit.mgdlToMmol(sgv))
             }
             .sorted { $0.time < $1.time }
     }

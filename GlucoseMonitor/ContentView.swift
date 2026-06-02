@@ -441,14 +441,14 @@ struct DashboardView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.orange)
                     if alarms.lowAlarmEnabled, let lo = alarms.lowThresholdMmol {
-                        let display = isMg ? lo * 18.018 : lo
+                        let display = GlucoseUnit.fromMmol(lo, displayUnit: unit)
                         Label(String(format: isMg ? "Low %.0f" : "Low %.1f", display),
                               systemImage: "arrow.down")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
                     if alarms.highAlarmEnabled, let hi = alarms.highThresholdMmol {
-                        let display = isMg ? hi * 18.018 : hi
+                        let display = GlucoseUnit.fromMmol(hi, displayUnit: unit)
                         Label(String(format: isMg ? "High %.0f" : "High %.1f", display),
                               systemImage: "arrow.up")
                             .font(.caption)
@@ -683,7 +683,7 @@ struct DashboardView: View {
         let srcIsMg = (sourceUnit ?? "mmol/L").lowercased().contains("mg")
         let dstIsMg = targetUnit.lowercased().contains("mg")
         if srcIsMg == dstIsMg { return value }
-        return srcIsMg ? value / 18.018 : value * 18.018
+        return srcIsMg ? GlucoseUnit.mgdlToMmol(value) : GlucoseUnit.mmolToMgdl(value)
     }
 
     private func formatGlucose(_ value: Double, unit: String) -> String {
@@ -695,7 +695,7 @@ struct DashboardView: View {
     /// Backend predictions are mmol/L; convert to the display unit.
     private func formatBackendGlucoseMmol(_ mmol: Double, displayUnit: String) -> String {
         if displayUnit.lowercased().contains("mg") {
-            return String(format: "%.0f", mmol * 18.018)
+            return String(format: "%.0f", GlucoseUnit.mmolToMgdl(mmol))
         }
         return String(format: "%.1f", mmol)
     }

@@ -16,6 +16,8 @@
 		700000000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000006 /* Assets.xcassets */; };
 		700000000000000000000009 /* GMWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 600000000000000000000009 /* GMWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		70000000000000000000000A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000A /* AppState.swift */; };
+		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
+		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		70000000000000000000000B /* BackendAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000B /* BackendAPI.swift */; };
 		70000000000000000000000C /* NotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000C /* NotesView.swift */; };
 		70000000000000000000000D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000D /* SettingsView.swift */; };
@@ -110,6 +112,7 @@
 		600000000000000000000008 /* GlucoseMonitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlucoseMonitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		600000000000000000000009 /* GMWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GMWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		60000000000000000000000A /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		60000000000000000000000B /* BackendAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPI.swift; sourceTree = "<group>"; };
 		60000000000000000000000C /* NotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesView.swift; sourceTree = "<group>"; };
 		60000000000000000000000D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -197,6 +200,7 @@
 			children = (
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
+				600000000000000000000050 /* GlucoseUnit.swift */,
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
 				60000000000000000000000C /* NotesView.swift */,
@@ -445,6 +449,7 @@
 				F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */,
 				700000000000000000000001 /* GlucoseMonitorApp.swift in Sources */,
 				70000000000000000000000A /* AppState.swift in Sources */,
+				700000000000000000000050 /* GlucoseUnit.swift in Sources */,
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
@@ -499,6 +504,7 @@
 				700000000000000000000012 /* LockScreenWidgetSnapshot.swift in Sources */,
 				700000000000000000000013 /* GlucoseMonitorLockWidget.swift in Sources */,
 				700000000000000000000014 /* LockScreenAccessoryViews.swift in Sources */,
+				700000000000000000000051 /* GlucoseUnit.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

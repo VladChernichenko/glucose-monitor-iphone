@@ -132,9 +132,9 @@ struct BedsideModeView: View {
     private func convertGlucose(_ value: Double, from: String?, to: String) -> Double {
         let fromUnit = from?.lowercased() ?? "mmol/l"
         if fromUnit.contains("mmol") && to.lowercased().contains("mg") {
-            return value * 18.018
+            return GlucoseUnit.mmolToMgdl(value)
         } else if fromUnit.contains("mg") && to.lowercased().contains("mmol") {
-            return value / 18.018
+            return GlucoseUnit.mgdlToMmol(value)
         }
         return value
     }
@@ -146,7 +146,7 @@ struct BedsideModeView: View {
     }
 
     private func glucoseColor(_ value: Double, unit: String) -> Color {
-        let mgdl = unit.lowercased().contains("mmol") ? value * 18.018 : value
+        let mgdl = GlucoseUnit.isMmol(unit) ? GlucoseUnit.mmolToMgdl(value) : value
         switch mgdl {
         case ..<54: return .red
         case ..<70: return Color(red: 1, green: 0.6, blue: 0)
@@ -164,7 +164,7 @@ private struct MiniGlucoseSparkline: View {
 
     var body: some View {
         GeometryReader { geo in
-            let values = points.map { unit.lowercased().contains("mmol") ? $0.mmol : $0.mmol * 18.018 }
+            let values = points.map { GlucoseUnit.isMmol(unit) ? $0.mmol : GlucoseUnit.mmolToMgdl($0.mmol) }
             let minV = (values.min() ?? 0) - 1
             let maxV = (values.max() ?? 1) + 1
             let range = max(maxV - minV, 1)

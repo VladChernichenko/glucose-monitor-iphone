@@ -32,7 +32,7 @@ private func twoHourPredictionArrowLabel(_ snapshot: LockScreenWidgetSnapshot) -
     } else {
         cur = "--"
     }
-    let predDisplay = u.lowercased().contains("mg") ? predMmol * 18.018 : predMmol
+    let predDisplay = GlucoseUnit.fromMmol(predMmol, displayUnit: u)
     let pred = formatNumberInDisplayUnit(predDisplay, unit: u)
     return "\(cur) \(widgetGlucoseArrowCharacter) \(pred)"
 }
@@ -312,7 +312,7 @@ struct GlucoseLockWidgetEntryView: View {
 
         let currentMmol: Double = {
             guard let v = snapshot.glucoseValue else { return 5.5 }
-            return u.lowercased().contains("mg") ? v / 18.018 : v
+            return GlucoseUnit.toMmol(v, unit: u)
         }()
         let glucoseColor = segmentColorMmol(currentMmol)
 
@@ -324,7 +324,7 @@ struct GlucoseLockWidgetEntryView: View {
 
             Group {
                 if let predMmol = snapshot.twoHourPredictionMmol {
-                    let predVal = u.lowercased().contains("mg") ? predMmol * 18.018 : predMmol
+                    let predVal = GlucoseUnit.fromMmol(predMmol, displayUnit: u)
                     let predStr = formatNumberInDisplayUnit(predVal, unit: u)
                     HStack(alignment: .firstTextBaseline, spacing: compact ? 4 : 6) {
                         Text(curStr)
@@ -409,7 +409,7 @@ struct GlucoseLockWidgetEntryView: View {
         let u = snapshot.glucoseUnit
         let curMmol: Double = {
             guard let v = snapshot.glucoseValue else { return 5.5 }
-            return u.lowercased().contains("mg") ? v / 18.018 : v
+            return GlucoseUnit.toMmol(v, unit: u)
         }()
         let curStr = snapshot.glucoseValue.map { formatNumberInDisplayUnit($0, unit: u) } ?? "--"
         let glucoseColor = segmentColorMmol(curMmol)
@@ -428,7 +428,7 @@ struct GlucoseLockWidgetEntryView: View {
                     // Glucose + arrow + pred
                     Group {
                         if let predMmol = snapshot.twoHourPredictionMmol {
-                            let predVal = u.lowercased().contains("mg") ? predMmol * 18.018 : predMmol
+                            let predVal = GlucoseUnit.fromMmol(predMmol, displayUnit: u)
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(curStr)
                                 Text("→")

@@ -940,7 +940,7 @@ enum BackendAPI {
 
     static func glucoseStatus(_ value: Double?, unit: String?) -> String {
         guard let v = value else { return "unknown" }
-        let mgdl = unit?.lowercased().contains("mmol") == true ? v * 18.018 : v
+        let mgdl = GlucoseUnit.isMmol(unit) ? GlucoseUnit.mmolToMgdl(v) : v
         switch mgdl {
         case ..<54: return "critical"
         case ..<70: return "low"
