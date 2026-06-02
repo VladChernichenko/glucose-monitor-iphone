@@ -568,8 +568,23 @@ enum BackendAPI {
         let minutesAgo: Int
     }
 
+    /// Maps a CGM trend arrow string to mmol/L per minute velocity.
+    private static func trendArrowToVelocity(_ arrow: String?) -> Double {
+        switch arrow {
+        case "↑↑": return  0.100
+        case "↑":   return  0.067
+        case "↗":   return  0.033
+        case "→":   return  0.000
+        case "↘":   return -0.033
+        case "↓":   return -0.067
+        case "↓↓": return -0.100
+        default:    return  0.000
+        }
+    }
+
     static func fetchGlucoseCalculations(
         currentGlucose: Double,
+        trendArrow: String? = nil,
         prospectiveSnapshot: NutritionSnapshot? = nil
     ) async throws -> GlucoseCalculationsResponse {
         try await performWithRefresh {
@@ -586,6 +601,7 @@ enum BackendAPI {
                 let includePredictionFactors: Bool
                 let clientTimeInfo: TimeInfo
                 let prospectiveNotes: [ProspectiveNote]?
+                let currentTrendMmolPerMin: Double
             }
 
             let tz = TimeZone.current
@@ -613,7 +629,8 @@ enum BackendAPI {
                     timezone: tz.identifier,
                     timezoneOffset: tz.secondsFromGMT() / 60   // iOS-9 fix: remove erroneous negation; header (line 350) and body must agree
                 ),
-                prospectiveNotes: prospectiveNotes
+                prospectiveNotes: prospectiveNotes,
+                currentTrendMmolPerMin: trendArrowToVelocity(trendArrow)
             )
             req.httpBody = try JSONEncoder().encode(body)
 
@@ -722,17 +739,28 @@ enum BackendAPI {
         }
     }
 
-    /// Matches web `EnhancedNightscoutService.getGlucoseEntries`: live -> `useStored` -> chart-data.
+    /// Fetches Nightscout entries using a progressive fallback strategy (live → stored → chart-data).
+    ///
+    /// iOS-P1-5 fix: the `useStored` fallback (strategy 2) is only attempted when the live call
+    /// throws an error — not when it succeeds but returns an empty list. An empty live response
+    /// means the backend successfully reached Nightscout and got 0 entries; hammering `useStored`
+    /// and `chart-data` in that case wastes RPS and battery without adding new data.
+    /// Strategies 2 and 3 are still tried when strategy 1 throws (network / 5xx).
     static func fetchNightscoutEntriesWithFallbacks(count: Int) async throws -> [NightscoutEntry] {
         var firstError: Error?
 
+        // Strategy 1: live Nightscout proxy.
         do {
             let fresh = try await fetchNightscoutEntries(count: count, useStored: false)
-            if !fresh.isEmpty { return fresh }
+            // If the live call succeeded (no throw), return whatever we got — even empty.
+            // Falling through to strategy 2 when the server returned 0 entries just adds
+            // unnecessary HTTP round-trips.
+            return fresh
         } catch {
             firstError = error
         }
 
+        // Strategies 2 & 3 only run when strategy 1 threw (backend unreachable, 5xx, etc.).
         do {
             let cached = try await fetchNightscoutEntries(count: count, useStored: true)
             if !cached.isEmpty { return cached }

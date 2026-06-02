@@ -338,7 +338,7 @@ struct SettingsView: View {
         username = GlucoseMonitorAPI.storedAppUsername()
         password = GlucoseMonitorAPI.storedAppPassword()
         libreEmail    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
-        librePassword = ud.string(forKey: GlucoseMonitorAPI.StorageKey.librePassword) ?? ""
+        librePassword = GlucoseMonitorAPI.storedLibrePassword() // iOS-P0-4: reads from Keychain
         libreRegion   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreRegion) ?? "en-EU"
         dataSource    = appState.dataSource
         glucoseUnit   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"

@@ -32,10 +32,10 @@
 		700000000000000000000020 /* ARFoodScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000020 /* ARFoodScanner.swift */; };
 		700000000000000000000021 /* FoodDensityDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000021 /* FoodDensityDatabase.swift */; };
 		700000000000000000000022 /* ARFoodScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000022 /* ARFoodScannerView.swift */; };
-		700000000000000000000025 /* NutritionAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000025 /* NutritionAPIService.swift */; };
-		700000000000000000000026 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000026 /* FoodModels.swift */; };
 		700000000000000000000023 /* ARKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000023 /* ARKit.framework */; };
 		700000000000000000000024 /* SceneKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000024 /* SceneKit.framework */; };
+		700000000000000000000025 /* NutritionAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000025 /* NutritionAPIService.swift */; };
+		700000000000000000000026 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000026 /* FoodModels.swift */; };
 		700000000000000000000031 /* best.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000031 /* best.mlpackage */; };
 		700000000000000000000040 /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000041 /* TestHelpers.swift */; };
 		700000000000000000000041 /* AppStateBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000042 /* AppStateBugTests.swift */; };
@@ -47,6 +47,8 @@
 		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
 		700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000049 /* NutritionAPIServiceTests.swift */; };
 		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
+		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
+		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -123,10 +125,10 @@
 		600000000000000000000020 /* ARFoodScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScanner.swift; sourceTree = "<group>"; };
 		600000000000000000000021 /* FoodDensityDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDensityDatabase.swift; sourceTree = "<group>"; };
 		600000000000000000000022 /* ARFoodScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScannerView.swift; sourceTree = "<group>"; };
-		600000000000000000000025 /* NutritionAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIService.swift; sourceTree = "<group>"; };
-		600000000000000000000026 /* FoodModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
 		600000000000000000000023 /* ARKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ARKit.framework; path = System/Library/Frameworks/ARKit.framework; sourceTree = SDKROOT; };
 		600000000000000000000024 /* SceneKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SceneKit.framework; path = System/Library/Frameworks/SceneKit.framework; sourceTree = SDKROOT; };
+		600000000000000000000025 /* NutritionAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIService.swift; sourceTree = "<group>"; };
+		600000000000000000000026 /* FoodModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
 		600000000000000000000031 /* best.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = best.mlpackage; sourceTree = "<group>"; };
 		600000000000000000000040 /* GlucoseMonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GlucoseMonitorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		600000000000000000000041 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
@@ -139,6 +141,8 @@
 		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
 		600000000000000000000049 /* NutritionAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIServiceTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
+		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
+		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +155,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		300000000000000000000011 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		400000000000000000000002 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -159,13 +170,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		400000000000000000000011 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		300000000000000000000011 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -204,6 +208,8 @@
 				600000000000000000000022 /* ARFoodScannerView.swift */,
 				600000000000000000000025 /* NutritionAPIService.swift */,
 				600000000000000000000026 /* FoodModels.swift */,
+				F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */,
+				F5D833292FCC1CA30027C6BB /* SignInView.swift */,
 				600000000000000000000031 /* best.mlpackage */,
 				600000000000000000000006 /* Assets.xcassets */,
 			);
@@ -408,6 +414,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		300000000000000000000012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		400000000000000000000003 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -422,13 +435,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		300000000000000000000012 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -436,12 +442,14 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */,
 				700000000000000000000001 /* GlucoseMonitorApp.swift in Sources */,
 				70000000000000000000000A /* AppState.swift in Sources */,
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
+				F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */,
 				700000000000000000000003 /* GlucoseMonitorAPI.swift in Sources */,
 				70000000000000000000000E /* ClientVersion.swift in Sources */,
 				70000000000000000000000F /* InsulinIOB.swift in Sources */,
@@ -452,6 +460,23 @@
 				700000000000000000000025 /* NutritionAPIService.swift in Sources */,
 				700000000000000000000026 /* FoodModels.swift in Sources */,
 				700000000000000000000011 /* LockScreenWidgetSnapshot.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		300000000000000000000010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				700000000000000000000040 /* TestHelpers.swift in Sources */,
+				700000000000000000000041 /* AppStateBugTests.swift in Sources */,
+				700000000000000000000042 /* BackendAPIBugTests.swift in Sources */,
+				700000000000000000000043 /* FoodModelsBugTests.swift in Sources */,
+				700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */,
+				700000000000000000000045 /* InsulinIOBTests.swift in Sources */,
+				700000000000000000000046 /* UIBugTests.swift in Sources */,
+				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
+				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
+				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -474,23 +499,6 @@
 				700000000000000000000012 /* LockScreenWidgetSnapshot.swift in Sources */,
 				700000000000000000000013 /* GlucoseMonitorLockWidget.swift in Sources */,
 				700000000000000000000014 /* LockScreenAccessoryViews.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		300000000000000000000010 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				700000000000000000000040 /* TestHelpers.swift in Sources */,
-				700000000000000000000041 /* AppStateBugTests.swift in Sources */,
-				700000000000000000000042 /* BackendAPIBugTests.swift in Sources */,
-				700000000000000000000043 /* FoodModelsBugTests.swift in Sources */,
-				700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */,
-				700000000000000000000045 /* InsulinIOBTests.swift in Sources */,
-				700000000000000000000046 /* UIBugTests.swift in Sources */,
-				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
-				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
-				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

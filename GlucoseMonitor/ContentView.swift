@@ -53,6 +53,13 @@ struct ContentView: View {
                 appState.stopAutoRefresh()
             }
         }
+        .fullScreenCover(isPresented: Binding(
+            get: { !appState.isAuthenticated },
+            set: { _ in }
+        )) {
+            SignInView()
+                .environmentObject(appState)
+        }
     }
 }
 
@@ -65,6 +72,7 @@ struct DashboardView: View {
     @State private var showAI = false
     @State private var showNutrition = false
     @State private var showVersion = false
+    @State private var showBedsideMode = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
 
     var body: some View {
@@ -111,6 +119,12 @@ struct DashboardView: View {
                     .disabled(appState.isLoading || !appState.isAuthenticated)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
+                    Button { showBedsideMode = true } label: {
+                        Image(systemName: "moon.stars")
+                    }
+                    .disabled(!appState.isAuthenticated)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button { showAddNote = true } label: {
                         Image(systemName: "plus")
                     }
@@ -125,6 +139,9 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showAI) { AIInsightsSheet() }
             .sheet(isPresented: $showNutrition) { NutritionAnalyzerSheet() }
+            .fullScreenCover(isPresented: $showBedsideMode) {
+                BedsideModeView().environmentObject(appState)
+            }
             .sheet(isPresented: $showVersion) { VersionInfoSheet() }
             .sheet(item: $noteToEdit) { note in
                 EditNoteSheet(note: note) { body in

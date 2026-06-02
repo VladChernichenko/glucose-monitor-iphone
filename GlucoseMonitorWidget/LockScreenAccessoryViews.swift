@@ -310,6 +310,12 @@ struct GlucoseLockWidgetEntryView: View {
             ? .system(size: 10, weight: .medium, design: .rounded)
             : .system(size: 12, weight: .medium, design: .rounded)
 
+        let currentMmol: Double = {
+            guard let v = snapshot.glucoseValue else { return 5.5 }
+            return u.lowercased().contains("mg") ? v / 18.018 : v
+        }()
+        let glucoseColor = segmentColorMmol(currentMmol)
+
         return HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text("Glucose")
                 .font(brandFont)
@@ -330,11 +336,11 @@ struct GlucoseLockWidgetEntryView: View {
                             .minimumScaleFactor(0.35)
                     }
                     .font(numberFont)
-                    .foregroundStyle(glurooOrange)
+                    .foregroundStyle(glucoseColor)
                 } else {
                     Text(formatGlucoseValue(snapshot))
                         .font(numberFont)
-                        .foregroundStyle(glurooOrange)
+                        .foregroundStyle(glucoseColor)
                         .lineLimit(1)
                         .minimumScaleFactor(0.35)
                 }
@@ -400,36 +406,67 @@ struct GlucoseLockWidgetEntryView: View {
     }
 
     private var homeMediumLayout: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                Text(glucoseHeadline(snapshot))
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .minimumScaleFactor(0.45)
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("COB")
-                        .font(.caption2)
+        let u = snapshot.glucoseUnit
+        let curMmol: Double = {
+            guard let v = snapshot.glucoseValue else { return 5.5 }
+            return u.lowercased().contains("mg") ? v / 18.018 : v
+        }()
+        let curStr = snapshot.glucoseValue.map { formatNumberInDisplayUnit($0, unit: u) } ?? "--"
+        let glucoseColor = segmentColorMmol(curMmol)
+
+        return ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                // ── Top row ──────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    Text("Glucose Monitor")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+
+                    Spacer(minLength: 4)
+
+                    // Glucose + arrow + pred
+                    Group {
+                        if let predMmol = snapshot.twoHourPredictionMmol {
+                            let predVal = u.lowercased().contains("mg") ? predMmol * 18.018 : predMmol
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(curStr)
+                                Text("→")
+                                    .foregroundStyle(.white.opacity(0.6))
+                                Text(formatNumberInDisplayUnit(predVal, unit: u))
+                            }
+                        } else {
+                            Text(curStr)
+                        }
+                    }
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(glucoseColor)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+
+                    Spacer(minLength: 4)
+
+                    Text(ageMMSSLabel(savedAt: snapshot.savedAt))
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(0.55))
-                    Text(cobText)
-                        .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
-                        .foregroundStyle(.white)
-                    Text("IOB")
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.55))
-                    Text(iobText)
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
-                        .foregroundStyle(.white)
                 }
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+
+                // ── Chart ─────────────────────────────────────────────────
+                GlurooStyleChart(
+                    points: snapshot.chartPointsMmol(),
+                    chartHeight: 52,
+                    axisFontSize: 9
+                )
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
             }
-            GlucoseSparkline(points: snapshot.chartPointsMmol())
-                .frame(height: 54)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(12)
+        .compositingGroup()
     }
 
     private var homeLargeGlurooLayout: some View {

@@ -352,11 +352,11 @@ final class AppState: ObservableObject {
             return
         }
         do {
-            calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
+            calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol, trendArrow: currentReading?.trendArrow)
         } catch {
             // Retry once - predictions are important; a transient failure shouldn't blank them.
             do {
-                calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol)
+                calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol, trendArrow: currentReading?.trendArrow)
             } catch {
                 calculations = nil
             }

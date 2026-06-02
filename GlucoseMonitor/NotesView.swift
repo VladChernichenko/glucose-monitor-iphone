@@ -34,9 +34,10 @@ struct NotesView: View {
     @State private var activeSheet: NoteSheet?
 
     private var sortedNotes: [BackendAPI.GlucoseNote] {
-        appState.notes.sorted {
-            ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast)
-        }
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? .distantPast
+        return appState.notes
+            .filter { ($0.timestamp ?? .distantPast) >= cutoff }
+            .sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
     }
 
     var body: some View {

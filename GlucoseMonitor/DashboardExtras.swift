@@ -68,6 +68,7 @@ enum PreBolusTimer {
         }
 
         let elapsed = max(0, Int(now.timeIntervalSince(bolusTime)))
+        if elapsed >= 2 * 3600 { return (false, "--") }
         let minutes = elapsed / 60
         let seconds = elapsed % 60
         return (true, String(format: "%d:%02d", minutes, seconds))
