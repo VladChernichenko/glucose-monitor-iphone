@@ -195,6 +195,101 @@ struct NoteRowView: View {
     }
 }
 
+// MARK: - Note amount sliders
+
+private struct NoteIntStepSliderRow: View {
+    let title: String
+    let unit: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text("\(value) \(unit)")
+                    .font(.subheadline.monospacedDigit().weight(.medium))
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(value) },
+                    set: { raw in
+                        let stepped = Int((raw / Double(step)).rounded()) * step
+                        value = min(range.upperBound, max(range.lowerBound, stepped))
+                    }
+                ),
+                in: Double(range.lowerBound)...Double(range.upperBound),
+                step: Double(step)
+            )
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+private struct NoteDoubleStepSliderRow: View {
+    let title: String
+    let unit: String
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title).font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text(String(format: "%.1f %@", value, unit))
+                    .font(.subheadline.monospacedDigit().weight(.medium))
+            }
+            Slider(
+                value: Binding(
+                    get: { value },
+                    set: { raw in
+                        let stepped = (raw / step).rounded() * step
+                        value = min(range.upperBound, max(range.lowerBound, stepped))
+                    }
+                ),
+                in: range,
+                step: step
+            )
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+/// Glucose at note time; `0` means not set (shown as em dash).
+private struct NoteGlucoseSliderRow: View {
+    @Binding var mmol: Double
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Glucose (mmol/L)").font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                Text(mmol > 0 ? String(format: "%.1f", mmol) : "-")
+                    .font(.subheadline.monospacedDigit().weight(.medium))
+            }
+            Slider(
+                value: Binding(
+                    get: { mmol },
+                    set: { raw in
+                        if raw < 0.5 {
+                            mmol = 0
+                        } else {
+                            mmol = (min(25.0, max(1.0, raw)) * 10).rounded() / 10
+                        }
+                    }
+                ),
+                in: 0...25,
+                step: 0.1
+            )
+        }
+        .padding(.vertical, 6)
+    }
+}
+
 // MARK: - Unified Note Editor
 
 /// Single sheet for both manual note entry and food-scan result review.
@@ -219,8 +314,6 @@ struct NoteEditorSheet: View {
     @State private var isFetchingProspective = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let carbOptions    = Array(stride(from: 0, through: 200, by: 5))
-    private let insulinOptions = Array(stride(from: 0.0, through: 30.0, by: 0.5))
     private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1)
                                                        .map { ($0 * 10).rounded() / 10 }
 
@@ -296,23 +389,15 @@ struct NoteEditorSheet: View {
                     }
                 }
                 Section("Amounts") {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Carbs (g)").font(.caption).foregroundStyle(.secondary)
-                        Picker("Carbs", selection: $carbs) {
-                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
-                        }
-                        .pickerStyle(.wheel).frame(height: 120)
-                    }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Insulin (u)").font(.caption).foregroundStyle(.secondary)
-                        Picker("Insulin", selection: $insulin) {
-                            ForEach(insulinOptions, id: \.self) {
-                                Text(String(format: "%.1f u", $0)).tag($0)
-                            }
-                        }
-                        .pickerStyle(.wheel).frame(height: 120)
-                    }
-                    glucoseWheelRow()
+                    NoteIntStepSliderRow(
+                        title: "Carbs (g)", unit: "g",
+                        value: $carbs, range: 0...200, step: 5
+                    )
+                    NoteDoubleStepSliderRow(
+                        title: "Insulin (u)", unit: "u",
+                        value: $insulin, range: 0...30, step: 0.5
+                    )
+                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
                 }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical).lineLimit(3...)
@@ -423,20 +508,6 @@ struct NoteEditorSheet: View {
 
     // MARK: Sub-views
 
-    @ViewBuilder
-    private func glucoseWheelRow() -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Glucose (mmol/L)").font(.caption).foregroundStyle(.secondary)
-            Picker("Glucose", selection: $glucoseWheelValue) {
-                Text("—").tag(0.0)
-                ForEach(Self.glucoseOptions.dropFirst(), id: \.self) {
-                    Text(String(format: "%.1f", $0)).tag($0)
-                }
-            }
-            .pickerStyle(.wheel).frame(height: 120)
-        }
-    }
-
     private func nutritionRow(_ label: String, value: Double?, unit: String) -> some View {
         HStack {
             Text(label); Spacer()
@@ -529,9 +600,6 @@ struct EditNoteSheet: View {
     @State private var isSaving = false
 
     private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-    private let carbOptions    = Array(stride(from: 0, through: 200, by: 5))         // iOS-3 fix: 5g steps
-    private let insulinOptions = Array(stride(from: 0.0, through: 30.0, by: 0.5))   // iOS-3 fix: 0.5u steps
-    private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1).map { (($0 * 10).rounded() / 10) }
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
@@ -561,32 +629,15 @@ struct EditNoteSheet: View {
                     }
                 }
                 Section("Amounts") {
-
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Insulin (u)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Picker("Insulin", selection: $insulin) {
-                            // iOS-3 fix: 0.5u granularity; insulinOptions is [Double]
-                            ForEach(insulinOptions, id: \.self) { Text(String(format: "%.1f u", $0)).tag($0) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 120)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Carbs (g)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Picker("Carbs", selection: $carbs) {
-                            ForEach(carbOptions, id: \.self) { Text("\($0) g").tag($0) }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(height: 120)
-                    }
-
-                    editGlucoseRow()
+                    NoteIntStepSliderRow(
+                        title: "Carbs (g)", unit: "g",
+                        value: $carbs, range: 0...200, step: 5
+                    )
+                    NoteDoubleStepSliderRow(
+                        title: "Insulin (u)", unit: "u",
+                        value: $insulin, range: 0...30, step: 0.5
+                    )
+                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
                 }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical)
@@ -611,23 +662,6 @@ struct EditNoteSheet: View {
                         .disabled(isSaving)
                 }
             }
-        }
-    }
-
-    @ViewBuilder
-    private func editGlucoseRow() -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("Glucose (mmol/L)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Picker("Glucose", selection: $glucoseWheelValue) {
-                Text("—").tag(0.0)
-                ForEach(Self.glucoseOptions.dropFirst(), id: \.self) { v in
-                    Text(String(format: "%.1f", v)).tag(v)
-                }
-            }
-            .pickerStyle(.wheel)
-            .frame(height: 120)
         }
     }
 

@@ -82,8 +82,6 @@ struct GlucoseHistoryChart: View {
     let prediction: [PredictionChartPoint]
     let notes: [BackendAPI.GlucoseNote]
     var window: GlucoseChartWindow = .standard
-    @State private var scale: CGFloat = 1.0
-    @State private var lastScale: CGFloat = 1.0
 
     /// mmol/L band matching common target range (shown like Libre-style charts).
     private static let targetLowMmol: Double = 4
@@ -173,18 +171,6 @@ struct GlucoseHistoryChart: View {
                     .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
                 }
                 .frame(height: 220)
-                .scaleEffect(scale, anchor: .topLeading)
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            scale = lastScale * value
-                        }
-                        .onEnded { value in
-                            let newScale = lastScale * value
-                            lastScale = max(1.0, min(3.0, newScale))
-                            scale = lastScale
-                        }
-                )
             }
         }
     }
