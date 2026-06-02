@@ -28,6 +28,15 @@ final class AppState: ObservableObject {
     private var fullRefreshTask: Task<Void, Never>?
     private var glucoseRefreshTask: Task<Void, Never>?
 
+    init() {
+        // Resolve auth synchronously from the stored Keychain token *before* the first render, so an
+        // already-signed-in user never sees the SignInView flash on launch (the previous default of
+        // isAuthenticated=false showed login for one frame until .onAppear ran checkAuthentication()).
+        // checkAuthentication() only reads the Keychain + App-Group defaults — no network — so it is
+        // safe and instantaneous at init time.
+        checkAuthentication()
+    }
+
     deinit {
         autoRefreshTask?.cancel()
         fullRefreshTask?.cancel()
