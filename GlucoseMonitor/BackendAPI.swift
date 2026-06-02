@@ -540,7 +540,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: "/api/cob-settings/")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(COBSettings.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(COBSettings.self, from: data)
         }
     }
 
@@ -550,7 +550,7 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(settings)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(COBSettings.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(COBSettings.self, from: data)
         }
     }
 
@@ -637,7 +637,7 @@ enum BackendAPI {
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
 
-            let decoder = JSONDecoder()
+            let decoder = GlucoseMonitorAPI.jsonDecoder()
             let envelope = try decoder.decode(GlucoseCalculationsResponse.Envelope.self, from: data)
             guard let result = envelope.data else {
                 throw GlucoseMonitorAPI.APIError.decoding(
@@ -691,7 +691,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: path)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode([InsulinCatalogEntry].self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode([InsulinCatalogEntry].self, from: data)
         }
     }
 
@@ -700,7 +700,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: "/api/user/insulin-preferences")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(UserInsulinPreferences.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(UserInsulinPreferences.self, from: data)
         }
     }
 
@@ -711,7 +711,7 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(Body(rapidInsulinCode: rapidCode, longActingInsulinCode: longActingCode))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(UserInsulinPreferences.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(UserInsulinPreferences.self, from: data)
         }
     }
 
@@ -724,7 +724,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: "/api/nightscout/entries?count=\(count)&useStored=\(stored)")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            let decoder = JSONDecoder()
+            let decoder = GlucoseMonitorAPI.jsonDecoder()
             return try decoder.decode([NightscoutEntry].self, from: data)
         }
     }
@@ -735,7 +735,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: "/api/nightscout/chart-data?count=\(count)")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode([NightscoutEntry].self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode([NightscoutEntry].self, from: data)
         }
     }
 
@@ -790,7 +790,7 @@ enum BackendAPI {
             }
             if http.statusCode == 404 { return nil }
             try checkStatus(resp, data: data)
-            let dto = try JSONDecoder().decode(UserDataSourceNightscoutResponse.self, from: data)
+            let dto = try GlucoseMonitorAPI.jsonDecoder().decode(UserDataSourceNightscoutResponse.self, from: data)
             guard let url = dto.nightscoutUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !url.isEmpty else {
                 return nil
             }
@@ -827,7 +827,7 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            let decoder = JSONDecoder()
+            let decoder = GlucoseMonitorAPI.jsonDecoder()
             return try decoder.decode(AiAnalysisResult.self, from: data)
         }
     }
@@ -856,7 +856,7 @@ enum BackendAPI {
         for try await line in bytes.lines {
             guard !line.isEmpty,
                   let data = line.data(using: .utf8),
-                  let event = try? JSONDecoder().decode(StreamEvent.self, from: data)
+                  let event = try? GlucoseMonitorAPI.jsonDecoder().decode(StreamEvent.self, from: data)
             else { continue }
 
             if event.type == "done" { break }
@@ -892,7 +892,7 @@ enum BackendAPI {
             req.timeoutInterval = 300
             let (data, resp) = try await photoAnalysisSession.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(NutritionSnapshot.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(NutritionSnapshot.self, from: data)
         }
     }
 
@@ -906,7 +906,7 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(Body(ingredientsText: ingredientsText, fallbackCarbs: fallbackCarbs))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(NutritionSnapshot.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(NutritionSnapshot.self, from: data)
         }
     }
 
@@ -917,7 +917,7 @@ enum BackendAPI {
             let req = try authorizedRequest(path: "/api/version/")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(BackendVersionPayload.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(BackendVersionPayload.self, from: data)
         }
     }
 
@@ -932,7 +932,7 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(body)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-            return try JSONDecoder().decode(CompatibilityPayload.self, from: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(CompatibilityPayload.self, from: data)
         }
     }
 
