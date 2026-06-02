@@ -6,15 +6,28 @@ import UIKit
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab: Int = 0
+
+    private static let dashboardTab = 0
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             DashboardView()
+                .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
             NotesView()
+                .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
             SettingsView()
+                .tag(2)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+        .onChange(of: selectedTab) { newTab in
+            // Refresh glucose values whenever the user opens (selects) the Dashboard tab. Safe to call
+            // unconditionally: refreshGlucoseOnly coalesces with any in-flight refresh and reads the
+            // server-side chart cache, and the token refresh inside has its own 45-min throttle.
+            guard newTab == Self.dashboardTab, appState.isAuthenticated else { return }
+            Task { await appState.refreshGlucoseOnly() }
         }
         .onAppear {
             appState.checkAuthentication()
