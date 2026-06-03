@@ -158,6 +158,15 @@ struct NoteRowView: View {
             HStack {
                 Text(note.meal.isEmpty ? "Note" : note.meal)
                     .font(.headline)
+                if note.isLongActing {
+                    Text("Long-acting")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.indigo.opacity(0.15))
+                        .foregroundColor(.indigo)
+                        .clipShape(Capsule())
+                }
                 Spacer()
                 if let ts = note.timestamp {
                     Text(ts, style: .relative)
@@ -907,6 +916,62 @@ struct FoodScanSheet: View {
             curveDescription:     nil,
             preBolusPauseMinutes: 15
         )
+    }
+}
+
+// MARK: - Long-acting insulin
+
+/// Sheet for logging a long-acting (basal) insulin dose. The insulin name is pre-filled from the
+/// user's configured long-acting preference; the dose is saved as a note with type "long_acting".
+struct LongActingInsulinSheet: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    let insulinName: String
+
+    @State private var dose: Double = 10
+    @State private var time: Date = Date()
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Long-acting insulin") {
+                    HStack {
+                        Text("Insulin")
+                        Spacer()
+                        Text(insulinName).foregroundColor(.secondary)
+                    }
+                    Stepper(value: $dose, in: 0...100, step: 0.5) {
+                        HStack {
+                            Text("Dose")
+                            Spacer()
+                            Text(String(format: "%.1f U", dose))
+                                .foregroundColor(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                    DatePicker("Time", selection: $time, displayedComponents: [.hourAndMinute])
+                }
+            }
+            .navigationTitle("Log long-acting")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        isSaving = true
+                        Task {
+                            await appState.logLongActingInsulin(dose: dose, name: insulinName, at: time)
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving || dose <= 0)
+                }
+            }
+        }
     }
 }
 

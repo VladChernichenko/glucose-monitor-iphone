@@ -68,6 +68,8 @@ struct SettingsView: View {
     @State private var longActingCatalog: [BackendAPI.InsulinCatalogEntry] = []
     @State private var selectedRapid = ""
     @State private var selectedLongActing = ""
+    @State private var injectionTimeEnabled = false
+    @State private var injectionTime = Date()
     @State private var insulinStatus = ""
 
     @State private var isBusy = false
@@ -294,6 +296,11 @@ struct SettingsView: View {
                     }
                 }
 
+                Toggle("Set injection time", isOn: $injectionTimeEnabled)
+                if injectionTimeEnabled {
+                    DatePicker("Injection time", selection: $injectionTime, displayedComponents: [.hourAndMinute])
+                }
+
                 Button("Save Insulin Preferences") {
                     Task { await saveInsulinPrefs() }
                 }
@@ -370,6 +377,13 @@ struct SettingsView: View {
         if let prefs = try? await BackendAPI.fetchInsulinPreferences() {
             selectedRapid      = prefs.rapidInsulinCode
             selectedLongActing = prefs.longActingInsulinCode
+            if let hhmm = prefs.longActingInjectionTime, let parsed = Self.parseHHmm(hhmm) {
+                injectionTimeEnabled = true
+                injectionTime = parsed
+            } else {
+                injectionTimeEnabled = false
+            }
+            appState.insulinPrefs = prefs
         } else {
             selectedRapid      = rapidCatalog.first?.code ?? ""
             selectedLongActing = longActingCatalog.first?.code ?? ""
@@ -453,14 +467,28 @@ struct SettingsView: View {
         insulinStatus = ""
         defer { isBusy = false }
         do {
-            _ = try await BackendAPI.saveInsulinPreferences(
+            // "" clears a previously-set time when the toggle is off; "HH:mm" sets it otherwise.
+            let prefs = try await BackendAPI.saveInsulinPreferences(
                 rapidCode: selectedRapid,
-                longActingCode: selectedLongActing
+                longActingCode: selectedLongActing,
+                longActingInjectionTime: injectionTimeEnabled ? Self.formatHHmm(injectionTime) : ""
             )
+            appState.insulinPrefs = prefs
             insulinStatus = "OK: insulin preferences saved."
         } catch {
             insulinStatus = error.localizedDescription
         }
+    }
+
+    private static func parseHHmm(_ hhmm: String) -> Date? {
+        let parts = hhmm.split(separator: ":")
+        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
+        return Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: Date())
+    }
+
+    private static func formatHHmm(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 
     // MARK: - Helpers

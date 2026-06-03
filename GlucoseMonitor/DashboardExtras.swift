@@ -17,6 +17,24 @@ struct PredictionChartPoint: Identifiable, Equatable {
     var id: String { String(format: "p_%.3f", time.timeIntervalSince1970) }
 }
 
+/// Light smoothing for CGM lines (reduces 5-min noise without hiding real trends).
+enum GlucoseChartSmoothing {
+    /// Centered moving average; keeps original timestamps.
+    static func movingAverage(_ points: [GlucoseChartPoint], window: Int = 5) -> [GlucoseChartPoint] {
+        guard points.count >= 3, window > 1 else { return points }
+        let sorted = points.sorted { $0.time < $1.time }
+        let w = min(window, sorted.count)
+        let half = w / 2
+        return sorted.enumerated().map { index, point in
+            let lo = max(0, index - half)
+            let hi = min(sorted.count - 1, index + half)
+            let slice = sorted[lo...hi]
+            let avg = slice.map(\.mmol).reduce(0, +) / Double(slice.count)
+            return GlucoseChartPoint(time: point.time, mmol: avg)
+        }
+    }
+}
+
 /// Time window for dashboard glucose charts.
 struct GlucoseChartWindow {
     let historyLookback: TimeInterval?
@@ -93,12 +111,19 @@ struct GlucoseHistoryChart: View {
         return history.filter { $0.time >= cutoff }
     }
 
+    /// Display history with centered moving average (5 samples ~25 min at 5-min CGM).
+    private var displayHistory: [GlucoseChartPoint] {
+        GlucoseChartSmoothing.movingAverage(filteredHistory, window: 5)
+    }
+
     /// History extended by the prediction anchor so the solid line runs continuously to "now",
     /// eliminating the gap between the last CGM reading and the start of the dashed forecast.
     private var bridgedHistory: [GlucoseChartPoint] {
-        guard let anchor = futurePrediction.first else { return filteredHistory }
-        if let last = filteredHistory.last, anchor.time <= last.time { return filteredHistory }
-        return filteredHistory + [GlucoseChartPoint(time: anchor.time, mmol: anchor.mmol)]
+        let base = displayHistory
+        guard let anchor = futurePrediction.first else { return base }
+        guard let last = base.last else { return base }
+        if anchor.time <= last.time { return base }
+        return base + [GlucoseChartPoint(time: anchor.time, mmol: last.mmol)]
     }
 
     private var xDomain: ClosedRange<Date>? {
@@ -127,7 +152,7 @@ struct GlucoseHistoryChart: View {
         let cap = now.addingTimeInterval(window.forecastHorizon)
         let future = prediction.filter { $0.time > now && $0.time <= cap }
         guard !future.isEmpty else { return [] }
-        let anchorMmol = filteredHistory.last?.mmol ?? future[0].mmol
+        let anchorMmol = displayHistory.last?.mmol ?? future[0].mmol
         let anchor = PredictionChartPoint(time: now, mmol: anchorMmol)
         return [anchor] + future
     }
@@ -193,7 +218,7 @@ struct GlucoseHistoryChart: View {
                     y: .value("mmol/L", p.mmol),
                     series: .value("Series", "history")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(.blue)
             }
 
@@ -203,7 +228,7 @@ struct GlucoseHistoryChart: View {
                     y: .value("Pred", p.mmol),
                     series: .value("Series", "prediction")
                 )
-                .interpolationMethod(.catmullRom)
+                .interpolationMethod(.linear)
                 .foregroundStyle(Color.blue)
                 .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
             }

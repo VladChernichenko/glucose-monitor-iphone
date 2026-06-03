@@ -159,6 +159,33 @@ final class InsulinIOBTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(iob, 0)
     }
 
+    // MARK: - Long-acting (basal) exclusion
+
+    func testLongActingNoteExcludedFromIOB() {
+        // A long-acting (basal) dose must contribute ZERO rapid-acting IOB, even recent and large.
+        let basal = BackendAPI.GlucoseNote(
+            id: "basal", timestamp: Date(timeIntervalSinceNow: -30 * 60),
+            carbs: 0, insulin: 20, meal: "Tresiba",
+            comment: nil, glucoseValue: nil, absorptionMode: nil,
+            type: BackendAPI.NoteType.longActing, photoUrl: nil)
+        XCTAssertEqual(InsulinIOB.currentIOBFromNotes(notes: [basal]), 0, accuracy: 1e-9)
+    }
+
+    func testLongActingDoesNotAffectBolusSum() {
+        // A bolus plus a long-acting note → IOB equals the bolus alone (basal ignored).
+        let bolus = makeNote(insulin: 4, minsAgo: 30)
+        let basal = BackendAPI.GlucoseNote(
+            id: "basal", timestamp: Date(timeIntervalSinceNow: -30 * 60),
+            carbs: 0, insulin: 20, meal: "Tresiba",
+            comment: nil, glucoseValue: nil, absorptionMode: nil,
+            type: BackendAPI.NoteType.longActing, photoUrl: nil)
+        // Use one reference instant so both calls sample the bolus curve at the same time.
+        let now = Date()
+        let withBasal = InsulinIOB.currentIOBFromNotes(notes: [bolus, basal], at: now)
+        let bolusOnly = InsulinIOB.currentIOBFromNotes(notes: [bolus], at: now)
+        XCTAssertEqual(withBasal, bolusOnly, accuracy: 1e-9)
+    }
+
     // MARK: - Helpers
 
     private func makeNote(insulin: Double, minsAgo: Double) -> BackendAPI.GlucoseNote {

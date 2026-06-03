@@ -3,6 +3,7 @@ import UIKit
 
 @main
 struct GlucoseMonitorApp: App {
+    @UIApplicationDelegateAdaptor(GlucoseMonitorAppDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
 
     var body: some Scene {

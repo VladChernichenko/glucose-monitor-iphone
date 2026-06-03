@@ -19,5 +19,13 @@
 	<string>Meal photos are saved to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a meal photo from your library to analyze its nutrition.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.che.glucosemonitor.background-refresh</string>
+	</array>
 </dict>
 </plist>

@@ -49,11 +49,18 @@ private func formatDeltaDisplay(_ snapshot: LockScreenWidgetSnapshot) -> String 
     return String(format: "%+.1f", d)
 }
 
-private func ageMMSSLabel(savedAt: Date) -> String {
-    let sec = max(0, Int(-savedAt.timeIntervalSinceNow))
-    let m = sec / 60
-    let s = sec % 60
-    return String(format: "%d:%02d", m, s)
+/// Live count-up since the CGM reading (system animates on Home Screen without per-second timeline entries).
+private struct WidgetReadingAgeLabel: View {
+    let savedAt: Date
+    var font: Font = .system(size: 11, weight: .medium, design: .rounded)
+    var color: Color = .white.opacity(0.55)
+
+    var body: some View {
+        Text(savedAt, style: .timer)
+            .font(font)
+            .foregroundStyle(color)
+            .monospacedDigit()
+    }
 }
 
 private func segmentColorMmol(_ mmol: Double) -> Color {
@@ -353,9 +360,7 @@ struct GlucoseLockWidgetEntryView: View {
                         .font(sideFont)
                         .foregroundStyle(.white)
                 }
-                Text(ageMMSSLabel(savedAt: snapshot.savedAt))
-                    .font(ageFont)
-                    .foregroundStyle(.white.opacity(0.55))
+                WidgetReadingAgeLabel(savedAt: snapshot.readingAgeStart, font: ageFont)
             }
             .fixedSize(horizontal: true, vertical: false)
         }
@@ -431,7 +436,7 @@ struct GlucoseLockWidgetEntryView: View {
                             let predVal = GlucoseUnit.fromMmol(predMmol, displayUnit: u)
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(curStr)
-                                Text("→")
+                                Text(widgetGlucoseArrowCharacter)
                                     .foregroundStyle(.white.opacity(0.6))
                                 Text(formatNumberInDisplayUnit(predVal, unit: u))
                             }
@@ -446,10 +451,10 @@ struct GlucoseLockWidgetEntryView: View {
 
                     Spacer(minLength: 4)
 
-                    Text(ageMMSSLabel(savedAt: snapshot.savedAt))
-                        .font(.system(size: 11, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.55))
-                        .monospacedDigit()
+                    WidgetReadingAgeLabel(
+                        savedAt: snapshot.readingAgeStart,
+                        font: .system(size: 11, weight: .medium, design: .rounded)
+                    )
                 }
                 .padding(.horizontal, 10)
                 .padding(.top, 8)

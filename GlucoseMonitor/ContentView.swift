@@ -27,7 +27,7 @@ struct ContentView: View {
             // unconditionally: refreshGlucoseOnly coalesces with any in-flight refresh and reads the
             // server-side chart cache, and the token refresh inside has its own 45-min throttle.
             guard newTab == Self.dashboardTab, appState.isAuthenticated else { return }
-            Task { await appState.refreshGlucoseOnly() }
+            Task { await appState.refreshGlucoseOnly(silent: true) }
         }
         .onAppear {
             appState.checkAuthentication()
@@ -35,24 +35,37 @@ struct ContentView: View {
                 Task {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
                     appState.checkAuthentication()
+                    let hasCache = appState.currentReading != nil || !appState.glucoseHistory.isEmpty
+                    if hasCache {
+                        await appState.refreshGlucoseOnly(silent: true)
+                    } else if appState.currentReading == nil {
+                        await appState.refreshAll()
+                    }
                 }
                 appState.startAutoRefreshIfNeeded()
+                BackgroundRefreshService.scheduleNextRefresh()
             }
         }
         .onChange(of: scenePhase) { newPhase in
-            guard newPhase == .active, appState.isAuthenticated else { return }
-            Task {
-                await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
-                await MainActor.run { appState.checkAuthentication() }
-                // Refresh glucose when returning from background, but only if enough time
-                // has passed to avoid double-fetching immediately after app launch.
-                let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
-                guard elapsed > 60 else { return }
-                if appState.currentReading == nil {
-                    await appState.refreshAll()
-                } else {
-                    await appState.refreshGlucoseOnly()
+            switch newPhase {
+            case .background:
+                guard appState.isAuthenticated else { return }
+                BackgroundRefreshService.runBackgroundFetchIfNeeded()
+            case .active:
+                guard appState.isAuthenticated else { return }
+                Task {
+                    await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
+                    await MainActor.run { appState.checkAuthentication() }
+                    let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
+                    guard elapsed > 45 else { return }
+                    if appState.currentReading == nil {
+                        await appState.refreshAll()
+                    } else {
+                        await appState.refreshGlucoseOnly(silent: true)
+                    }
                 }
+            default:
+                break
             }
         }
         .onChange(of: appState.isAuthenticated) { ok in
@@ -86,6 +99,7 @@ struct DashboardView: View {
     @State private var showNutrition = false
     @State private var showVersion = false
     @State private var showBedsideMode = false
+    @State private var showLongActing = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
 
     var body: some View {
@@ -156,6 +170,12 @@ struct DashboardView: View {
                 BedsideModeView().environmentObject(appState)
             }
             .sheet(isPresented: $showVersion) { VersionInfoSheet() }
+            .sheet(isPresented: $showLongActing) {
+                LongActingInsulinSheet(
+                    insulinName: appState.insulinPrefs?.longActingInsulin.displayName ?? "Long-acting insulin"
+                )
+                .environmentObject(appState)
+            }
             .sheet(item: $noteToEdit) { note in
                 EditNoteSheet(note: note) { body in
                     await appState.updateNote(id: note.id, body: body)
@@ -164,14 +184,12 @@ struct DashboardView: View {
             }
             .task {
                 guard appState.isAuthenticated else { return }
-                if appState.currentReading == nil {
+                if appState.currentReading == nil && appState.glucoseHistory.isEmpty {
                     await appState.refreshAll()
                 } else {
-                    // On warm re-entry, refresh glucose+calculations if data is older than 90s,
-                    // then always sync notes so remote additions appear promptly.
                     let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
                     if elapsed > 90 {
-                        await appState.refreshGlucoseOnly()
+                        await appState.refreshGlucoseOnly(silent: true)
                     }
                     await appState.fetchNotes()
                 }
@@ -612,11 +630,38 @@ struct DashboardView: View {
 
     // MARK: - Quick actions
 
+    /// Long-acting (basal) logging row. Enabled only within the window around the user's configured
+    /// injection time (always enabled when no time is set). Shows the schedule as a subtitle.
+    private var longActingActionRow: some View {
+        let status = LongActingSchedule.status(injectionTimeHHmm: appState.insulinPrefs?.longActingInjectionTime)
+        return Button { showLongActing = true } label: {
+            HStack {
+                Label("Long-acting insulin", systemImage: "syringe")
+                    .font(.subheadline)
+                Spacer()
+                if !status.label.isEmpty {
+                    Text(status.label)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
+            .foregroundColor(.primary)
+        }
+        .disabled(!status.enabled)
+    }
+
     private var quickActions: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Actions")
                 .font(.headline)
             VStack(spacing: 0) {
+                longActingActionRow
+                Divider()
                 Button { showAI = true } label: {
                     quickActionRow(title: "AI insights", systemImage: "sparkles")
                 }

@@ -9,6 +9,9 @@ import WidgetKit
 @MainActor
 final class AppState: ObservableObject {
 
+    /// Set during `init` for background refresh handlers (`BGTask`, `UIApplication` background task).
+    static weak var shared: AppState?
+
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var currentReading: GlucoseMonitorAPI.LibreGlucoseCurrent?
@@ -22,25 +25,69 @@ final class AppState: ObservableObject {
     @Published var dataSource: String = "libre"
     @Published var sensorInfo: GlucoseMonitorAPI.LibreSensorInfo?
     @Published var libreAlarms: GlucoseMonitorAPI.LibreAlarms?
+    /// Insulin preferences (long-acting name + optional daily injection time) for the long-acting logging action.
+    @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
 
     private var autoRefreshTask: Task<Void, Never>?
     private(set) var lastGlucoseRefresh: Date?
     private var fullRefreshTask: Task<Void, Never>?
     private var glucoseRefreshTask: Task<Void, Never>?
+    private var backgroundRefreshTask: Task<Void, Never>?
+    private var lastCalculationsResponseJSON: Data?
 
     init() {
+        Self.shared = self
         // Resolve auth synchronously from the stored Keychain token *before* the first render, so an
         // already-signed-in user never sees the SignInView flash on launch (the previous default of
         // isAuthenticated=false showed login for one frame until .onAppear ran checkAuthentication()).
-        // checkAuthentication() only reads the Keychain + App-Group defaults — no network — so it is
+        // checkAuthentication() only reads the Keychain + App-Group defaults (no network), so it is
         // safe and instantaneous at init time.
         checkAuthentication()
+        restoreFromCacheIfAvailable()
+    }
+
+    /// Hydrate published state from disk (no network). Call after `checkAuthentication()` when signed in.
+    func restoreFromCacheIfAvailable() {
+        guard isAuthenticated, let payload = DashboardCache.load() else { return }
+        preferredGlucoseUnit = payload.preferredGlucoseUnit
+        dataSource = payload.dataSource
+        if let r = payload.currentReading {
+            currentReading = GlucoseMonitorAPI.LibreGlucoseCurrent(
+                timestamp: r.timestamp,
+                value: r.value,
+                trend: r.trend,
+                trendArrow: r.trendArrow,
+                status: r.status,
+                unit: r.unit
+            )
+        }
+        glucoseHistory = payload.glucoseHistory.map { GlucoseChartPoint(time: $0.time, mmol: $0.mmol) }
+        if let json = payload.calculationsResponseJSON {
+            lastCalculationsResponseJSON = json
+            calculations = BackendAPI.decodeGlucoseCalculationsResponse(from: json)
+        }
+        notes = payload.notes.map { n in
+            BackendAPI.GlucoseNote(
+                id: n.id,
+                timestamp: n.timestamp,
+                carbs: n.carbs,
+                insulin: n.insulin,
+                meal: n.meal,
+                comment: n.comment,
+                glucoseValue: n.glucoseValue,
+                absorptionMode: n.absorptionMode,
+                type: n.type,
+                photoUrl: n.photoUrl
+            )
+        }
+        lastGlucoseRefresh = payload.savedAt
     }
 
     deinit {
         autoRefreshTask?.cancel()
         fullRefreshTask?.cancel()
         glucoseRefreshTask?.cancel()
+        backgroundRefreshTask?.cancel()
     }
 
     // MARK: - Auth
@@ -80,6 +127,7 @@ final class AppState: ObservableObject {
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
+        DashboardCache.clear()
         WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
     }
 
@@ -211,7 +259,7 @@ final class AppState: ObservableObject {
                 guard let self, self.isAuthenticated else { continue }
                 guard Date().timeIntervalSince(lastFireTime) >= 5 * 60 else { continue }
                 lastFireTime = Date()
-                await self.refreshGlucoseOnly()
+                await self.refreshGlucoseOnly(silent: true)
                 cycle += 1
                 // iOS-8 fix: sync notes every other glucose cycle (~10 min) so
                 // notes added on other devices appear without a manual pull-to-refresh.
@@ -245,10 +293,12 @@ final class AppState: ObservableObject {
             async let historyFetch: Void = loadGlucoseHistory()
             async let readingFetch: Void = refreshCurrentReading()
             async let sensorFetch: Void = refreshSensorData()
-            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch)
+            async let prefsFetch: Void = refreshInsulinPrefs()
+            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch)
 
             await refreshCalculations()
             lastGlucoseRefresh = Date()
+            persistDashboardCache()
         }
         fullRefreshTask = task
         defer { fullRefreshTask = nil }
@@ -256,7 +306,7 @@ final class AppState: ObservableObject {
     }
 
     /// Periodic refresh without reloading the full notes list.
-    func refreshGlucoseOnly() async {
+    func refreshGlucoseOnly(silent: Bool = false) async {
         guard isAuthenticated else { return }
         if let full = fullRefreshTask {
             await full.value
@@ -267,17 +317,46 @@ final class AppState: ObservableObject {
             return
         }
         let task = Task { @MainActor in
-            isLoading = true
-            defer { isLoading = false }
+            if !silent { isLoading = true }
+            defer { if !silent { isLoading = false } }
             await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
             await loadGlucoseHistory()
             await refreshCurrentReading()
             await refreshCalculations()
             lastGlucoseRefresh = Date()
+            persistDashboardCache()
         }
         glucoseRefreshTask = task
         defer { glucoseRefreshTask = nil }
         await task.value
+    }
+
+    /// BG fetch / background task entry: no loading spinner, coalesced with foreground refresh.
+    func refreshGlucoseInBackground() async {
+        guard isAuthenticated else { return }
+        if let full = fullRefreshTask {
+            await full.value
+            return
+        }
+        if let existing = backgroundRefreshTask {
+            await existing.value
+            return
+        }
+        let task = Task { @MainActor in
+            await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
+            await loadGlucoseHistory()
+            await refreshCurrentReading()
+            await refreshCalculations()
+            lastGlucoseRefresh = Date()
+            persistDashboardCache()
+        }
+        backgroundRefreshTask = task
+        defer { backgroundRefreshTask = nil }
+        await task.value
+    }
+
+    private func persistDashboardCache() {
+        DashboardCache.capture(from: self, calculationsResponseJSON: lastCalculationsResponseJSON)
     }
 
     private func persistWidgetSnapshot() {
@@ -294,11 +373,14 @@ final class AppState: ObservableObject {
             delta = nil
         }
         let chartCutoff = Date().addingTimeInterval(-4 * 3600)
-        let chart = glucoseHistory
-            .filter { $0.time >= chartCutoff }
-            .map { LockScreenWidgetSnapshot.ChartPoint(time: $0.time, mmol: $0.mmol) }
+        let chart = GlucoseChartSmoothing.movingAverage(
+            glucoseHistory.filter { $0.time >= chartCutoff },
+            window: 5
+        )
+        .map { LockScreenWidgetSnapshot.ChartPoint(time: $0.time, mmol: $0.mmol) }
+        let readingAgeStart = currentReading?.timestamp ?? glucoseHistory.last?.time ?? Date()
         let snap = LockScreenWidgetSnapshot(
-            savedAt: Date(),
+            savedAt: readingAgeStart,
             glucoseValue: displayVal,
             glucoseUnit: displayUnit,
             trendArrow: currentReading?.trendArrow,
@@ -309,6 +391,11 @@ final class AppState: ObservableObject {
             chartPoints: Array(chart)
         )
         snap.save()
+        reloadWidgetTimelines()
+    }
+
+    /// Push fresh snapshot to Home Screen / Lock Screen widgets (after foreground or background fetch).
+    func reloadWidgetTimelines() {
         WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
     }
 
@@ -360,11 +447,20 @@ final class AppState: ObservableObject {
             return
         }
         do {
-            calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol, trendArrow: currentReading?.trendArrow)
+            let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
+                currentGlucose: mmol,
+                trendArrow: currentReading?.trendArrow
+            )
+            calculations = fetched.response
+            lastCalculationsResponseJSON = fetched.rawData
         } catch {
-            // Retry once - predictions are important; a transient failure shouldn't blank them.
             do {
-                calculations = try await BackendAPI.fetchGlucoseCalculations(currentGlucose: mmol, trendArrow: currentReading?.trendArrow)
+                let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
+                    currentGlucose: mmol,
+                    trendArrow: currentReading?.trendArrow
+                )
+                calculations = fetched.response
+                lastCalculationsResponseJSON = fetched.rawData
             } catch {
                 calculations = nil
             }
@@ -432,6 +528,36 @@ final class AppState: ObservableObject {
         if let a { libreAlarms = a }
     }
 
+    /// Fetch the user's insulin preferences (long-acting name + optional injection time) used by the
+    /// dashboard long-acting logging action. Best-effort: keeps the cached value on failure.
+    func refreshInsulinPrefs() async {
+        if let prefs = try? await BackendAPI.fetchInsulinPreferences() {
+            insulinPrefs = prefs
+        }
+    }
+
+    /// Log a long-acting (basal) dose as a note with type "long_acting". Such notes are excluded from
+    /// rapid-acting IOB/predictions on both client and server, so no calculations refresh is needed.
+    func logLongActingInsulin(dose: Double, name: String, at time: Date) async {
+        let input = BackendAPI.NoteInput(
+            timestamp: BackendAPI.formatNoteTimestampForRequest(time),
+            carbs: 0,
+            insulin: dose,
+            meal: name,
+            comment: nil,
+            glucoseValue: nil,
+            absorptionMode: nil,
+            nutritionProfile: nil,
+            type: BackendAPI.NoteType.longActing
+        )
+        do {
+            let note = try await BackendAPI.createNote(input)
+            notes.append(note)
+        } catch {
+            errorMessage = "Failed to log long-acting insulin: \(error.localizedDescription)"
+        }
+    }
+
     /// Call once after a successful LLU login to auto-set the preferred glucose unit
     /// from the user's LibreLinkUp account profile (saves a manual Settings step).
     func applyProfileDefaults() async {
@@ -452,11 +578,13 @@ final class AppState: ObservableObject {
         defer { isLoadingNotes = false }
         do {
             notes = try await BackendAPI.fetchNotes()
+            persistDashboardCache()
         } catch {
             // Retry once after a short pause - transient network errors usually clear immediately.
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             do {
                 notes = try await BackendAPI.fetchNotes()
+                persistDashboardCache()
             } catch {
                 notesLoadError = "Failed to load notes"
             }

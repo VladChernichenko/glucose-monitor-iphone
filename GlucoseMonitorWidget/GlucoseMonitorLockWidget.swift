@@ -7,6 +7,12 @@ struct GlucoseWidgetEntry: TimelineEntry {
 }
 
 struct GlucoseWidgetProvider: TimelineProvider {
+    /// Align widget data refresh with app glucose polling (~5 min).
+    private static let dataRefreshInterval: TimeInterval = 5 * 60
+    /// Fallback timeline steps so the age label still advances if `.timer` text is paused.
+    private static let timerFallbackSteps = 30
+    private static let timerFallbackStepSeconds = 10
+
     func placeholder(in context: Context) -> GlucoseWidgetEntry {
         GlucoseWidgetEntry(date: Date(), snapshot: .preview)
     }
@@ -16,9 +22,18 @@ struct GlucoseWidgetProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<GlucoseWidgetEntry>) -> Void) {
-        let entry = GlucoseWidgetEntry(date: Date(), snapshot: LockScreenWidgetSnapshot.load())
-        let next = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let snapshot = LockScreenWidgetSnapshot.load()
+        let now = Date()
+        var entries: [GlucoseWidgetEntry] = [GlucoseWidgetEntry(date: now, snapshot: snapshot)]
+        if snapshot != nil {
+            for step in 1...Self.timerFallbackSteps {
+                let offset = step * Self.timerFallbackStepSeconds
+                let date = now.addingTimeInterval(TimeInterval(offset))
+                entries.append(GlucoseWidgetEntry(date: date, snapshot: snapshot))
+            }
+        }
+        let reload = now.addingTimeInterval(Self.dataRefreshInterval)
+        completion(Timeline(entries: entries, policy: .after(reload)))
     }
 }
 
@@ -29,11 +44,9 @@ struct GlucoseLockScreenWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: GlucoseWidgetProvider()) { entry in
             GlucoseLockWidgetEntryView(entry: entry)
         }
-        // Lock Screen accessory widgets omit container backgrounds by default; false keeps the opaque fill.
         .containerBackgroundRemovable(false)
-        // Use the system slot edge-to-edge; slot width is still fixed by iOS (use the center row below the time for the widest lock placement).
         .contentMarginsDisabled()
-        .description("Lock Screen: place in the wide center row below the time for maximum width. Home Screen: Large is full-width. Open the app to refresh.")
+        .description("Glucose, forecast, and chart. Refreshes when the app syncs in foreground or background.")
         .supportedFamilies([
             .accessoryRectangular,
             .accessoryCircular,

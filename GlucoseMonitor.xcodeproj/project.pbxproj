@@ -51,6 +51,8 @@
 		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
 		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
 		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
+		F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B001002FCC7001001AB224 /* DashboardCache.swift */; };
+		F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -146,6 +148,8 @@
 		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
 		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
 		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
+		F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -200,6 +204,8 @@
 			children = (
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
+				F5B001002FCC7001001AB224 /* DashboardCache.swift */,
+				F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */,
 				600000000000000000000050 /* GlucoseUnit.swift */,
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
@@ -449,6 +455,8 @@
 				F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */,
 				700000000000000000000001 /* GlucoseMonitorApp.swift in Sources */,
 				70000000000000000000000A /* AppState.swift in Sources */,
+				F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */,
+				F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */,
 				700000000000000000000050 /* GlucoseUnit.swift in Sources */,
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,

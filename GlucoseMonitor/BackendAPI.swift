@@ -6,6 +6,12 @@ enum BackendAPI {
 
     // MARK: - Models
 
+    /// Note category discriminator (mirrors backend `Note.type`).
+    enum NoteType {
+        static let normal = "normal"
+        static let longActing = "long_acting"
+    }
+
     struct GlucoseNote: Decodable, Identifiable {
         let id: String
         let timestamp: Date?
@@ -15,7 +21,12 @@ enum BackendAPI {
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
+        /// Note category: "normal" (default) or "long_acting". Nil for legacy responses.
+        var type: String? = nil
         let photoUrl: String?
+
+        /// True when this note records a long-acting (basal) dose — not a rapid-acting bolus.
+        var isLongActing: Bool { type == NoteType.longActing }
     }
 
     struct NoteInput: Encodable {
@@ -30,6 +41,8 @@ enum BackendAPI {
         /// When set, the backend stores it directly and skips server-side re-enrichment,
         /// preserving `suggestedDurationHours` so 8 h HFHP meals get the correct forecast.
         let nutritionProfile: String?
+        /// Note category: nil → backend defaults to "normal"; "long_acting" for basal doses.
+        var type: String? = nil
     }
 
     struct UpdateNoteBody: Encodable {
@@ -40,6 +53,7 @@ enum BackendAPI {
         var comment: String?
         var glucoseValue: Double?
         var absorptionMode: String?
+        var type: String?
     }
 
     /// Matches Spring `@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")` on note DTOs (naive local wall time).
@@ -187,6 +201,8 @@ enum BackendAPI {
         let longActingInsulinCode: String
         let rapidInsulin: InsulinCatalogEntry
         let longActingInsulin: InsulinCatalogEntry
+        /// Optional daily long-acting injection time as "HH:mm" (nil when unset).
+        let longActingInjectionTime: String?
     }
 
     struct NightscoutEntry: Decodable {
@@ -582,11 +598,32 @@ enum BackendAPI {
         }
     }
 
+    /// Decodes a cached `POST /api/glucose-calculations/` response body.
+    static func decodeGlucoseCalculationsResponse(from data: Data) -> GlucoseCalculationsResponse? {
+        let decoder = GlucoseMonitorAPI.jsonDecoder()
+        guard let envelope = try? decoder.decode(GlucoseCalculationsResponse.Envelope.self, from: data) else {
+            return nil
+        }
+        return envelope.data
+    }
+
     static func fetchGlucoseCalculations(
         currentGlucose: Double,
         trendArrow: String? = nil,
         prospectiveSnapshot: NutritionSnapshot? = nil
     ) async throws -> GlucoseCalculationsResponse {
+        try await fetchGlucoseCalculationsWithRawResponse(
+            currentGlucose: currentGlucose,
+            trendArrow: trendArrow,
+            prospectiveSnapshot: prospectiveSnapshot
+        ).response
+    }
+
+    static func fetchGlucoseCalculationsWithRawResponse(
+        currentGlucose: Double,
+        trendArrow: String? = nil,
+        prospectiveSnapshot: NutritionSnapshot? = nil
+    ) async throws -> (response: GlucoseCalculationsResponse, rawData: Data) {
         try await performWithRefresh {
             // Trailing slash matches web axios baseURL + post('/') and Spring `@PostMapping("/")`.
             var req = try authorizedRequest(path: "/api/glucose-calculations/", method: "POST")
@@ -647,7 +684,7 @@ enum BackendAPI {
                     )
                 )
             }
-            return result
+            return (result, data)
         }
     }
 
@@ -704,11 +741,21 @@ enum BackendAPI {
         }
     }
 
-    static func saveInsulinPreferences(rapidCode: String, longActingCode: String) async throws -> UserInsulinPreferences {
+    /// Saves insulin preferences. `longActingInjectionTime` ("HH:mm") gates the long-acting logging
+    /// action: nil leaves the stored value unchanged, "" clears it, "HH:mm" sets it.
+    static func saveInsulinPreferences(rapidCode: String, longActingCode: String,
+                                       longActingInjectionTime: String? = nil) async throws -> UserInsulinPreferences {
         try await performWithRefresh {
             var req = try authorizedRequest(path: "/api/user/insulin-preferences", method: "PUT")
-            struct Body: Encodable { let rapidInsulinCode: String; let longActingInsulinCode: String }
-            req.httpBody = try JSONEncoder().encode(Body(rapidInsulinCode: rapidCode, longActingInsulinCode: longActingCode))
+            struct Body: Encodable {
+                let rapidInsulinCode: String
+                let longActingInsulinCode: String
+                let longActingInjectionTime: String?
+            }
+            req.httpBody = try JSONEncoder().encode(Body(
+                rapidInsulinCode: rapidCode,
+                longActingInsulinCode: longActingCode,
+                longActingInjectionTime: longActingInjectionTime))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode(UserInsulinPreferences.self, from: data)
