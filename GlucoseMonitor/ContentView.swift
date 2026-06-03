@@ -23,11 +23,12 @@ struct ContentView: View {
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .onChange(of: selectedTab) { newTab in
-            // Refresh glucose values whenever the user opens (selects) the Dashboard tab. Safe to call
-            // unconditionally: refreshGlucoseOnly coalesces with any in-flight refresh and reads the
-            // server-side chart cache, and the token refresh inside has its own 45-min throttle.
+            // Refresh glucose values whenever the user opens (selects) the Dashboard tab. Force an
+            // on-demand server sync so the data is fresh on open (no spinner). Safe to call
+            // unconditionally: the backend serialises/coalesces per-user syncs, refreshGlucoseOnly
+            // coalesces with any in-flight refresh, and the token refresh has its own 45-min throttle.
             guard newTab == Self.dashboardTab, appState.isAuthenticated else { return }
-            Task { await appState.refreshGlucoseOnly(silent: true) }
+            Task { await appState.refreshGlucoseOnly(silent: true, forceServerSync: true) }
         }
         .onAppear {
             appState.checkAuthentication()
@@ -37,7 +38,8 @@ struct ContentView: View {
                     appState.checkAuthentication()
                     let hasCache = appState.currentReading != nil || !appState.glucoseHistory.isEmpty
                     if hasCache {
-                        await appState.refreshGlucoseOnly(silent: true)
+                        // Dashboard opened with cached data: force a fresh server sync (no spinner).
+                        await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     } else if appState.currentReading == nil {
                         await appState.refreshAll()
                     }
@@ -61,7 +63,7 @@ struct ContentView: View {
                     if appState.currentReading == nil {
                         await appState.refreshAll()
                     } else {
-                        await appState.refreshGlucoseOnly(silent: true)
+                        await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     }
                 }
             default:
@@ -189,7 +191,7 @@ struct DashboardView: View {
                 } else {
                     let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
                     if elapsed > 90 {
-                        await appState.refreshGlucoseOnly(silent: true)
+                        await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     }
                     await appState.fetchNotes()
                 }
@@ -462,47 +464,6 @@ struct DashboardView: View {
                 )
             }
 
-            // Alarms row — only shown if at least one alarm is enabled
-            if let alarms = appState.libreAlarms,
-               alarms.lowAlarmEnabled || alarms.highAlarmEnabled {
-                let unit = appState.preferredGlucoseUnit
-                let isMg = unit.lowercased().contains("mg")
-                HStack(spacing: 12) {
-                    Image(systemName: "bell.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.orange)
-                    if alarms.lowAlarmEnabled, let lo = alarms.lowThresholdMmol {
-                        let display = GlucoseUnit.fromMmol(lo, displayUnit: unit)
-                        Label(String(format: isMg ? "Low %.0f" : "Low %.1f", display),
-                              systemImage: "arrow.down")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                    if alarms.highAlarmEnabled, let hi = alarms.highThresholdMmol {
-                        let display = GlucoseUnit.fromMmol(hi, displayUnit: unit)
-                        Label(String(format: isMg ? "High %.0f" : "High %.1f", display),
-                              systemImage: "arrow.up")
-                            .font(.caption)
-                            .foregroundStyle(.orange)
-                    }
-                    Spacer()
-                    if alarms.signalLossAlarmEnabled {
-                        Image(systemName: "wifi.slash")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.orange.opacity(0.07))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color.orange.opacity(0.15), lineWidth: 1)
-                )
-            }
         }
     }
 

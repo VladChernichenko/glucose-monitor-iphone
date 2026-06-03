@@ -762,6 +762,22 @@ enum BackendAPI {
         }
     }
 
+    /// On-demand LibreLinkUp sync: asks the backend to fetch fresh CGM readings immediately,
+    /// bypassing the periodic scheduler, so the chart cache is up to date before we read it.
+    /// The backend serialises per-user syncs and coalesces rapid repeat calls. Best-effort —
+    /// callers should treat failure as non-fatal (the cached data still loads). Returns the
+    /// server outcome string (e.g. "NEW_DATA", "NO_CHANGE", "IN_PROGRESS").
+    @discardableResult
+    static func syncLibreNow() async throws -> String {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/libre/sync-now", method: "POST")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            struct Resp: Decodable { let outcome: String }
+            return (try? GlucoseMonitorAPI.jsonDecoder().decode(Resp.self, from: data))?.outcome ?? "OK"
+        }
+    }
+
     // MARK: - Nightscout
 
     /// Live Nightscout proxy (`useStored=false`) or DB-cached entries from last successful sync (`useStored=true`).

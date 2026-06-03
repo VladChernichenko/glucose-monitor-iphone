@@ -426,8 +426,6 @@ struct SettingsView: View {
         defer { isBusy = false }
         do {
             try await GlucoseMonitorAPI.loginLibre(email: libreEmail, password: librePassword, regionLocale: libreRegion)
-            // Auto-set preferred glucose unit from the user's LLU account profile.
-            await appState.applyProfileDefaults()
             libreStatus = "OK: LibreLinkUp synced."
         } catch {
             libreStatus = error.localizedDescription

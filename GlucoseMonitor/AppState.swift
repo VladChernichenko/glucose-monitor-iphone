@@ -24,7 +24,6 @@ final class AppState: ObservableObject {
     @Published var preferredGlucoseUnit: String = "mmol/L"
     @Published var dataSource: String = "libre"
     @Published var sensorInfo: GlucoseMonitorAPI.LibreSensorInfo?
-    @Published var libreAlarms: GlucoseMonitorAPI.LibreAlarms?
     /// Insulin preferences (long-acting name + optional daily injection time) for the long-acting logging action.
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
 
@@ -123,7 +122,6 @@ final class AppState: ObservableObject {
         glucoseHistory = []
         errorMessage = nil
         sensorInfo = nil
-        libreAlarms = nil
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
@@ -290,7 +288,7 @@ final class AppState: ObservableObject {
             await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
 
             async let notesFetch: Void = fetchNotes()
-            async let historyFetch: Void = loadGlucoseHistory()
+            async let historyFetch: Void = loadGlucoseHistory(forceServerSync: true)
             async let readingFetch: Void = refreshCurrentReading()
             async let sensorFetch: Void = refreshSensorData()
             async let prefsFetch: Void = refreshInsulinPrefs()
@@ -305,8 +303,13 @@ final class AppState: ObservableObject {
         await task.value
     }
 
-    /// Periodic refresh without reloading the full notes list.
-    func refreshGlucoseOnly(silent: Bool = false) async {
+    /// Periodic / lightweight refresh without reloading the full notes list.
+    /// - Parameters:
+    ///   - silent: when true, no loading spinner (used for auto-refresh and dashboard-open).
+    ///   - forceServerSync: force an on-demand LibreLinkUp server sync before reading the cache.
+    ///     When `nil`, derives from `!silent` (user-initiated pulls force; periodic ticks don't).
+    ///     Pass `true` explicitly for dashboard-open events to get fresh data without a spinner.
+    func refreshGlucoseOnly(silent: Bool = false, forceServerSync: Bool? = nil) async {
         guard isAuthenticated else { return }
         if let full = fullRefreshTask {
             await full.value
@@ -320,7 +323,10 @@ final class AppState: ObservableObject {
             if !silent { isLoading = true }
             defer { if !silent { isLoading = false } }
             await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 45 * 60)
-            await loadGlucoseHistory()
+            // Force a fresh server sync when explicitly requested (dashboard-open) or, by default,
+            // for user-initiated non-silent pulls. Periodic silent auto-refresh relies on the
+            // backend scheduler.
+            await loadGlucoseHistory(forceServerSync: forceServerSync ?? !silent)
             await refreshCurrentReading()
             await refreshCalculations()
             lastGlucoseRefresh = Date()
@@ -468,13 +474,21 @@ final class AppState: ObservableObject {
         persistWidgetSnapshot()
     }
 
-    private func loadGlucoseHistory() async {
+    /// - Parameter forceServerSync: when true (explicit user refresh), ask the backend to fetch
+    ///   fresh LibreLinkUp readings *now* before reading the chart cache, instead of waiting for the
+    ///   5-min scheduler. Silent/background refreshes pass false and rely on the scheduler.
+    private func loadGlucoseHistory(forceServerSync: Bool = false) async {
         let source = dataSource
         do {
             if source == "nightscout" {
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
                 glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
             } else {
+                // LLU: on an explicit refresh, trigger an on-demand server sync so the chart cache
+                // is fresh; otherwise read whatever the 5-min scheduler last wrote. Best-effort.
+                if forceServerSync {
+                    _ = try? await BackendAPI.syncLibreNow()
+                }
                 // LLU: read from the cached chart data written by the background scheduler
                 // (runs every 5 min) rather than making a live LLU API call on every refresh.
                 let entries = try await BackendAPI.fetchNightscoutChartData(count: 200)
@@ -516,16 +530,12 @@ final class AppState: ObservableObject {
             .sorted { $0.time < $1.time }
     }
 
-    // MARK: - Sensor info & alarms (LLU only)
+    // MARK: - Sensor info (LLU only)
 
-    /// Fetches sensor info and alarm configuration concurrently. No-op for Nightscout.
+    /// Fetches sensor info. No-op for Nightscout.
     private func refreshSensorData() async {
         guard dataSource == "libre" else { return }
-        async let sensor = GlucoseMonitorAPI.fetchSensorInfo()
-        async let alarms = GlucoseMonitorAPI.fetchAlarms()
-        let (s, a) = await (sensor, alarms)
-        if let s { sensorInfo = s }
-        if let a { libreAlarms = a }
+        if let s = await GlucoseMonitorAPI.fetchSensorInfo() { sensorInfo = s }
     }
 
     /// Fetch the user's insulin preferences (long-acting name + optional injection time) used by the
@@ -555,18 +565,6 @@ final class AppState: ObservableObject {
             notes.append(note)
         } catch {
             errorMessage = "Failed to log long-acting insulin: \(error.localizedDescription)"
-        }
-    }
-
-    /// Call once after a successful LLU login to auto-set the preferred glucose unit
-    /// from the user's LibreLinkUp account profile (saves a manual Settings step).
-    func applyProfileDefaults() async {
-        guard dataSource == "libre" else { return }
-        if let profile = await GlucoseMonitorAPI.fetchUserProfile() {
-            let unit = profile.preferredGlucoseUnit
-            if preferredGlucoseUnit != unit {
-                setPreferredGlucoseUnit(unit)
-            }
         }
     }
 
