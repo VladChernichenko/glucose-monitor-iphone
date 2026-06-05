@@ -66,6 +66,12 @@
 		F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B001002FCC7001001AB224 /* DashboardCache.swift */; };
 		F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */; };
 		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
+		700000000000000000000060 /* OnboardingViewModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000060 /* OnboardingViewModels.swift */; };
+		700000000000000000000061 /* OnboardingRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000061 /* OnboardingRegisterView.swift */; };
+		700000000000000000000062 /* OnboardingDataSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000062 /* OnboardingDataSourceView.swift */; };
+		70000000000000000000004A /* ExperimentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004B /* ExperimentTests.swift */; };
+		70000000000000000000004B /* VerificationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004C /* VerificationViewModelTests.swift */; };
+		70000000000000000000004C /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004D /* OnboardingFlowTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -176,6 +182,12 @@
 		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
 		F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		600000000000000000000060 /* OnboardingViewModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModels.swift; sourceTree = "<group>"; };
+		600000000000000000000061 /* OnboardingRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingRegisterView.swift; sourceTree = "<group>"; };
+		600000000000000000000062 /* OnboardingDataSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDataSourceView.swift; sourceTree = "<group>"; };
+		60000000000000000000004B /* ExperimentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentTests.swift; sourceTree = "<group>"; };
+		60000000000000000000004C /* VerificationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationViewModelTests.swift; sourceTree = "<group>"; };
+		60000000000000000000004D /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -247,6 +259,9 @@
 				600000000000000000000026 /* FoodModels.swift */,
 				F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */,
 				F5D833292FCC1CA30027C6BB /* SignInView.swift */,
+				600000000000000000000060 /* OnboardingViewModels.swift */,
+				600000000000000000000061 /* OnboardingRegisterView.swift */,
+				600000000000000000000062 /* OnboardingDataSourceView.swift */,
 				600000000000000000000031 /* best.mlpackage */,
 				600000000000000000000006 /* Assets.xcassets */,
 			);
@@ -318,6 +333,9 @@
 				600000000000000000000048 /* PreBolusTimerTests.swift */,
 				600000000000000000000049 /* NutritionAPIServiceTests.swift */,
 				60000000000000000000004A /* FoodModelsTests.swift */,
+				60000000000000000000004B /* ExperimentTests.swift */,
+				60000000000000000000004C /* VerificationViewModelTests.swift */,
+				60000000000000000000004D /* OnboardingFlowTests.swift */,
 			);
 			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
@@ -510,6 +528,9 @@
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
 				F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */,
+				700000000000000000000060 /* OnboardingViewModels.swift in Sources */,
+				700000000000000000000061 /* OnboardingRegisterView.swift in Sources */,
+				700000000000000000000062 /* OnboardingDataSourceView.swift in Sources */,
 				700000000000000000000003 /* GlucoseMonitorAPI.swift in Sources */,
 				70000000000000000000000E /* ClientVersion.swift in Sources */,
 				70000000000000000000000F /* InsulinIOB.swift in Sources */,
@@ -550,6 +571,9 @@
 				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
 				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
 				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
+				70000000000000000000004A /* ExperimentTests.swift in Sources */,
+				70000000000000000000004B /* VerificationViewModelTests.swift in Sources */,
+				70000000000000000000004C /* OnboardingFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

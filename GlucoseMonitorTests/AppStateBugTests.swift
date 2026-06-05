@@ -128,6 +128,98 @@ final class AppStateBugTests: XCTestCase {
 #endif
     }
 
+    // MARK: - Incremental chart merge algorithm
+
+    // The merge+dedup logic added to loadGlucoseHistory combines an existing history
+    // with new points from the ?since= incremental fetch: sort by time, then drop
+    // consecutive entries with the same timestamp.
+
+    // T-MERGE-1: New points appended after existing ones produce a sorted, deduped result.
+    func testIncrementalChartMerge_appendsNewPointsInOrder() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let t2 = Date(timeIntervalSinceReferenceDate: 2000)
+        let t3 = Date(timeIntervalSinceReferenceDate: 3000)
+
+        let existing  = [GlucoseChartPoint(time: t1, mmol: 5.0),
+                         GlucoseChartPoint(time: t2, mmol: 6.0)]
+        let newPoints = [GlucoseChartPoint(time: t3, mmol: 7.0)]
+
+        let merged = applyMerge(existing: existing, new: newPoints)
+
+        XCTAssertEqual(merged.count, 3)
+        XCTAssertEqual(merged.map(\.time), [t1, t2, t3])
+    }
+
+    // T-MERGE-2: Overlapping duplicate timestamps are removed (keeps first occurrence).
+    func testIncrementalChartMerge_deduplicatesByTime() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let t2 = Date(timeIntervalSinceReferenceDate: 2000)
+        let t3 = Date(timeIntervalSinceReferenceDate: 3000)
+
+        let existing  = [GlucoseChartPoint(time: t1, mmol: 5.0),
+                         GlucoseChartPoint(time: t2, mmol: 6.0)]
+        let newPoints = [GlucoseChartPoint(time: t2, mmol: 6.1),  // same time as existing[1]
+                         GlucoseChartPoint(time: t3, mmol: 7.0)]
+
+        let merged = applyMerge(existing: existing, new: newPoints)
+
+        XCTAssertEqual(merged.count, 3,
+            "Duplicate timestamp t2 must be deduplicated; expect 3 unique points")
+        XCTAssertEqual(merged[1].time, t2)
+        XCTAssertEqual(merged[1].mmol, 6.0, accuracy: 0.01,
+            "First occurrence (existing) must be kept, not the duplicate from new points")
+    }
+
+    // T-MERGE-3: New points older than existing ones are still sorted in correctly.
+    func testIncrementalChartMerge_sortsOutOfOrderPoints() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let t2 = Date(timeIntervalSinceReferenceDate: 2000)
+        let t3 = Date(timeIntervalSinceReferenceDate: 3000)
+
+        let existing  = [GlucoseChartPoint(time: t3, mmol: 7.0)]
+        let newPoints = [GlucoseChartPoint(time: t1, mmol: 5.0),
+                         GlucoseChartPoint(time: t2, mmol: 6.0)]
+
+        let merged = applyMerge(existing: existing, new: newPoints)
+
+        XCTAssertEqual(merged.count, 3)
+        XCTAssertEqual(merged.map(\.time), [t1, t2, t3], "Result must always be sorted ascending by time")
+    }
+
+    // T-MERGE-4: All-duplicate batch (nothing to add) leaves history unchanged.
+    func testIncrementalChartMerge_allDuplicates_noop() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let t2 = Date(timeIntervalSinceReferenceDate: 2000)
+
+        let existing  = [GlucoseChartPoint(time: t1, mmol: 5.0),
+                         GlucoseChartPoint(time: t2, mmol: 6.0)]
+        let newPoints = [GlucoseChartPoint(time: t1, mmol: 5.0),
+                         GlucoseChartPoint(time: t2, mmol: 6.0)]
+
+        let merged = applyMerge(existing: existing, new: newPoints)
+
+        XCTAssertEqual(merged.count, 2, "All-duplicate incremental batch must not grow the history")
+    }
+
+    // T-MERGE-5: Empty new batch leaves history unchanged.
+    func testIncrementalChartMerge_emptyNewBatch_unchanged() {
+        let t1 = Date(timeIntervalSinceReferenceDate: 1000)
+        let existing = [GlucoseChartPoint(time: t1, mmol: 5.0)]
+
+        let merged = applyMerge(existing: existing, new: [])
+
+        XCTAssertEqual(merged.count, 1)
+        XCTAssertEqual(merged[0].time, t1)
+    }
+
+    /// Replicates the merge+dedup algorithm from AppState.loadGlucoseHistory.
+    private func applyMerge(existing: [GlucoseChartPoint], new newPoints: [GlucoseChartPoint]) -> [GlucoseChartPoint] {
+        let merged = (existing + newPoints).sorted { $0.time < $1.time }
+        return merged.reduce(into: [GlucoseChartPoint]()) { acc, pt in
+            if acc.last?.time != pt.time { acc.append(pt) }
+        }
+    }
+
     // MARK: - I5: autoRefreshTask must be cancelled when AppState is deallocated
 
     // BUG: I5 — autoRefreshTask not cancelled in deinit (no deinit on @MainActor final class)

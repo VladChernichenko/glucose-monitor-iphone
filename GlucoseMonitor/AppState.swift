@@ -490,10 +490,23 @@ final class AppState: ObservableObject {
                     _ = try? await BackendAPI.syncLibreNow()
                 }
                 // LLU: read from the cached chart data written by the background scheduler
-                // (runs every 5 min) rather than making a live LLU API call on every refresh.
-                let entries = try await BackendAPI.fetchNightscoutChartData(count: 200)
+                // (runs every 5 min). Pass the latest cached timestamp so the backend only
+                // returns new readings; merge them into the existing history.
+                let sinceDate = glucoseHistory.last.map { $0.time }
+                let entries = try await BackendAPI.fetchNightscoutChartData(count: 200, since: sinceDate)
                 if !entries.isEmpty {
-                    glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
+                    let newPoints = Self.nightscoutEntriesToChartPoints(entries)
+                    if sinceDate != nil {
+                        // Incremental: append and keep sorted, drop duplicates by time
+                        let existing = glucoseHistory
+                        let merged = (existing + newPoints).sorted { $0.time < $1.time }
+                        let deduped = merged.reduce(into: [GlucoseChartPoint]()) { acc, pt in
+                            if acc.last?.time != pt.time { acc.append(pt) }
+                        }
+                        glucoseHistory = deduped
+                    } else {
+                        glucoseHistory = newPoints
+                    }
                     // iOS-11: derive currentReading from the chart cache so the
                     // "Updated X ago" card and the chart share the same data source.
                     // The live LLU API can return a reading 30-60 min behind the

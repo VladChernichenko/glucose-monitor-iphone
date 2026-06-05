@@ -31,6 +31,7 @@ private enum NoteSheet: Identifiable {
 
 struct NotesView: View {
     @EnvironmentObject var appState: AppState
+    @Binding var selectedTab: Int
     @State private var activeSheet: NoteSheet?
 
     private var sortedNotes: [BackendAPI.GlucoseNote] {
@@ -78,16 +79,19 @@ struct NotesView: View {
                 case .add:
                     NoteEditorSheet { input in
                         await appState.createNote(input)
+                        selectedTab = 0
                     }
                     .environmentObject(appState)
                 case .edit(let note):
                     EditNoteSheet(note: note) { body in
                         await appState.updateNote(id: note.id, body: body)
+                        selectedTab = 0
                     }
                     .environmentObject(appState)
                 case .foodScan:
                     FoodScanSheet { input in
                         await appState.createNote(input)
+                        selectedTab = 0
                     }
                     .environmentObject(appState)
                 }

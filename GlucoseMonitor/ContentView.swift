@@ -15,7 +15,7 @@ struct ContentView: View {
             DashboardView()
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
-            NotesView()
+            NotesView(selectedTab: $selectedTab)
                 .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
             ExperimentsListView()
@@ -75,6 +75,7 @@ struct ContentView: View {
         }
         .onChange(of: appState.isAuthenticated) { ok in
             if ok {
+                selectedTab = Self.dashboardTab
                 Task {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
                     await MainActor.run { appState.checkAuthentication() }

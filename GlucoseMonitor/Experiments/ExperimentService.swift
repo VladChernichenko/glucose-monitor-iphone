@@ -88,14 +88,7 @@ enum ExperimentService {
     private static func perform<T: Decodable>(_ request: URLRequest) async throws -> T {
         let (data, response) = try await URLSession.shared.data(for: request)
         try BackendAPI.checkStatus(response, data: data)
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            let raw = String(data: data, encoding: .utf8) ?? "<non-utf8>"
-            print("[ExperimentService] decode error for \(T.self): \(error)")
-            print("[ExperimentService] raw JSON: \(raw)")
-            throw error
-        }
+        return try decoder.decode(T.self, from: data)
     }
 }
 

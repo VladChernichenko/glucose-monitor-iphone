@@ -793,9 +793,14 @@ enum BackendAPI {
     }
 
     /// Stored chart points written by the backend when a live sync succeeds (`EnhancedNightscoutService` strategy 3).
-    static func fetchNightscoutChartData(count: Int = 100) async throws -> [NightscoutEntry] {
+    static func fetchNightscoutChartData(count: Int = 100, since: Date? = nil) async throws -> [NightscoutEntry] {
         try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/nightscout/chart-data?count=\(count)")
+            var path = "/api/nightscout/chart-data?count=\(count)"
+            if let since {
+                let epochMs = Int64(since.timeIntervalSince1970 * 1000)
+                path += "&since=\(epochMs)"
+            }
+            let req = try authorizedRequest(path: path)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode([NightscoutEntry].self, from: data)

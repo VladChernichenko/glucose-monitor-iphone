@@ -51,26 +51,14 @@ final class VerificationViewModel: ObservableObject {
         let req = try buildRequest("/api/experiments/verification/summary", method: "GET")
         let (data, resp) = try await URLSession.shared.data(for: req)
         try checkStatus(resp, data: data)
-        do {
-            return try decoder.decode(VerificationSummary.self, from: data)
-        } catch {
-            print("[VerificationVM] summary decode error: \(error)")
-            print("[VerificationVM] raw JSON: \(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
-            throw error
-        }
+        return try decoder.decode(VerificationSummary.self, from: data)
     }
 
     private func fetchEvents() async throws -> [VerificationEventModel] {
         let req = try buildRequest("/api/experiments/verification/events", method: "GET")
         let (data, resp) = try await URLSession.shared.data(for: req)
         try checkStatus(resp, data: data)
-        do {
-            return try decoder.decode([VerificationEventModel].self, from: data)
-        } catch {
-            print("[VerificationVM] events decode error: \(error)")
-            print("[VerificationVM] raw JSON: \(String(data: data, encoding: .utf8) ?? "<non-utf8>")")
-            throw error
-        }
+        return try decoder.decode([VerificationEventModel].self, from: data)
     }
 
     private func callAccept() async throws {
