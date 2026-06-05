@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ExperimentsListView: View {
-    @StateObject private var vm = ExperimentViewModel()
+    @EnvironmentObject private var vm: ExperimentViewModel
     @State private var selectedExperiment: AvailableExperiment?
     @State private var showBackgroundBlock: (BackgroundStatus, ExperimentType)?
     @State private var showDetail: AvailableExperiment?
@@ -113,8 +113,22 @@ struct ExperimentsListView: View {
                 .font(.headline)
                 .padding(.top, 4)
 
+            if vm.hasActiveExperiment {
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text("An experiment is already in progress. Finish or abandon it before starting a new one.")
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.12))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
             ForEach(vm.availableExperiments) { exp in
-                ExperimentCard(experiment: exp) {
+                ExperimentCard(experiment: exp, experimentInProgress: vm.hasActiveExperiment) {
                     handleTap(exp)
                 }
             }
@@ -212,6 +226,7 @@ struct ExperimentsListView: View {
 
 private struct ExperimentCard: View {
     let experiment: AvailableExperiment
+    var experimentInProgress: Bool = false
     let onTap: () -> Void
 
     var body: some View {
@@ -252,6 +267,10 @@ private struct ExperimentCard: View {
                             .font(.caption2)
                             .foregroundStyle(.orange)
                             .lineLimit(1)
+                    } else if experiment.available && experimentInProgress {
+                        Label("In progress", systemImage: "clock.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
                     } else if experiment.available {
                         Text("Start →")
                             .font(.caption.weight(.medium))

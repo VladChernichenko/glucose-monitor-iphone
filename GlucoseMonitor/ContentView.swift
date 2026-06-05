@@ -7,6 +7,7 @@ struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Int = 0
+    @StateObject private var experimentVM = ExperimentViewModel()
 
     private static let dashboardTab = 0
 
@@ -15,12 +16,14 @@ struct ContentView: View {
             DashboardView()
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
+                .environmentObject(experimentVM)
             NotesView(selectedTab: $selectedTab)
                 .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
             ExperimentsListView()
                 .tag(2)
                 .tabItem { Label("Experiments", systemImage: "flask.fill") }
+                .environmentObject(experimentVM)
             SettingsView()
                 .tag(3)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
@@ -99,6 +102,7 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
     @State private var showExtendedForecast = false
     @State private var showAI = false
@@ -116,6 +120,30 @@ struct DashboardView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 16) {
+                            if experimentVM.hasActiveExperiment, let exp = experimentVM.activeExperiment {
+                                HStack(spacing: 10) {
+                                    Image(systemName: "flask.fill")
+                                        .foregroundStyle(.orange)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Experiment in Progress")
+                                            .font(.subheadline.bold())
+                                        Text(exp.type.title)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding()
+                                .background(Color.orange.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+                                )
+                            }
                             TimelineView(.periodic(from: .now, by: 1)) { context in
                                 compactGlucoseCard(at: context.date)
                             }
