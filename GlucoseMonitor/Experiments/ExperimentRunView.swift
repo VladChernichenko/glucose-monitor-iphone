@@ -43,21 +43,42 @@ struct ExperimentRunView: View {
     }
 
     var body: some View {
+        navigationContent
+            .alert(invalidationReason?.title ?? "", isPresented: Binding(
+                get: { invalidationReason != nil },
+                set: { _ in }
+            )) {
+                Button("Abandon Experiment", role: .destructive) {
+                    invalidationReason = nil
+                    Task { await viewModel.abandonExperiment(); dismiss() }
+                }
+            } message: {
+                Text(invalidationReason?.message ?? "")
+            }
+            .alert(safetyAlertTitle ?? "Safety Alert", isPresented: Binding(
+                get: { safetyAlertTitle != nil },
+                set: { if !$0 { safetyAlertTitle = nil; safetyAlertMessage = nil } }
+            )) {
+                Button("OK") { safetyAlertTitle = nil; safetyAlertMessage = nil }
+            } message: {
+                Text(safetyAlertMessage ?? "")
+            }
+    }
+
+    @ViewBuilder
+    private var navigationContent: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     if experimentType == .isfOneUnit, let cgm = currentCGM, cgm < 3.9 {
                         hypoBanner
                     }
-
                     timerCard
                     readingsCard
                     autoCaptureCard
-
                     if experimentType != .basalCheck {
                         safetyNote
                     }
-
                     completeButton
                 }
                 .padding()
@@ -73,10 +94,7 @@ struct ExperimentRunView: View {
             }
             .confirmationDialog("Abandon Experiment?", isPresented: $showAbandonConfirm, titleVisibility: .visible) {
                 Button("Abandon", role: .destructive) {
-                    Task {
-                        await viewModel.abandonExperiment()
-                        dismiss()
-                    }
+                    Task { await viewModel.abandonExperiment(); dismiss() }
                 }
                 Button("Keep Going", role: .cancel) {}
             } message: {
@@ -93,33 +111,7 @@ struct ExperimentRunView: View {
                 checkSafety()
                 checkForInvalidation(notes: appState.notes)
             }
-            .onChange(of: appState.notes) { notes in
-                checkForInvalidation(notes: notes)
-            }
-            .alert(invalidationReason?.title ?? "", isPresented: Binding(
-                get: { invalidationReason != nil },
-                set: { _ in }   // not dismissible — must tap the button
-            )) {
-                Button("Abandon Experiment", role: .destructive) {
-                    let reason = invalidationReason
-                    invalidationReason = nil
-                    _ = reason
-                    Task {
-                        await viewModel.abandonExperiment()
-                        dismiss()
-                    }
-                }
-            } message: {
-                Text(invalidationReason?.message ?? "")
-            }
-            .alert(safetyAlertTitle ?? "Safety Alert", isPresented: Binding(
-                get: { safetyAlertTitle != nil },
-                set: { if !$0 { safetyAlertTitle = nil; safetyAlertMessage = nil } }
-            )) {
-                Button("OK") { safetyAlertTitle = nil; safetyAlertMessage = nil }
-            } message: {
-                Text(safetyAlertMessage ?? "")
-            }
+            .onChange(of: appState.notes) { notes in checkForInvalidation(notes: notes) }
             .onDisappear { timer?.invalidate() }
         }
     }
