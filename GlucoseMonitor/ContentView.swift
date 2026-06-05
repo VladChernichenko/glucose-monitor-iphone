@@ -49,6 +49,7 @@ struct ContentView: View {
                     } else if appState.currentReading == nil {
                         await appState.refreshAll()
                     }
+                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
                 BackgroundRefreshService.scheduleNextRefresh()
@@ -71,6 +72,7 @@ struct ContentView: View {
                     } else {
                         await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     }
+                    await experimentVM.loadAvailable()
                 }
             default:
                 break
@@ -82,6 +84,7 @@ struct ContentView: View {
                 Task {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
                     await MainActor.run { appState.checkAuthentication() }
+                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
             } else {

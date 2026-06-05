@@ -25,8 +25,14 @@ final class ExperimentViewModel: ObservableObject {
         error = nil
         defer { isLoadingAvailable = false }
         do {
-            availableExperiments = try await ExperimentService.getAvailable()
-            history = try await ExperimentService.getHistory()
+            async let available = ExperimentService.getAvailable()
+            async let hist = ExperimentService.getHistory()
+            availableExperiments = try await available
+            history = try await hist
+            // Restore active experiment from history (survives cold-start / app restart)
+            if activeExperiment == nil {
+                activeExperiment = history.first(where: { $0.status == .inProgress })
+            }
         } catch {
             self.error = error.localizedDescription
         }
