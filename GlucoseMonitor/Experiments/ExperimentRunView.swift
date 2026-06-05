@@ -15,6 +15,28 @@ struct ExperimentRunView: View {
     @State private var safetyAlertTitle: String?
     @State private var safetyAlertMessage: String?
     @State private var alertCooldown: [String: Date] = [:]
+    @State private var invalidationReason: InvalidationReason?
+
+    private enum InvalidationReason {
+        case insulin(Double)
+        case carbs(Double)
+
+        var title: String {
+            switch self {
+            case .insulin: return "Experiment Invalidated"
+            case .carbs:   return "Experiment Invalidated"
+            }
+        }
+
+        var message: String {
+            switch self {
+            case .insulin(let u):
+                return String(format: "You recorded %.1fu of rapid-acting insulin during the experiment. This will affect your glucose and makes the result unreliable. The experiment has been abandoned.", u)
+            case .carbs(let g):
+                return String(format: "You recorded %.0fg of carbs during the experiment. This will affect your glucose and makes the result unreliable. The experiment has been abandoned.", g)
+            }
+        }
+    }
 
     private var currentCGM: Double? {
         appState.currentReading?.value
@@ -69,6 +91,26 @@ struct ExperimentRunView: View {
                 startTimer()
                 checkAutoRecord()
                 checkSafety()
+                checkForInvalidation(notes: appState.notes)
+            }
+            .onChange(of: appState.notes) { notes in
+                checkForInvalidation(notes: notes)
+            }
+            .alert(invalidationReason?.title ?? "", isPresented: Binding(
+                get: { invalidationReason != nil },
+                set: { _ in }   // not dismissible — must tap the button
+            )) {
+                Button("Abandon Experiment", role: .destructive) {
+                    let reason = invalidationReason
+                    invalidationReason = nil
+                    _ = reason
+                    Task {
+                        await viewModel.abandonExperiment()
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text(invalidationReason?.message ?? "")
             }
             .alert(safetyAlertTitle ?? "Safety Alert", isPresented: Binding(
                 get: { safetyAlertTitle != nil },
@@ -400,6 +442,26 @@ struct ExperimentRunView: View {
         case "↓":   return -0.067
         case "↓↓": return -0.100
         default:    return  0.000
+        }
+    }
+
+    // MARK: - Invalidation detection
+
+    private func checkForInvalidation(notes: [BackendAPI.GlucoseNote]) {
+        guard invalidationReason == nil else { return }
+        guard let startedAt = viewModel.activeExperiment?.startedAt,
+              let startDate = ISO8601DateFormatter().date(from: startedAt) else { return }
+
+        for note in notes {
+            guard let ts = note.timestamp, ts > startDate else { continue }
+            if note.insulin > 0 && !note.isLongActing {
+                invalidationReason = .insulin(note.insulin)
+                return
+            }
+            if note.carbs > 0 {
+                invalidationReason = .carbs(note.carbs)
+                return
+            }
         }
     }
 
