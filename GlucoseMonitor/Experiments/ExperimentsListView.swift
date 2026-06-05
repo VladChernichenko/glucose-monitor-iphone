@@ -59,7 +59,7 @@ struct ExperimentsListView: View {
                     experimentType: item.type,
                     onDismiss: { showBackgroundBlock = nil }
                 )
-                .presentationDetents([.medium])
+                .presentationDetents([.large])
             }
             .alert("Error", isPresented: .constant(vm.error != nil), actions: {
                 Button("OK") { vm.error = nil }
