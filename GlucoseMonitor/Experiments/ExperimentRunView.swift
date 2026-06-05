@@ -111,7 +111,7 @@ struct ExperimentRunView: View {
                 checkSafety()
                 checkForInvalidation(notes: appState.notes)
             }
-            .onChange(of: appState.notes) { notes in checkForInvalidation(notes: notes) }
+            .onChange(of: appState.notes.count) { _ in checkForInvalidation(notes: appState.notes) }
             .onDisappear { timer?.invalidate() }
         }
     }
