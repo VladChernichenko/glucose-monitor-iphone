@@ -243,10 +243,10 @@ struct ExperimentDetailView: View {
         switch experiment.type {
         case .basalCheck:
             return [
-                "Record your starting glucose",
-                "Do not eat or take any rapid insulin",
-                "App alarms every hour for readings",
-                "Record each glucose at the alarm",
+                "Do not eat or take any rapid insulin for the duration",
+                "Leave the app — it runs silently in the background",
+                "Glucose is auto-captured from your CGM at each checkpoint",
+                "Come back any time to finish or check progress",
                 "We check if glucose stayed within ±1.7 mmol/L",
             ]
         case .carbFactor:

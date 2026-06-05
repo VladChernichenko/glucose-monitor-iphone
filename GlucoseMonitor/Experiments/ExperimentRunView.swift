@@ -258,19 +258,11 @@ struct ExperimentRunView: View {
 
         switch experimentType {
         case .basalCheck:
-            if velocity >= 0.067 {
-                triggerSafetyAlert(
-                    id: "basal-rise",
-                    title: "Glucose Rising During Basal Check",
-                    message: String(format: "Your glucose is rising (%.1f mmol/L, %@). This may mean your basal rate is too low.", cgm, arrow ?? "↑")
-                )
-            } else if velocity <= -0.067 {
-                triggerSafetyAlert(
-                    id: "basal-fall",
-                    title: "Glucose Falling During Basal Check",
-                    message: String(format: "Your glucose is falling (%.1f mmol/L, %@). This may mean your basal rate is too high.", cgm, arrow ?? "↓")
-                )
-            }
+            // Baseline experiment — runs silently. Glucose drift during the check is
+            // exactly what the experiment measures; surfacing it as an alert is noise.
+            // The hypo guard above still fires because <3.9 mmol/L is a safety floor,
+            // not a drift signal.
+            break
         case .carbFactor:
             if velocity <= -0.067 {
                 triggerSafetyAlert(
