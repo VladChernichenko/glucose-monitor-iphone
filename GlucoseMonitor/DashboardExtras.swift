@@ -100,6 +100,9 @@ struct GlucoseHistoryChart: View {
     let prediction: [PredictionChartPoint]
     let notes: [BackendAPI.GlucoseNote]
     var window: GlucoseChartWindow = .standard
+    /// Actual current sensor reading (raw, not smoothed). Used to anchor the prediction line so
+    /// it starts from the same value the backend used, eliminating the step at "now".
+    var currentGlucose: Double? = nil
 
     /// mmol/L band matching common target range (shown like Libre-style charts).
     private static let targetLowMmol: Double = 4
@@ -112,18 +115,28 @@ struct GlucoseHistoryChart: View {
     }
 
     /// Display history with centered moving average (5 samples ~25 min at 5-min CGM).
+    /// The most-recent point is snapped to `currentGlucose` (the raw sensor reading) so the
+    /// smoothed history naturally ends at the same value the backend used as its prediction base,
+    /// preventing any visual step at the solid/dashed boundary.
     private var displayHistory: [GlucoseChartPoint] {
-        GlucoseChartSmoothing.movingAverage(filteredHistory, window: 5)
+        var smoothed = GlucoseChartSmoothing.movingAverage(filteredHistory, window: 5)
+        if let cg = currentGlucose, !smoothed.isEmpty {
+            let i = smoothed.count - 1
+            smoothed[i] = GlucoseChartPoint(time: smoothed[i].time, mmol: cg)
+        }
+        return smoothed
     }
 
-    /// History extended by the prediction anchor so the solid line runs continuously to "now",
-    /// eliminating the gap between the last CGM reading and the start of the dashed forecast.
+    /// History extended by the prediction anchor so the solid line runs continuously to "now".
+    /// The bridge endpoint uses the raw current glucose (same value the backend started from)
+    /// so the solid and dashed lines share the same y-value at the "now" boundary.
     private var bridgedHistory: [GlucoseChartPoint] {
         let base = displayHistory
         guard let anchor = futurePrediction.first else { return base }
         guard let last = base.last else { return base }
         if anchor.time <= last.time { return base }
-        return base + [GlucoseChartPoint(time: anchor.time, mmol: last.mmol)]
+        let bridgeMmol = currentGlucose ?? last.mmol
+        return base + [GlucoseChartPoint(time: anchor.time, mmol: bridgeMmol)]
     }
 
     private var xDomain: ClosedRange<Date>? {
@@ -145,14 +158,15 @@ struct GlucoseHistoryChart: View {
     }
 
     /// Prediction points starting exactly at "now", capped to forecast horizon.
-    /// Drops past points, then prepends a synthetic anchor at Date()
-    /// so the curve originates right on the "now" line without stretching the x-axis.
+    /// Drops past points, then prepends a synthetic anchor at Date() whose value
+    /// matches the raw current sensor reading (same value the backend started from),
+    /// eliminating the visual step caused by history smoothing vs. raw current glucose.
     private var futurePrediction: [PredictionChartPoint] {
         let now = Date()
         let cap = now.addingTimeInterval(window.forecastHorizon)
         let future = prediction.filter { $0.time > now && $0.time <= cap }
         guard !future.isEmpty else { return [] }
-        let anchorMmol = displayHistory.last?.mmol ?? future[0].mmol
+        let anchorMmol = currentGlucose ?? displayHistory.last?.mmol ?? future[0].mmol
         let anchor = PredictionChartPoint(time: now, mmol: anchorMmol)
         return [anchor] + future
     }

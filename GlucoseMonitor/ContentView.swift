@@ -541,7 +541,8 @@ struct DashboardView: View {
                 history: appState.glucoseHistory,
                 prediction: appState.predictionChartPoints(),
                 notes: appState.notes,
-                window: window
+                window: window,
+                currentGlucose: appState.currentGlucoseMmolForAPI()
             )
         }
         .padding()
