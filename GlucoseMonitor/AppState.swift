@@ -591,13 +591,19 @@ final class AppState: ObservableObject {
             notes = try await BackendAPI.fetchNotes()
             persistDashboardCache()
         } catch {
-            // Retry once after a short pause - transient network errors usually clear immediately.
+            // Retry once after a short pause - transient network errors (including concurrent
+            // token-refresh races) usually clear immediately.
             try? await Task.sleep(nanoseconds: 1_500_000_000)
             do {
                 notes = try await BackendAPI.fetchNotes()
                 persistDashboardCache()
             } catch {
-                notesLoadError = "Failed to load notes"
+                // Only surface the error when there are no cached notes to show. If notes
+                // are already loaded, a silent refresh failure is far less disruptive than
+                // replacing the list with an error banner.
+                if notes.isEmpty {
+                    notesLoadError = "Failed to load notes"
+                }
             }
         }
     }

@@ -540,7 +540,7 @@ struct DashboardView: View {
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
-            } else if let err = appState.notesLoadError {
+            } else if let err = appState.notesLoadError, slice.isEmpty {
                 Label(err, systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
                     .foregroundColor(.orange)
