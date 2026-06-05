@@ -10,11 +10,7 @@ enum ExperimentService {
         return d
     }()
 
-    private static let encoder: JSONEncoder = {
-        let e = JSONEncoder()
-        e.keyEncodingStrategy  = .convertToSnakeCase
-        return e
-    }()
+    private static let encoder: JSONEncoder = JSONEncoder()
 
     // MARK: - Endpoints
 
