@@ -223,30 +223,6 @@ struct ExperimentRunView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-
-            Button {
-                guard let cgm = currentCGM else { return }
-                Task { await submitCurrentCGM(cgm) }
-            } label: {
-                HStack {
-                    if viewModel.isRecordingReading {
-                        ProgressView().tint(.white)
-                    } else {
-                        Image(systemName: "plus.circle.fill")
-                        if let cgm = currentCGM {
-                            Text("Add Reading Now  (\(String(format: "%.1f", cgm)) mmol/L)")
-                        } else {
-                            Text("Add Reading Now")
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(currentCGM != nil ? Color.accentColor : Color.gray)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .disabled(currentCGM == nil || viewModel.isRecordingReading)
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
@@ -324,11 +300,6 @@ struct ExperimentRunView: View {
         }
     }
 
-    private func submitCurrentCGM(_ cgm: Double) async {
-        let elapsed = viewModel.elapsedMinutes()
-        let label = (viewModel.activeExperiment?.readings ?? []).isEmpty ? "Baseline" : "T+\(elapsed) min"
-        await viewModel.recordReading(glucoseMmol: cgm, minutesElapsed: elapsed, label: label)
-    }
 
     // MARK: - Helpers
 
