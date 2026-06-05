@@ -7,11 +7,11 @@ struct ExperimentRunView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
-    @State private var glucoseInput: String = ""
     @State private var showAbandonConfirm = false
     @State private var showResult = false
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
+    @State private var autoRecordedAt: Set<Int> = []
 
     private var currentCGM: Double? {
         appState.currentReading?.value
@@ -21,14 +21,13 @@ struct ExperimentRunView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Hypo safety banner (ISF test only)
                     if experimentType == .isfOneUnit, let cgm = currentCGM, cgm < 3.9 {
                         hypoBanner
                     }
 
                     timerCard
                     readingsCard
-                    recordCard
+                    autoCaptureCard
 
                     if experimentType != .basalCheck {
                         safetyNote
@@ -64,8 +63,9 @@ struct ExperimentRunView: View {
                 }
             }
             .onAppear {
-                prefillGlucose()
                 startTimer()
+                // Attempt baseline capture immediately
+                checkAutoRecord()
             }
             .onDisappear { timer?.invalidate() }
         }
@@ -98,14 +98,13 @@ struct ExperimentRunView: View {
                     .font(.title2.monospacedDigit().bold())
             }
             Spacer()
-            if let next = viewModel.nextAlarmLabel {
+            if let next = nextCheckpointText {
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Next alarm")
+                    Text("Next reading")
                         .font(.caption).foregroundStyle(.secondary)
-                    Text(next.prefix(30) + "…")
-                        .font(.caption2)
+                    Text(next)
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(Color.accentColor)
-                        .multilineTextAlignment(.trailing)
                 }
             }
         }
@@ -123,8 +122,13 @@ struct ExperimentRunView: View {
                 ForEach(readings) { r in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(r.label ?? "T+\(r.minutesElapsed) min")
-                                .font(.subheadline)
+                            HStack(spacing: 4) {
+                                Text(r.label ?? "T+\(r.minutesElapsed) min")
+                                    .font(.subheadline)
+                                Image(systemName: "waveform.path.ecg")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
                             Text(shortTime(r.recordedAt))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -138,7 +142,7 @@ struct ExperimentRunView: View {
                     if r.id != readings.last?.id { Divider() }
                 }
             } else {
-                Text("No readings recorded yet")
+                Text("Baseline will be captured from your CGM")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -148,61 +152,56 @@ struct ExperimentRunView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
-    private var recordCard: some View {
+    private var autoCaptureCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Record Reading")
-                .font(.subheadline.bold())
-
-            if let cgm = currentCGM {
-                Button {
-                    glucoseInput = String(format: "%.1f", cgm)
-                } label: {
-                    HStack {
-                        Image(systemName: "waveform.path.ecg")
-                        Text(String(format: "Use CGM: %.1f mmol/L", cgm))
-                        Spacer()
-                        Image(systemName: "arrow.down.circle")
-                    }
-                    .font(.subheadline)
-                    .padding(10)
-                    .background(Color.accentColor.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            HStack {
+                Label("Auto-capture", systemImage: "waveform.path.ecg")
+                    .font(.subheadline.bold())
+                Spacer()
+                if currentCGM != nil {
+                    Label("Active", systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                } else {
+                    Label("No CGM signal", systemImage: "exclamationmark.circle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 }
-                .buttonStyle(.plain)
             }
 
-            HStack {
-                Text("Or enter manually:")
+            if let cgm = currentCGM {
+                Text("Readings are captured automatically at each checkpoint from your CGM (currently **\(String(format: "%.1f mmol/L", cgm))**).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                TextField("mmol/L", text: $glucoseInput)
-                    .keyboardType(.decimalPad)
-                    .multilineTextAlignment(.trailing)
-                    .padding(8)
-                    .background(Color(.tertiarySystemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .frame(maxWidth: 100)
-                Text("mmol/L").font(.subheadline).foregroundStyle(.secondary)
+            } else {
+                Text("Waiting for a CGM reading. Make sure your sensor is in range.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             Button {
-                Task { await submitReading() }
+                guard let cgm = currentCGM else { return }
+                Task { await submitCurrentCGM(cgm) }
             } label: {
                 HStack {
                     if viewModel.isRecordingReading {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Record")
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: "plus.circle.fill")
+                        if let cgm = currentCGM {
+                            Text("Add Reading Now  (\(String(format: "%.1f", cgm)) mmol/L)")
+                        } else {
+                            Text("Add Reading Now")
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
                 .padding()
-                .background(validGlucose != nil ? Color.accentColor : Color.gray)
+                .background(currentCGM != nil ? Color.accentColor : Color.gray)
                 .foregroundStyle(.white)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(validGlucose == nil || viewModel.isRecordingReading)
+            .disabled(currentCGM == nil || viewModel.isRecordingReading)
         }
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
@@ -252,17 +251,50 @@ struct ExperimentRunView: View {
             .disabled(!canFinish || viewModel.isCompleting)
 
             if !canFinish {
-                Text("Record at least 2 glucose readings before finishing")
+                Text("Waiting for at least 2 auto-captured readings before finishing")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
     }
 
+    // MARK: - Auto-capture
+
+    private func checkAutoRecord() {
+        guard let cgm = currentCGM else { return }
+        let elapsed = viewModel.elapsedMinutes()
+        let existingReadings = viewModel.activeExperiment?.readings ?? []
+
+        let checkpoints = [0] + experimentType.alarmSchedule.map(\.minutes)
+        for minute in checkpoints {
+            guard elapsed >= minute, !autoRecordedAt.contains(minute) else { continue }
+            // Skip if the server already has a reading within ±1 min of this checkpoint
+            let alreadySaved = existingReadings.contains { abs($0.minutesElapsed - minute) <= 1 }
+            autoRecordedAt.insert(minute)
+            guard !alreadySaved else { continue }
+            let label = minute == 0 ? "Baseline" : "T+\(minute) min"
+            Task {
+                await viewModel.recordReading(glucoseMmol: cgm, minutesElapsed: minute, label: label)
+            }
+        }
+    }
+
+    private func submitCurrentCGM(_ cgm: Double) async {
+        let elapsed = viewModel.elapsedMinutes()
+        let label = (viewModel.activeExperiment?.readings ?? []).isEmpty ? "Baseline" : "T+\(elapsed) min"
+        await viewModel.recordReading(glucoseMmol: cgm, minutesElapsed: elapsed, label: label)
+    }
+
     // MARK: - Helpers
 
-    private var validGlucose: Double? {
-        Double(glucoseInput.replacingOccurrences(of: ",", with: "."))
+    private var nextCheckpointText: String? {
+        let elapsed = viewModel.elapsedMinutes()
+        guard let next = experimentType.alarmSchedule.first(where: { $0.minutes > elapsed }) else { return nil }
+        let remaining = next.minutes - elapsed
+        if remaining < 60 { return "in \(remaining) min" }
+        let h = remaining / 60
+        let m = remaining % 60
+        return m == 0 ? "in \(h)h" : "in \(h)h \(m)m"
     }
 
     private var elapsedText: String {
@@ -277,30 +309,11 @@ struct ExperimentRunView: View {
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             elapsedSeconds += 1
+            // Check on each minute boundary to minimise work
+            if elapsedSeconds % 60 == 0 {
+                checkAutoRecord()
+            }
         }
-    }
-
-    private func prefillGlucose() {
-        if let cgm = currentCGM {
-            glucoseInput = String(format: "%.1f", cgm)
-        }
-    }
-
-    private func submitReading() async {
-        guard let glucose = validGlucose else { return }
-        let label = readingLabel(for: viewModel.elapsedMinutes())
-        await viewModel.recordReading(
-            glucoseMmol: glucose,
-            minutesElapsed: viewModel.elapsedMinutes(),
-            label: label
-        )
-        glucoseInput = ""
-        prefillGlucose()
-    }
-
-    private func readingLabel(for minutes: Int) -> String {
-        if (viewModel.activeExperiment?.readings ?? []).isEmpty { return "Baseline" }
-        return "T+\(minutes) min"
     }
 
     private func shortTime(_ isoString: String) -> String {
