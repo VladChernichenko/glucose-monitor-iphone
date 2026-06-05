@@ -1,5 +1,7 @@
 import SwiftUI
 
+// MARK: - Backend preset
+
 private enum BackendPreset: String, CaseIterable, Identifiable {
     case local
     case remote
@@ -10,7 +12,6 @@ private enum BackendPreset: String, CaseIterable, Identifiable {
         case .remote: return "Remote"
         }
     }
-    /// Static URL used only for preset matching; actual local URL is built from the stored IP.
     var url: String {
         switch self {
         case .local: return GlucoseMonitorAPI.localBackendURL()
@@ -19,319 +20,289 @@ private enum BackendPreset: String, CaseIterable, Identifiable {
     }
 }
 
+private enum DataSourceKind: String, CaseIterable, Identifiable {
+    case libre
+    case nightscout
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .libre: return "LibreLinkUp"
+        case .nightscout: return "Nightscout"
+        }
+    }
+}
+
+// MARK: - Native-style row
+
+private struct SettingsIconRow: View {
+    let icon: String
+    let color: Color
+    let title: String
+    var value: String?
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 28, height: 28)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            Text(title)
+            Spacer(minLength: 8)
+            if let value, !value.isEmpty {
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+}
+
+// MARK: - Hub
+
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
 
-    // Backend
+    @State private var backendSummary = "Remote"
+    @State private var dataSourceSummary = "LibreLinkUp"
+    @State private var glucoseUnit = "mmol/L"
+    @State private var insulinSummary = ""
+    @State private var cobSettings = BackendAPI.COBSettings(
+        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
+    )
+    @State private var calculationStatus = ""
+    @State private var isSavingCalculations = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    NavigationLink {
+                        BackendSettingsDetailView(onChange: refreshSummaries)
+                    } label: {
+                        SettingsIconRow(
+                            icon: "server.rack",
+                            color: .blue,
+                            title: "Backend",
+                            value: backendSummary
+                        )
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        DataSourceSettingsDetailView(onChange: refreshSummaries)
+                    } label: {
+                        SettingsIconRow(
+                            icon: "waveform.path.ecg",
+                            color: .red,
+                            title: "Data Source",
+                            value: dataSourceSummary
+                        )
+                    }
+                }
+
+                if appState.isAuthenticated {
+                    Section("User Settings") {
+                        Picker("Glucose Units", selection: $glucoseUnit) {
+                            Text("mmol/L").tag("mmol/L")
+                            Text("mg/dL").tag("mg/dL")
+                        }
+                        .onChange(of: glucoseUnit) { newValue in
+                            GlucoseMonitorAPI.sharedDefaults().set(
+                                newValue,
+                                forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit
+                            )
+                            appState.setPreferredGlucoseUnit(newValue)
+                        }
+
+                        SettingsNumericRow(
+                            label: "Carb Ratio",
+                            subtitle: "mmol/L per 10 g",
+                            placeholder: "2.0",
+                            value: $cobSettings.carbRatio,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "ISF",
+                            subtitle: "mmol/L per unit",
+                            placeholder: "2.5",
+                            value: $cobSettings.isf,
+                            fractionDigits: 1...2
+                        )
+
+                        Button("Save") {
+                            Task { await saveCalculationSettings() }
+                        }
+                        .disabled(isSavingCalculations)
+
+                        if !calculationStatus.isEmpty {
+                            Text(calculationStatus)
+                                .font(.footnote)
+                                .foregroundStyle(calculationStatus.hasPrefix("OK") ? .green : .red)
+                        }
+
+                        NavigationLink {
+                            InsulinPreferencesDetailView(onChange: refreshSummaries)
+                        } label: {
+                            SettingsIconRow(
+                                icon: "syringe.fill",
+                                color: .orange,
+                                title: "Insulin Preferences",
+                                value: insulinSummary
+                            )
+                        }
+
+                        Button("Sign Out", role: .destructive) {
+                            Task { await appState.logout() }
+                        }
+                    }
+                }
+            }
+            .dismissKeyboardOnInteraction()
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear(perform: refreshSummaries)
+            .task(id: appState.isAuthenticated) {
+                if appState.isAuthenticated {
+                    await loadCalculationSettings()
+                }
+            }
+        }
+    }
+
+    private func loadCalculationSettings() async {
+        if let settings = try? await BackendAPI.fetchCOBSettings() {
+            cobSettings = settings
+        }
+    }
+
+    private func saveCalculationSettings() async {
+        isSavingCalculations = true
+        calculationStatus = ""
+        defer { isSavingCalculations = false }
+        do {
+            cobSettings = try await BackendAPI.saveCOBSettings(cobSettings)
+            calculationStatus = "OK: settings saved."
+        } catch {
+            calculationStatus = error.localizedDescription
+        }
+    }
+
+    private func refreshSummaries() {
+        let ud = GlucoseMonitorAPI.sharedDefaults()
+        localIPSummary(ud: ud)
+        dataSourceSummary = DataSourceKind(rawValue: appState.dataSource)?.title ?? "LibreLinkUp"
+        glucoseUnit = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
+        insulinSummary = appState.insulinPrefs?.rapidInsulin.displayName ?? ""
+    }
+
+    private func localIPSummary(ud: UserDefaults) {
+        let localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
+        let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
+        let normStored = storedBackend.isEmpty ? "" : SettingsHelpers.normalizeURLString(storedBackend)
+        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
+        let nRemote = SettingsHelpers.normalizeURLString(BackendPreset.remote.url)
+        if normStored == nLocal && !localIP.isEmpty {
+            backendSummary = "Local"
+        } else if normStored == nRemote || normStored.isEmpty {
+            backendSummary = "Remote"
+        } else {
+            backendSummary = "Remote"
+        }
+    }
+}
+
+// MARK: - Backend detail
+
+private struct BackendSettingsDetailView: View {
+    @EnvironmentObject var appState: AppState
+    var onChange: () -> Void = {}
+
     @State private var backendPreset: BackendPreset = .remote
     @State private var localIP = ""
     @State private var username = ""
     @State private var password = ""
     @State private var signInStatus = ""
-
-    // Display
-    @State private var glucoseUnit = "mmol/L"
-
-    // Data source
-    @State private var dataSource = "libre"
-
-    // LibreLinkUp
-    @State private var libreEmail = ""
-    @State private var librePassword = ""
-    @State private var libreRegion = "eu-EU"
-    @State private var libreStatus = ""
-
-    private static let libreRegions: [(label: String, locale: String)] = [
-        ("🇪🇺 Europe",        "en-EU"),
-        ("🇫🇷 France",        "fr-FR"),
-        ("🇩🇪 Germany",       "de-DE"),
-        ("🇬🇧 United Kingdom","en-GB"),
-        ("🇺🇸 United States", "en-US"),
-        ("🇦🇺 Australia",     "en-AU"),
-        ("🇯🇵 Japan",         "ja-JP"),
-        ("🇦🇪 UAE",           "ar-AE"),
-    ]
-
-    // Nightscout
-    @State private var nightscoutURL = ""
-    @State private var nightscoutSecret = ""
-    @State private var nightscoutStatus = ""
-
-    // COB Settings (carbRatio = mmol/L rise per 10 g carbs, no insulin; matches backend formula (COB/10)?ratio)
-    @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
-    )
-    @State private var cobStatus = ""
-
-    // Insulin Preferences
-    @State private var rapidCatalog: [BackendAPI.InsulinCatalogEntry] = []
-    @State private var longActingCatalog: [BackendAPI.InsulinCatalogEntry] = []
-    @State private var selectedRapid = ""
-    @State private var selectedLongActing = ""
-    @State private var injectionTimeEnabled = false
-    @State private var injectionTime = Date()
-    @State private var insulinStatus = ""
-
     @State private var isBusy = false
 
     var body: some View {
-        NavigationStack {
-            Form {
-                displaySection
-                backendSection
-                dataSourceSection
-                if appState.dataSource == "libre" { libreSection }
-                if appState.dataSource == "nightscout" { nightscoutSection }
-                if appState.isAuthenticated {
-                    cobSection
-                    insulinSection
-                    accountSection
-                }
-            }
-            .dismissKeyboardOnInteraction()
-            .navigationTitle("Settings")
-            .onAppear(perform: loadStoredValues)
-            .task {
-                if appState.isAuthenticated {
-                    await loadRemoteSettings()
-                }
-            }
-        }
-    }
-
-    // MARK: - Sections
-
-    private var displaySection: some View {
-        Section("Display") {
-            Picker("Glucose Units", selection: $glucoseUnit) {
-                Text("mmol/L").tag("mmol/L")
-                Text("mg/dL").tag("mg/dL")
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: glucoseUnit) { newValue in
-                GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
-                appState.setPreferredGlucoseUnit(newValue)
-            }
-        }
-    }
-
-    private var backendSection: some View {
-        Section("Backend") {
-            Picker("Server", selection: $backendPreset) {
-                ForEach(BackendPreset.allCases) { preset in
-                    Text(preset.title).tag(preset)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: backendPreset) { newValue in
-                GlucoseMonitorAPI.storeBackendBaseURL(newValue.url)
-            }
-            if backendPreset == .local {
-                HStack {
-                    Text("IP")
-                        .foregroundColor(.secondary)
-                    TextField("192.168.1.10", text: $localIP)
-                        .keyboardType(.numbersAndPunctuation)
-                        .autocorrectionDisabled()
-                        .autocapitalization(.none)
-                        .onChange(of: localIP) { newIP in
-                            // Strip everything except digits and dots
-                            let filtered = newIP.filter { $0.isNumber || $0 == "." }
-                            if filtered != newIP { localIP = filtered; return }
-                            GlucoseMonitorAPI.storeLocalIP(filtered)
-                            GlucoseMonitorAPI.storeBackendBaseURL(GlucoseMonitorAPI.localBackendURL())
-                        }
-                }
-            }
-            Text(backendPreset.url)
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .textSelection(.enabled)
-            TextField("Username", text: $username)
-                .textContentType(.username)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-                .onChange(of: username) { _ in persistAppLoginCredentials() }
-            SecureField("Password", text: $password)
-                .textContentType(.password)
-                .onChange(of: password) { _ in persistAppLoginCredentials() }
-
-            Button("Sign In") {
-                hideKeyboard()
-                Task { await signIn() }
-            }
-            .disabled(isBusy || username.isEmpty || password.isEmpty)
-
-            if !signInStatus.isEmpty {
-                Text(signInStatus)
-                    .font(.footnote)
-                    .foregroundColor(signInStatus.hasPrefix("OK") ? .green : .red)
-            }
-        }
-    }
-
-    private var dataSourceSection: some View {
-        Section("Data Source") {
-            Picker("Source", selection: $dataSource) {
-                Text("LibreLinkUp").tag("libre")
-                Text("Nightscout").tag("nightscout")
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: dataSource) { newValue in
-                // Keep appState and UserDefaults in sync; dashboard picker reads appState.dataSource.
-                appState.dataSource = newValue
-                GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.dataSource)
-            }
-        }
-    }
-
-    private var libreSection: some View {
-        Section("LibreLinkUp") {
-            TextField("Email", text: $libreEmail)
-                .textContentType(.emailAddress)
-                .keyboardType(.emailAddress)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-            SecureField("Password", text: $librePassword)
-                .textContentType(.password)
-            Picker("Region", selection: $libreRegion) {
-                ForEach(Self.libreRegions, id: \.locale) { region in
-                    Text(region.label).tag(region.locale)
-                }
-            }
-            .pickerStyle(.wheel)
-            .frame(height: 120)
-            .onChange(of: libreRegion) { newValue in
-                GlucoseMonitorAPI.sharedDefaults().set(newValue, forKey: GlucoseMonitorAPI.StorageKey.libreRegion)
-            }
-            Button("Sync LibreLinkUp") {
-                Task { await syncLibre() }
-            }
-            .disabled(isBusy || libreEmail.isEmpty || librePassword.isEmpty || !appState.isAuthenticated)
-
-            if !libreStatus.isEmpty {
-                Text(libreStatus)
-                    .font(.footnote)
-                    .foregroundColor(libreStatus.hasPrefix("OK") ? .green : .red)
-            }
-        }
-    }
-
-    private var nightscoutSection: some View {
-        Section("Nightscout") {
-            TextField("Nightscout URL", text: $nightscoutURL)
-                .textContentType(.URL)
-                .keyboardType(.URL)
-                .autocapitalization(.none)
-                .autocorrectionDisabled()
-            SecureField("API Secret (optional)", text: $nightscoutSecret)
-
-            Button("Save Nightscout Config") {
-                Task { await saveNightscout() }
-            }
-            .disabled(isBusy || nightscoutURL.isEmpty || !appState.isAuthenticated)
-
-            if !nightscoutStatus.isEmpty {
-                Text(nightscoutStatus)
-                    .font(.footnote)
-                    .foregroundColor(nightscoutStatus.hasPrefix("OK") ? .green : .red)
-            }
-        }
-    }
-
-    private var cobSection: some View {
-        Section {
-            numericRow(
-                label: "Carb ratio (mmol/L per 10 g)",
-                placeholder: "2.0",
-                value: $cobSettings.carbRatio,
-                fractionDigits: 1...2
-            )
-            numericRow(
-                label: "ISF (mmol/L per u)",
-                placeholder: "2.5",
-                value: $cobSettings.isf,
-                fractionDigits: 1...2
-            )
-
-            Button("Save COB Settings") {
-                Task { await saveCOB() }
-            }
-            .disabled(isBusy)
-
-            if !cobStatus.isEmpty {
-                Text(cobStatus)
-                    .font(.footnote)
-                    .foregroundColor(cobStatus.hasPrefix("OK") ? .green : .red)
-            }
-        } header: {
-            Text("Carb absorption")
-        } footer: {
-            Text(
-                "Carb ratio: expected mmol/L rise from 10 g carbs absorbed when insulin is not acting. "
-                    + "Predictions use (active COB in g ? 10) ? this value."
-            )
-            .font(.footnote)
-        }
-    }
-
-    private var insulinSection: some View {
-        Section("Insulin Preferences") {
-            if rapidCatalog.isEmpty {
-                HStack {
-                    ProgressView()
-                    Text("Loading catalog...")
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 8)
-                }
-            } else {
-                Picker("Rapid Insulin", selection: $selectedRapid) {
-                    ForEach(rapidCatalog) { entry in
-                        Text(entry.displayName).tag(entry.code)
+        Form {
+            Section {
+                Picker("Server", selection: $backendPreset) {
+                    ForEach(BackendPreset.allCases) { preset in
+                        Text(preset.title).tag(preset)
                     }
                 }
-                Picker("Long-Acting Insulin", selection: $selectedLongActing) {
-                    ForEach(longActingCatalog) { entry in
-                        Text(entry.displayName).tag(entry.code)
+                .onChange(of: backendPreset) { newValue in
+                    GlucoseMonitorAPI.storeBackendBaseURL(newValue.url)
+                    onChange()
+                }
+
+                if backendPreset == .local {
+                    HStack {
+                        Text("IP Address")
+                        Spacer()
+                        TextField("192.168.1.10", text: $localIP)
+                            .keyboardType(.numbersAndPunctuation)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onChange(of: localIP) { newIP in
+                                let filtered = newIP.filter { $0.isNumber || $0 == "." }
+                                if filtered != newIP { localIP = filtered; return }
+                                GlucoseMonitorAPI.storeLocalIP(filtered)
+                                GlucoseMonitorAPI.storeBackendBaseURL(GlucoseMonitorAPI.localBackendURL())
+                                onChange()
+                            }
                     }
                 }
 
-                Toggle("Set injection time", isOn: $injectionTimeEnabled)
-                if injectionTimeEnabled {
-                    DatePicker("Injection time", selection: $injectionTime, displayedComponents: [.hourAndMinute])
-                }
-
-                Button("Save Insulin Preferences") {
-                    Task { await saveInsulinPrefs() }
-                }
-                .disabled(isBusy || selectedRapid.isEmpty || selectedLongActing.isEmpty)
-
-                if !insulinStatus.isEmpty {
-                    Text(insulinStatus)
+                LabeledContent("URL") {
+                    Text(backendPreset.url)
                         .font(.footnote)
-                        .foregroundColor(insulinStatus.hasPrefix("OK") ? .green : .red)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+
+            Section("Account") {
+                TextField("Username", text: $username)
+                    .textContentType(.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onChange(of: username) { _ in persistAppLoginCredentials() }
+                SecureField("Password", text: $password)
+                    .textContentType(.password)
+                    .onChange(of: password) { _ in persistAppLoginCredentials() }
+
+                Button("Sign In") {
+                    hideKeyboard()
+                    Task { await signIn() }
+                }
+                .disabled(isBusy || username.isEmpty || password.isEmpty)
+
+                if !signInStatus.isEmpty {
+                    Text(signInStatus)
+                        .font(.footnote)
+                        .foregroundStyle(signInStatus.hasPrefix("OK") ? .green : .red)
                 }
             }
         }
+        .dismissKeyboardOnInteraction()
+        .navigationTitle("Backend")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: loadStoredValues)
     }
-
-    private var accountSection: some View {
-        Section {
-            Button("Sign Out", role: .destructive) {
-                Task { await appState.logout() }
-            }
-        }
-    }
-
-    // MARK: - Actions
 
     private func loadStoredValues() {
         let ud = GlucoseMonitorAPI.sharedDefaults()
         localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
         let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
-        let normStored = storedBackend.isEmpty ? "" : Self.normalizeURLString(storedBackend)
-        let nLocal = Self.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
-        let nRemote = Self.normalizeURLString(BackendPreset.remote.url)
+        let normStored = storedBackend.isEmpty ? "" : SettingsHelpers.normalizeURLString(storedBackend)
+        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
+        let nRemote = SettingsHelpers.normalizeURLString(BackendPreset.remote.url)
         if normStored.isEmpty {
             backendPreset = .remote
         } else if normStored == nLocal && !localIP.isEmpty {
@@ -344,61 +315,10 @@ struct SettingsView: View {
         }
         username = GlucoseMonitorAPI.storedAppUsername()
         password = GlucoseMonitorAPI.storedAppPassword()
-        libreEmail    = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
-        librePassword = GlucoseMonitorAPI.storedLibrePassword() // iOS-P0-4: reads from Keychain
-        libreRegion   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreRegion) ?? "en-EU"
-        dataSource    = appState.dataSource
-        glucoseUnit   = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
     }
 
     private func persistAppLoginCredentials() {
         GlucoseMonitorAPI.saveAppLoginCredentials(username: username, password: password)
-    }
-
-    private func loadRemoteSettings() async {
-        async let cob = loadCOBSettings()
-        async let insulin = loadInsulinCatalog()
-        async let nightscout = loadNightscoutConfig()
-        _ = await (cob, insulin, nightscout)
-    }
-
-    private func loadCOBSettings() async {
-        if let settings = try? await BackendAPI.fetchCOBSettings() {
-            cobSettings = settings
-        }
-    }
-
-    private func loadInsulinCatalog() async {
-        async let rapidFetch = BackendAPI.fetchInsulinCatalog(category: "RAPID")
-        async let longFetch  = BackendAPI.fetchInsulinCatalog(category: "LONG_ACTING")
-        rapidCatalog     = (try? await rapidFetch) ?? []
-        longActingCatalog = (try? await longFetch) ?? []
-
-        if let prefs = try? await BackendAPI.fetchInsulinPreferences() {
-            selectedRapid      = prefs.rapidInsulinCode
-            selectedLongActing = prefs.longActingInsulinCode
-            if let hhmm = prefs.longActingInjectionTime, let parsed = Self.parseHHmm(hhmm) {
-                injectionTimeEnabled = true
-                injectionTime = parsed
-            } else {
-                injectionTimeEnabled = false
-            }
-            appState.insulinPrefs = prefs
-        } else {
-            selectedRapid      = rapidCatalog.first?.code ?? ""
-            selectedLongActing = longActingCatalog.first?.code ?? ""
-        }
-    }
-
-    private func loadNightscoutConfig() async {
-        do {
-            if let config = try await BackendAPI.fetchNightscoutConfig() {
-                nightscoutURL    = config.url
-                nightscoutSecret = config.secret ?? ""
-            }
-        } catch {
-            // No saved config or network error; keep current field values.
-        }
     }
 
     private func signIn() async {
@@ -414,9 +334,137 @@ struct SettingsView: View {
             appState.checkAuthentication()
             persistAppLoginCredentials()
             signInStatus = "OK: signed in."
-            await loadRemoteSettings()
+            onChange()
         } catch {
             signInStatus = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Data source detail
+
+private struct DataSourceSettingsDetailView: View {
+    @EnvironmentObject var appState: AppState
+    var onChange: () -> Void = {}
+
+    @State private var dataSource: DataSourceKind = .libre
+    @State private var libreEmail = ""
+    @State private var librePassword = ""
+    @State private var libreRegion = "en-EU"
+    @State private var libreStatus = ""
+    @State private var nightscoutURL = ""
+    @State private var nightscoutSecret = ""
+    @State private var nightscoutStatus = ""
+    @State private var isBusy = false
+
+    private static let libreRegions: [(label: String, locale: String)] = [
+        ("Europe", "en-EU"),
+        ("France", "fr-FR"),
+        ("Germany", "de-DE"),
+        ("United Kingdom", "en-GB"),
+        ("United States", "en-US"),
+        ("Australia", "en-AU"),
+        ("Japan", "ja-JP"),
+        ("UAE", "ar-AE"),
+    ]
+
+    var body: some View {
+        Form {
+            Section {
+                Picker("Source", selection: $dataSource) {
+                    ForEach(DataSourceKind.allCases) { kind in
+                        Text(kind.title).tag(kind)
+                    }
+                }
+                .onChange(of: dataSource) { newValue in
+                    appState.dataSource = newValue.rawValue
+                    GlucoseMonitorAPI.sharedDefaults().set(
+                        newValue.rawValue,
+                        forKey: GlucoseMonitorAPI.StorageKey.dataSource
+                    )
+                    onChange()
+                }
+            }
+
+            if dataSource == .libre {
+                Section("LibreLinkUp") {
+                    TextField("Email", text: $libreEmail)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    SecureField("Password", text: $librePassword)
+                        .textContentType(.password)
+                    Picker("Region", selection: $libreRegion) {
+                        ForEach(Self.libreRegions, id: \.locale) { region in
+                            Text(region.label).tag(region.locale)
+                        }
+                    }
+                    .onChange(of: libreRegion) { newValue in
+                        GlucoseMonitorAPI.sharedDefaults().set(
+                            newValue,
+                            forKey: GlucoseMonitorAPI.StorageKey.libreRegion
+                        )
+                    }
+
+                    Button("Sync LibreLinkUp") {
+                        Task { await syncLibre() }
+                    }
+                    .disabled(isBusy || libreEmail.isEmpty || librePassword.isEmpty || !appState.isAuthenticated)
+
+                    if !libreStatus.isEmpty {
+                        Text(libreStatus)
+                            .font(.footnote)
+                            .foregroundStyle(libreStatus.hasPrefix("OK") ? .green : .red)
+                    }
+                }
+            }
+
+            if dataSource == .nightscout {
+                Section("Nightscout") {
+                    TextField("URL", text: $nightscoutURL)
+                        .textContentType(.URL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    SecureField("API Secret (optional)", text: $nightscoutSecret)
+
+                    Button("Save") {
+                        Task { await saveNightscout() }
+                    }
+                    .disabled(isBusy || nightscoutURL.isEmpty || !appState.isAuthenticated)
+
+                    if !nightscoutStatus.isEmpty {
+                        Text(nightscoutStatus)
+                            .font(.footnote)
+                            .foregroundStyle(nightscoutStatus.hasPrefix("OK") ? .green : .red)
+                    }
+                }
+            }
+        }
+        .dismissKeyboardOnInteraction()
+        .navigationTitle("Data Source")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear(perform: loadStoredValues)
+        .task {
+            if appState.isAuthenticated {
+                await loadNightscoutConfig()
+            }
+        }
+    }
+
+    private func loadStoredValues() {
+        let ud = GlucoseMonitorAPI.sharedDefaults()
+        dataSource = DataSourceKind(rawValue: appState.dataSource) ?? .libre
+        libreEmail = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreEmail) ?? ""
+        librePassword = GlucoseMonitorAPI.storedLibrePassword()
+        libreRegion = ud.string(forKey: GlucoseMonitorAPI.StorageKey.libreRegion) ?? "en-EU"
+    }
+
+    private func loadNightscoutConfig() async {
+        if let config = try? await BackendAPI.fetchNightscoutConfig() {
+            nightscoutURL = config.url
+            nightscoutSecret = config.secret ?? ""
         }
     }
 
@@ -425,7 +473,11 @@ struct SettingsView: View {
         libreStatus = ""
         defer { isBusy = false }
         do {
-            try await GlucoseMonitorAPI.loginLibre(email: libreEmail, password: librePassword, regionLocale: libreRegion)
+            try await GlucoseMonitorAPI.loginLibre(
+                email: libreEmail,
+                password: librePassword,
+                regionLocale: libreRegion
+            )
             libreStatus = "OK: LibreLinkUp synced."
         } catch {
             libreStatus = error.localizedDescription
@@ -447,16 +499,98 @@ struct SettingsView: View {
             nightscoutStatus = error.localizedDescription
         }
     }
+}
 
-    private func saveCOB() async {
-        isBusy = true
-        cobStatus = ""
-        defer { isBusy = false }
-        do {
-            cobSettings = try await BackendAPI.saveCOBSettings(cobSettings)
-            cobStatus = "OK: COB settings saved."
-        } catch {
-            cobStatus = error.localizedDescription
+// MARK: - Insulin preferences detail
+
+private struct InsulinPreferencesDetailView: View {
+    @EnvironmentObject var appState: AppState
+    var onChange: () -> Void = {}
+
+    @State private var rapidCatalog: [BackendAPI.InsulinCatalogEntry] = []
+    @State private var longActingCatalog: [BackendAPI.InsulinCatalogEntry] = []
+    @State private var selectedRapid = ""
+    @State private var selectedLongActing = ""
+    @State private var injectionTimeEnabled = false
+    @State private var injectionTime = Date()
+    @State private var insulinStatus = ""
+    @State private var isBusy = false
+
+    var body: some View {
+        Form {
+            Section {
+                if rapidCatalog.isEmpty {
+                    HStack {
+                        ProgressView()
+                        Text("Loading...")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Picker("Rapid Insulin", selection: $selectedRapid) {
+                        ForEach(rapidCatalog) { entry in
+                            Text(entry.displayName).tag(entry.code)
+                        }
+                    }
+                    Picker("Long-Acting Insulin", selection: $selectedLongActing) {
+                        ForEach(longActingCatalog) { entry in
+                            Text(entry.displayName).tag(entry.code)
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Toggle("Daily Injection Time", isOn: $injectionTimeEnabled)
+                if injectionTimeEnabled {
+                    DatePicker(
+                        "Time",
+                        selection: $injectionTime,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                }
+            } footer: {
+                Text("Used for long-acting insulin reminders and IOB calculations.")
+                    .font(.footnote)
+            }
+
+            Section {
+                Button("Save") {
+                    Task { await saveInsulinPrefs() }
+                }
+                .disabled(isBusy || selectedRapid.isEmpty || selectedLongActing.isEmpty)
+
+                if !insulinStatus.isEmpty {
+                    Text(insulinStatus)
+                        .font(.footnote)
+                        .foregroundStyle(insulinStatus.hasPrefix("OK") ? .green : .red)
+                }
+            }
+        }
+        .navigationTitle("Insulin Preferences")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await loadInsulinCatalog() }
+    }
+
+    private func loadInsulinCatalog() async {
+        async let rapidFetch = BackendAPI.fetchInsulinCatalog(category: "RAPID")
+        async let longFetch = BackendAPI.fetchInsulinCatalog(category: "LONG_ACTING")
+        rapidCatalog = (try? await rapidFetch) ?? []
+        longActingCatalog = (try? await longFetch) ?? []
+
+        if let prefs = try? await BackendAPI.fetchInsulinPreferences() {
+            selectedRapid = prefs.rapidInsulinCode
+            selectedLongActing = prefs.longActingInsulinCode
+            if let hhmm = prefs.longActingInjectionTime, let parsed = SettingsHelpers.parseHHmm(hhmm) {
+                injectionTimeEnabled = true
+                injectionTime = parsed
+            } else {
+                injectionTimeEnabled = false
+            }
+            appState.insulinPrefs = prefs
+            onChange()
+        } else {
+            selectedRapid = rapidCatalog.first?.code ?? ""
+            selectedLongActing = longActingCatalog.first?.code ?? ""
         }
     }
 
@@ -465,55 +599,70 @@ struct SettingsView: View {
         insulinStatus = ""
         defer { isBusy = false }
         do {
-            // "" clears a previously-set time when the toggle is off; "HH:mm" sets it otherwise.
             let prefs = try await BackendAPI.saveInsulinPreferences(
                 rapidCode: selectedRapid,
                 longActingCode: selectedLongActing,
-                longActingInjectionTime: injectionTimeEnabled ? Self.formatHHmm(injectionTime) : ""
+                longActingInjectionTime: injectionTimeEnabled
+                    ? SettingsHelpers.formatHHmm(injectionTime) : ""
             )
             appState.insulinPrefs = prefs
             insulinStatus = "OK: insulin preferences saved."
+            onChange()
         } catch {
             insulinStatus = error.localizedDescription
         }
     }
+}
 
-    private static func parseHHmm(_ hhmm: String) -> Date? {
-        let parts = hhmm.split(separator: ":")
-        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
-        return Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: Date())
+// MARK: - Numeric row
+
+private struct SettingsNumericRow: View {
+    let label: String
+    var subtitle: String?
+    let placeholder: String
+    @Binding var value: Double
+    var fractionDigits: ClosedRange<Int> = 0...2
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            TextField(
+                placeholder,
+                value: $value,
+                format: .number.precision(.fractionLength(fractionDigits))
+            )
+            .keyboardType(.decimalPad)
+            .multilineTextAlignment(.trailing)
+            .frame(width: 72)
+        }
     }
+}
 
-    private static func formatHHmm(_ date: Date) -> String {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
-    }
+// MARK: - Helpers
 
-    // MARK: - Helpers
-
-    private static func normalizeURLString(_ raw: String) -> String {
+private enum SettingsHelpers {
+    static func normalizeURLString(_ raw: String) -> String {
         var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         while s.hasSuffix("/") { s.removeLast() }
         return s
     }
 
-    private func numericRow(
-        label: String,
-        placeholder: String,
-        value: Binding<Double>,
-        fractionDigits: ClosedRange<Int> = 0...2
-    ) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField(
-                placeholder,
-                value: value,
-                format: .number.precision(.fractionLength(fractionDigits))
-            )
-            .keyboardType(.decimalPad)
-            .multilineTextAlignment(.trailing)
-            .frame(width: 90)
-        }
+    static func parseHHmm(_ hhmm: String) -> Date? {
+        let parts = hhmm.split(separator: ":")
+        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]) else { return nil }
+        return Calendar.current.date(bySettingHour: h, minute: m, second: 0, of: Date())
+    }
+
+    static func formatHHmm(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
     }
 }

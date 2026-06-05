@@ -25,6 +25,9 @@ struct ExperimentsListView: View {
 
                     verificationSection
 
+                    IsfMealWindowChart()
+                        .environmentObject(vm)
+
                     if !vm.history.isEmpty {
                         historySection
                     }
@@ -45,7 +48,7 @@ struct ExperimentsListView: View {
             .sheet(item: $showDetail) { exp in
                 ExperimentDetailView(experiment: exp, viewModel: vm)
             }
-            .sheet(isPresented: $showRun) {
+            .navigationDestination(isPresented: $showRun) {
                 if let active = vm.activeExperiment {
                     ExperimentRunView(experimentType: active.type, viewModel: vm)
                 }

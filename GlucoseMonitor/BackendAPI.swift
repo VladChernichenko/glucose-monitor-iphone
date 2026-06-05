@@ -549,6 +549,64 @@ enum BackendAPI {
         return image.jpegData(compressionQuality: 0.2)
     }
 
+    // MARK: - ISF meal-window profile
+
+    /// One bucket of the per-user observational ISF profile, mirroring backend `IsfMealWindowDTO`.
+    /// `isfMmolPerU` is nil when the bucket has < 7 weighted samples — the chart renders that as
+    /// a gap with a "Run ISF experiment at this hour" CTA.
+    struct IsfMealWindow: Decodable, Identifiable {
+        let mealWindow: String       // "BREAKFAST" | "LUNCH" | "DINNER"
+        let startHour: Int           // inclusive
+        let endHour: Int             // exclusive
+        let isfMmolPerU: Double?
+        let weightedSamples: Double?
+        let rawSampleCount: Int?
+        let hasData: Bool
+        let lastUpdated: Date?
+
+        var id: String { mealWindow }
+
+        var displayName: String {
+            switch mealWindow {
+            case "BREAKFAST": return "Breakfast"
+            case "LUNCH":     return "Lunch"
+            case "DINNER":    return "Dinner"
+            default:          return mealWindow.capitalized
+            }
+        }
+
+        /// e.g. "05:00 – 11:00". Used as the x-axis label.
+        var rangeLabel: String {
+            String(format: "%02d:00 – %02d:00", startHour, endHour)
+        }
+    }
+
+    struct IsfMealWindowProfile: Decodable {
+        let windows: [IsfMealWindow]
+        let minWeightedSamples: Double
+        let historyDays: Int
+    }
+
+    static func fetchIsfMealWindows() async throws -> IsfMealWindowProfile {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/isf/meal-windows")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(IsfMealWindowProfile.self, from: data)
+        }
+    }
+
+    /// Forces a recompute from the last 14 days. Backed by the daily scheduler too; this is the
+    /// "Refresh now" button.
+    static func recomputeIsfMealWindows() async throws -> IsfMealWindowProfile {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/isf/meal-windows/recompute", method: "POST")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(IsfMealWindowProfile.self, from: data)
+        }
+    }
+
     // MARK: - COB Settings
 
     static func fetchCOBSettings() async throws -> COBSettings {

@@ -9,7 +9,6 @@ struct ExperimentRunView: View {
 
     @State private var showAbandonConfirm = false
     @State private var showResult = false
-    @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
     @State private var autoRecordedAt: Set<Int> = []
     @State private var safetyAlertTitle: String?
@@ -67,53 +66,44 @@ struct ExperimentRunView: View {
 
     @ViewBuilder
     private var navigationContent: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    if experimentType == .isfOneUnit, let cgm = currentCGM, cgm < 3.9 {
-                        hypoBanner
-                    }
-                    timerCard
-                    readingsCard
-                    autoCaptureCard
-                    if experimentType != .basalCheck {
-                        safetyNote
-                    }
-                    completeButton
+        ScrollView {
+            VStack(spacing: 20) {
+                if experimentType == .isfOneUnit, let cgm = currentCGM, cgm < 3.9 {
+                    hypoBanner
                 }
-                .padding()
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle(experimentType.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Abandon") { showAbandonConfirm = true }
-                        .foregroundStyle(.red)
+                autoCaptureCard
+                if experimentType != .basalCheck {
+                    safetyNote
                 }
+                completeButton
             }
-            .confirmationDialog("Abandon Experiment?", isPresented: $showAbandonConfirm, titleVisibility: .visible) {
-                Button("Abandon", role: .destructive) {
-                    Task { await viewModel.abandonExperiment(); dismiss() }
-                }
-                Button("Keep Going", role: .cancel) {}
-            } message: {
-                Text("Your data will be discarded. You can start a new experiment any time.")
-            }
-            .sheet(isPresented: $showResult) {
-                if let result = viewModel.lastResult {
-                    ExperimentResultView(result: result, onDone: { dismiss() })
-                }
-            }
-            .onAppear {
-                startTimer()
-                checkAutoRecord()
-                checkSafety()
-                checkForInvalidation(notes: appState.notes)
-            }
-            .onChange(of: appState.notes.count) { _ in checkForInvalidation(notes: appState.notes) }
-            .onDisappear { timer?.invalidate() }
+            .padding()
         }
+        .background(Color(.systemGroupedBackground))
+        .navigationTitle(experimentType.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .confirmationDialog("Abandon Experiment?", isPresented: $showAbandonConfirm, titleVisibility: .visible) {
+            Button("Abandon", role: .destructive) {
+                Task { await viewModel.abandonExperiment(); dismiss() }
+            }
+            Button("Keep Going", role: .cancel) {}
+        } message: {
+            Text("Your data will be discarded. You can start a new experiment any time.")
+        }
+        .sheet(isPresented: $showResult) {
+            if let result = viewModel.lastResult {
+                ExperimentResultView(result: result, onDone: { dismiss() })
+            }
+        }
+        .onAppear {
+            startTimer()
+            checkAutoRecord()
+            checkSafety()
+            checkForInvalidation(notes: appState.notes)
+        }
+        .onChange(of: appState.notes.count) { _ in checkForInvalidation(notes: appState.notes) }
+        .onDisappear { timer?.invalidate() }
     }
 
     // MARK: - Sub-views
@@ -131,69 +121,6 @@ struct ExperimentRunView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .background(Color.red)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private var timerCard: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Elapsed Time")
-                    .font(.caption).foregroundStyle(.secondary)
-                Text(elapsedText)
-                    .font(.title2.monospacedDigit().bold())
-            }
-            Spacer()
-            if let next = nextCheckpointText {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("Next reading")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text(next)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Color.accentColor)
-                }
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private var readingsCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Readings")
-                .font(.subheadline.bold())
-
-            if let readings = viewModel.activeExperiment?.readings, !readings.isEmpty {
-                ForEach(readings) { r in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 4) {
-                                Text(r.label ?? "T+\(r.minutesElapsed) min")
-                                    .font(.subheadline)
-                                Image(systemName: "waveform.path.ecg")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(shortTime(r.recordedAt))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(String(format: "%.1f mmol/L", r.glucoseMmol))
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(.primary)
-                    }
-                    .padding(.vertical, 4)
-                    if r.id != readings.last?.id { Divider() }
-                }
-            } else {
-                Text("Baseline will be captured from your CGM")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
@@ -276,6 +203,11 @@ struct ExperimentRunView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            Button("Abandon") { showAbandonConfirm = true }
+                .font(.subheadline)
+                .foregroundStyle(.red)
+                .padding(.top, 4)
         }
     }
 
@@ -301,36 +233,10 @@ struct ExperimentRunView: View {
     }
 
 
-    // MARK: - Helpers
-
-    private var nextCheckpointText: String? {
-        let elapsed = viewModel.elapsedMinutes()
-        guard let next = experimentType.alarmSchedule.first(where: { $0.minutes > elapsed }) else { return nil }
-        let remaining = next.minutes - elapsed
-        if remaining < 60 { return "in \(remaining) min" }
-        let h = remaining / 60
-        let m = remaining % 60
-        return m == 0 ? "in \(h)h" : "in \(h)h \(m)m"
-    }
-
-    private var elapsedText: String {
-        let h = elapsedSeconds / 3600
-        let m = (elapsedSeconds % 3600) / 60
-        let s = elapsedSeconds % 60
-        return h > 0
-            ? String(format: "%d:%02d:%02d", h, m, s)
-            : String(format: "%02d:%02d", m, s)
-    }
-
     private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            elapsedSeconds += 1
-            if elapsedSeconds % 60 == 0 {
-                checkAutoRecord()
-            }
-            if elapsedSeconds % 300 == 0 {
-                checkSafety()
-            }
+        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            checkAutoRecord()
+            checkSafety()
         }
     }
 
@@ -428,14 +334,4 @@ struct ExperimentRunView: View {
         }
     }
 
-    private func shortTime(_ isoString: String) -> String {
-        let f = ISO8601DateFormatter()
-        if let date = f.date(from: isoString) {
-            let out = DateFormatter()
-            out.timeStyle = .short
-            out.dateStyle = .none
-            return out.string(from: date)
-        }
-        return isoString
-    }
 }

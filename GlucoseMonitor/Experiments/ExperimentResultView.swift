@@ -5,6 +5,8 @@ struct ExperimentResultView: View {
     let result: ExperimentResult
     let onDone: () -> Void
 
+    @EnvironmentObject private var appState: AppState
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -12,12 +14,17 @@ struct ExperimentResultView: View {
                 resultHero
                 explanationCard
                 if let comparison = comparisonText { comparisonCard(comparison) }
+                // Hourly ISF profile lives next to the ISF experiment that births it.
+                if result.computedIsf != nil {
+                    IsfMealWindowChart()
+                }
                 actionButtons
             }
             .padding()
             .padding(.bottom, 32)
         }
         .background(Color(.systemGroupedBackground))
+        .onAppear { confirmLongActingDoseIfApplicable() }
     }
 
     // MARK: - Sections
@@ -150,6 +157,19 @@ struct ExperimentResultView: View {
         if result.computedIsf != nil       { return "mmol/L per unit" }
         if result.computedCarbRatio != nil { return "mmol/L per gram" }
         return ""
+    }
+
+    // MARK: - Long-acting dose confirmation
+
+    /// When a Basal Rate Check completes stably, the current long-acting dose has been
+    /// proven correct for this user. Persist it so the next "Log long-acting" dialog
+    /// pre-fills with the experiment-confirmed value rather than an arbitrary default.
+    private func confirmLongActingDoseIfApplicable() {
+        guard result.isStable == true else { return }
+        let longActing = appState.notes.filter { $0.isLongActing && $0.insulin > 0 }
+        let sorted = longActing.sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
+        guard let confirmedDose = sorted.first?.insulin else { return }
+        UserDefaults.standard.set(confirmedDose, forKey: "lastLongActingDose")
     }
 
     private var comparisonText: String? {

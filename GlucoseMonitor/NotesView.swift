@@ -937,6 +937,8 @@ struct LongActingInsulinSheet: View {
     @State private var time: Date = Date()
     @State private var isSaving = false
 
+    private static let lastDoseKey = "lastLongActingDose"
+
     var body: some View {
         NavigationStack {
             Form {
@@ -967,6 +969,7 @@ struct LongActingInsulinSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         isSaving = true
+                        UserDefaults.standard.set(dose, forKey: Self.lastDoseKey)
                         Task {
                             await appState.logLongActingInsulin(dose: dose, name: insulinName, at: time)
                             dismiss()
@@ -975,7 +978,22 @@ struct LongActingInsulinSheet: View {
                     .disabled(isSaving || dose <= 0)
                 }
             }
+            .onAppear { dose = previousDose }
         }
+    }
+
+    /// Returns the last-used long-acting dose, preferring a recent note in appState
+    /// over the UserDefaults persisted value, falling back to 10 U.
+    private var previousDose: Double {
+        // 1. Most recent long-acting note already loaded in appState (last 12 h)
+        let longActing = appState.notes.filter { $0.isLongActing && $0.insulin > 0 }
+        let sorted = longActing.sorted { ($0.timestamp ?? .distantPast) > ($1.timestamp ?? .distantPast) }
+        if let recentDose = sorted.first?.insulin { return recentDose }
+        // 2. Persisted from a previous session / earlier in the day
+        let stored = UserDefaults.standard.double(forKey: Self.lastDoseKey)
+        if stored > 0 { return stored }
+        // 3. Hardcoded fallback
+        return 10
     }
 }
 

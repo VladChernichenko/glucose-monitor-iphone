@@ -107,6 +107,7 @@ struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
+    @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
     @State private var showAI = false
     @State private var showNutrition = false
@@ -124,28 +125,32 @@ struct DashboardView: View {
                     ScrollView {
                         VStack(spacing: 16) {
                             if experimentVM.hasActiveExperiment, let exp = experimentVM.activeExperiment {
-                                HStack(spacing: 10) {
-                                    Image(systemName: "flask.fill")
-                                        .foregroundStyle(.orange)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Experiment in Progress")
-                                            .font(.subheadline.bold())
-                                        Text(exp.type.title)
+                                Button { showExperimentRun = true } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "flask.fill")
+                                            .foregroundStyle(.orange)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Experiment in Progress")
+                                                .font(.subheadline.bold())
+                                                .foregroundStyle(.primary)
+                                            Text(exp.type.title)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    .padding()
+                                    .background(Color.orange.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14)
+                                            .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+                                    )
                                 }
-                                .padding()
-                                .background(Color.orange.opacity(0.12))
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
-                                )
+                                .buttonStyle(.plain)
                             }
                             TimelineView(.periodic(from: .now, by: 1)) { context in
                                 compactGlucoseCard(at: context.date)
@@ -193,6 +198,14 @@ struct DashboardView: View {
                         Image(systemName: "plus")
                     }
                     .disabled(!appState.isAuthenticated)
+                }
+            }
+            .sheet(isPresented: $showExperimentRun) {
+                if let active = experimentVM.activeExperiment {
+                    NavigationStack {
+                        ExperimentRunView(experimentType: active.type, viewModel: experimentVM)
+                            .environmentObject(appState)
+                    }
                 }
             }
             .sheet(isPresented: $showAddNote) {

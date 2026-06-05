@@ -55,6 +55,7 @@
 		F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */; };
 		F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */; };
 		F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */; };
+		F5A240AA2FD1F09E0030E031 /* IsfMealWindowChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */; };
 		F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */; };
 		F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */; };
 		F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */; };
@@ -172,6 +173,7 @@
 		F5A240862FD1F09E0030E031 /* ExperimentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentModels.swift; sourceTree = "<group>"; };
 		F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentResultView.swift; sourceTree = "<group>"; };
 		F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentRunView.swift; sourceTree = "<group>"; };
+		F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsfMealWindowChart.swift; sourceTree = "<group>"; };
 		F5A240892FD1F09E0030E031 /* ExperimentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentService.swift; sourceTree = "<group>"; };
 		F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentsListView.swift; sourceTree = "<group>"; };
 		F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentViewModel.swift; sourceTree = "<group>"; };
@@ -349,6 +351,7 @@
 				F5A240862FD1F09E0030E031 /* ExperimentModels.swift */,
 				F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */,
 				F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */,
+				F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */,
 				F5A240892FD1F09E0030E031 /* ExperimentService.swift */,
 				F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */,
 				F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */,
@@ -542,6 +545,7 @@
 				F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */,
 				F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */,
 				F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */,
+				F5A240AA2FD1F09E0030E031 /* IsfMealWindowChart.swift in Sources */,
 				F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */,
 				F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */,
 				F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */,
