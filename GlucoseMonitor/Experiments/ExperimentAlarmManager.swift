@@ -19,32 +19,47 @@ final class ExperimentAlarmManager {
 
     // MARK: - Schedule
 
-    /// Schedule checkpoint alarms for an experiment starting now.
+    /// Schedule alarms for an experiment starting now.
+    /// Fixed-interval "record your glucose" reminders are omitted — readings are
+    /// auto-captured from the CGM. Safety alerts are fired dynamically by
+    /// ExperimentRunView via fireSafetyNotification(_:title:body:).
     func scheduleAlarms(for type: ExperimentType, experimentId: UUID) async {
         await requestPermissionIfNeeded()
-
-        // Cancel any leftover alarms from a previous experiment
         await cancelAlarms(for: experimentId)
+    }
 
+    /// Fire an immediate safety notification. The same `id` will not fire again
+    /// within 30 minutes to prevent alert spam.
+    func fireSafetyNotification(id: String, title: String, body: String) async {
         let center = UNUserNotificationCenter.current()
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized else { return }
 
-        for alarm in type.alarmSchedule {
-            let content = UNMutableNotificationContent()
-            content.title  = type.title
-            content.body   = alarm.message
-            content.sound  = .default
-            content.userInfo = ["experimentId": experimentId.uuidString, "type": type.rawValue]
+        // Enforce 30-minute cooldown using a pending-notification sentinel
+        let cooldownId = "safety-cooldown-\(id)"
+        let pending = await center.pendingNotificationRequests()
+        if pending.contains(where: { $0.identifier == cooldownId }) { return }
 
-            let trigger = UNTimeIntervalNotificationTrigger(
-                timeInterval: TimeInterval(alarm.minutes * 60),
-                repeats: false
-            )
-            let id = notificationId(experimentId: experimentId, minutes: alarm.minutes)
-            let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-            try? await center.add(request)
-        }
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body  = body
+        content.sound = .default
+        if #available(iOS 15, *) { content.interruptionLevel = .timeSensitive }
+
+        // Fire in 1 s
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let notifId = "safety-\(id)"
+        center.removePendingNotificationRequests(withIdentifiers: [notifId])
+        let request = UNNotificationRequest(identifier: notifId, content: content, trigger: trigger)
+        try? await center.add(request)
+
+        // Schedule a 30-minute silent sentinel so the cooldown check above fires
+        let sentinel = UNMutableNotificationContent()
+        sentinel.title = ""
+        sentinel.body  = ""
+        let sentinelTrigger = UNTimeIntervalNotificationTrigger(timeInterval: 30 * 60, repeats: false)
+        let sentinelRequest = UNNotificationRequest(identifier: cooldownId, content: sentinel, trigger: sentinelTrigger)
+        try? await center.add(sentinelRequest)
     }
 
     /// Schedule a "background is clean, you can start your experiment" notification.

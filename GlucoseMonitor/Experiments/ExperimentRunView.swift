@@ -12,6 +12,9 @@ struct ExperimentRunView: View {
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
     @State private var autoRecordedAt: Set<Int> = []
+    @State private var safetyAlertTitle: String?
+    @State private var safetyAlertMessage: String?
+    @State private var alertCooldown: [String: Date] = [:]
 
     private var currentCGM: Double? {
         appState.currentReading?.value
@@ -64,8 +67,16 @@ struct ExperimentRunView: View {
             }
             .onAppear {
                 startTimer()
-                // Attempt baseline capture immediately
                 checkAutoRecord()
+                checkSafety()
+            }
+            .alert(safetyAlertTitle ?? "Safety Alert", isPresented: Binding(
+                get: { safetyAlertTitle != nil },
+                set: { if !$0 { safetyAlertTitle = nil; safetyAlertMessage = nil } }
+            )) {
+                Button("OK") { safetyAlertTitle = nil; safetyAlertMessage = nil }
+            } message: {
+                Text(safetyAlertMessage ?? "")
             }
             .onDisappear { timer?.invalidate() }
         }
@@ -309,10 +320,86 @@ struct ExperimentRunView: View {
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
             elapsedSeconds += 1
-            // Check on each minute boundary to minimise work
             if elapsedSeconds % 60 == 0 {
                 checkAutoRecord()
             }
+            if elapsedSeconds % 300 == 0 {
+                checkSafety()
+            }
+        }
+    }
+
+    // MARK: - Safety monitoring
+
+    private func checkSafety() {
+        guard let cgm = currentCGM else { return }
+        let arrow = appState.currentReading?.trendArrow
+        let velocity = trendVelocity(arrow)
+
+        if cgm < 3.9 {
+            triggerSafetyAlert(
+                id: "hypo",
+                title: "Low Glucose — Stop Experiment",
+                message: String(format: "Your glucose is %.1f mmol/L. Treat hypoglycaemia immediately and stop the experiment.", cgm)
+            )
+            return
+        }
+
+        switch experimentType {
+        case .basalCheck:
+            if velocity >= 0.067 {
+                triggerSafetyAlert(
+                    id: "basal-rise",
+                    title: "Glucose Rising During Basal Check",
+                    message: String(format: "Your glucose is rising (%.1f mmol/L, %@). This may mean your basal rate is too low.", cgm, arrow ?? "↑")
+                )
+            } else if velocity <= -0.067 {
+                triggerSafetyAlert(
+                    id: "basal-fall",
+                    title: "Glucose Falling During Basal Check",
+                    message: String(format: "Your glucose is falling (%.1f mmol/L, %@). This may mean your basal rate is too high.", cgm, arrow ?? "↓")
+                )
+            }
+        case .carbFactor:
+            if velocity <= -0.067 {
+                triggerSafetyAlert(
+                    id: "carb-fall",
+                    title: "Unexpected Glucose Drop",
+                    message: String(format: "Your glucose is falling (%.1f mmol/L) during a Carb Factor test. Check your insulin on board.", cgm)
+                )
+            }
+        case .isfOneUnit:
+            if velocity <= -0.100 {
+                triggerSafetyAlert(
+                    id: "isf-rapid-fall",
+                    title: "Glucose Dropping Very Fast",
+                    message: String(format: "Your glucose is dropping rapidly (%.1f mmol/L, %@). Be ready to treat if you approach 4 mmol/L.", cgm, arrow ?? "↓↓")
+                )
+            }
+        }
+    }
+
+    private func triggerSafetyAlert(id: String, title: String, message: String) {
+        let now = Date()
+        if let last = alertCooldown[id], now.timeIntervalSince(last) < 1800 { return }
+        alertCooldown[id] = now
+        safetyAlertTitle = title
+        safetyAlertMessage = message
+        Task {
+            await ExperimentAlarmManager.shared.fireSafetyNotification(id: id, title: title, body: message)
+        }
+    }
+
+    private func trendVelocity(_ arrow: String?) -> Double {
+        switch arrow {
+        case "↑↑": return  0.100
+        case "↑":   return  0.067
+        case "↗":   return  0.033
+        case "→":   return  0.000
+        case "↘":   return -0.033
+        case "↓":   return -0.067
+        case "↓↓": return -0.100
+        default:    return  0.000
         }
     }
 
