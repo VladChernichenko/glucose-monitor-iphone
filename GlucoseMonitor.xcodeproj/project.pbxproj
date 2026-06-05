@@ -16,8 +16,6 @@
 		700000000000000000000007 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000006 /* Assets.xcassets */; };
 		700000000000000000000009 /* GMWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 600000000000000000000009 /* GMWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		70000000000000000000000A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000A /* AppState.swift */; };
-		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
-		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		70000000000000000000000B /* BackendAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000B /* BackendAPI.swift */; };
 		70000000000000000000000C /* NotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000C /* NotesView.swift */; };
 		70000000000000000000000D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000D /* SettingsView.swift */; };
@@ -49,10 +47,25 @@
 		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
 		700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000049 /* NutritionAPIServiceTests.swift */; };
 		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
+		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
+		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
-		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
+		F5A240912FD1F09E0030E031 /* ExperimentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240862FD1F09E0030E031 /* ExperimentModels.swift */; };
+		F5A240922FD1F09E0030E031 /* ExperimentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */; };
+		F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */; };
+		F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */; };
+		F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */; };
+		F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */; };
+		F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */; };
+		F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */; };
+		F5A240992FD1F09E0030E031 /* ExperimentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240892FD1F09E0030E031 /* ExperimentService.swift */; };
+		F5A2409A2FD1F09E0030E031 /* BackgroundCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */; };
+		F5A2409B2FD1F09E0030E031 /* ExperimentsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */; };
+		F5A2409C2FD1F09E0030E031 /* VerificationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */; };
+		F5A2409D2FD1F09E0030E031 /* ExperimentAlarmManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */; };
 		F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B001002FCC7001001AB224 /* DashboardCache.swift */; };
 		F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */; };
+		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -114,7 +127,6 @@
 		600000000000000000000008 /* GlucoseMonitor.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlucoseMonitor.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		600000000000000000000009 /* GMWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GMWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		60000000000000000000000A /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		60000000000000000000000B /* BackendAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPI.swift; sourceTree = "<group>"; };
 		60000000000000000000000C /* NotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesView.swift; sourceTree = "<group>"; };
 		60000000000000000000000D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -146,10 +158,24 @@
 		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
 		600000000000000000000049 /* NutritionAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIServiceTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
+		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
-		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
+		F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCheckView.swift; sourceTree = "<group>"; };
+		F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentAlarmManager.swift; sourceTree = "<group>"; };
+		F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentDetailView.swift; sourceTree = "<group>"; };
+		F5A240862FD1F09E0030E031 /* ExperimentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentModels.swift; sourceTree = "<group>"; };
+		F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentResultView.swift; sourceTree = "<group>"; };
+		F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentRunView.swift; sourceTree = "<group>"; };
+		F5A240892FD1F09E0030E031 /* ExperimentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentService.swift; sourceTree = "<group>"; };
+		F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentsListView.swift; sourceTree = "<group>"; };
+		F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentViewModel.swift; sourceTree = "<group>"; };
+		F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationDashboardView.swift; sourceTree = "<group>"; };
+		F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationDetailView.swift; sourceTree = "<group>"; };
+		F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationModels.swift; sourceTree = "<group>"; };
+		F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationViewModel.swift; sourceTree = "<group>"; };
 		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
 		F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
+		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -202,6 +228,7 @@
 		800000000000000000000002 /* GlucoseMonitor */ = {
 			isa = PBXGroup;
 			children = (
+				F5A240902FD1F09E0030E031 /* Experiments */,
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
 				F5B001002FCC7001001AB224 /* DashboardCache.swift */,
@@ -293,6 +320,26 @@
 				60000000000000000000004A /* FoodModelsTests.swift */,
 			);
 			path = GlucoseMonitorTests;
+			sourceTree = "<group>";
+		};
+		F5A240902FD1F09E0030E031 /* Experiments */ = {
+			isa = PBXGroup;
+			children = (
+				F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */,
+				F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */,
+				F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */,
+				F5A240862FD1F09E0030E031 /* ExperimentModels.swift */,
+				F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */,
+				F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */,
+				F5A240892FD1F09E0030E031 /* ExperimentService.swift */,
+				F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */,
+				F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */,
+				F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */,
+				F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */,
+				F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */,
+				F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */,
+			);
+			path = Experiments;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -469,6 +516,19 @@
 				700000000000000000000010 /* DashboardExtras.swift in Sources */,
 				700000000000000000000020 /* ARFoodScanner.swift in Sources */,
 				700000000000000000000021 /* FoodDensityDatabase.swift in Sources */,
+				F5A240912FD1F09E0030E031 /* ExperimentModels.swift in Sources */,
+				F5A240922FD1F09E0030E031 /* ExperimentViewModel.swift in Sources */,
+				F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */,
+				F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */,
+				F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */,
+				F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */,
+				F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */,
+				F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */,
+				F5A240992FD1F09E0030E031 /* ExperimentService.swift in Sources */,
+				F5A2409A2FD1F09E0030E031 /* BackgroundCheckView.swift in Sources */,
+				F5A2409B2FD1F09E0030E031 /* ExperimentsListView.swift in Sources */,
+				F5A2409C2FD1F09E0030E031 /* VerificationDetailView.swift in Sources */,
+				F5A2409D2FD1F09E0030E031 /* ExperimentAlarmManager.swift in Sources */,
 				700000000000000000000022 /* ARFoodScannerView.swift in Sources */,
 				700000000000000000000025 /* NutritionAPIService.swift in Sources */,
 				700000000000000000000026 /* FoodModels.swift in Sources */,

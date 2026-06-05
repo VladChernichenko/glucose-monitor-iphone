@@ -18,8 +18,11 @@ struct ContentView: View {
             NotesView()
                 .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
-            SettingsView()
+            ExperimentsListView()
                 .tag(2)
+                .tabItem { Label("Experiments", systemImage: "flask.fill") }
+            SettingsView()
+                .tag(3)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .onChange(of: selectedTab) { newTab in
