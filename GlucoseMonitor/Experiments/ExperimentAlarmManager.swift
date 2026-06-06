@@ -20,12 +20,38 @@ final class ExperimentAlarmManager {
     // MARK: - Schedule
 
     /// Schedule alarms for an experiment starting now.
-    /// Fixed-interval "record your glucose" reminders are omitted — readings are
-    /// auto-captured from the CGM. Safety alerts are fired dynamically by
+    ///
+    /// Per-checkpoint "record your glucose" reminders are omitted — readings are
+    /// auto-captured from the CGM. Drift safety alerts are fired dynamically by
     /// ExperimentRunView via fireSafetyNotification(_:title:body:).
+    ///
+    /// One alarm IS scheduled here: a single "you can finish now" notification at the
+    /// final checkpoint. Without it a 4-hour silent Basal Check has zero signal that
+    /// it's ready — the user just leaves it running forever.
     func scheduleAlarms(for type: ExperimentType, experimentId: UUID) async {
         await requestPermissionIfNeeded()
         await cancelAlarms(for: experimentId)
+
+        let center = UNUserNotificationCenter.current()
+        let settings = await center.notificationSettings()
+        guard settings.authorizationStatus == .authorized else { return }
+
+        let fireInMinutes = type.readyToFinishMinute
+        guard fireInMinutes > 0 else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = "✅ \(type.title) — ready to finish"
+        content.body  = "Your experiment has been running long enough. Open the app to see the result."
+        content.sound = .default
+        if #available(iOS 15, *) { content.interruptionLevel = .timeSensitive }
+
+        let trigger = UNTimeIntervalNotificationTrigger(
+            timeInterval: TimeInterval(fireInMinutes * 60),
+            repeats: false
+        )
+        let identifier = readyToFinishNotificationId(experimentId: experimentId)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        try? await center.add(request)
     }
 
     /// Fire an immediate safety notification. The same `id` will not fire again
@@ -99,5 +125,9 @@ final class ExperimentAlarmManager {
 
     private func notificationId(experimentId: UUID, minutes: Int) -> String {
         "exp-\(experimentId.uuidString)-\(minutes)min"
+    }
+
+    private func readyToFinishNotificationId(experimentId: UUID) -> String {
+        "exp-\(experimentId.uuidString)-ready-to-finish"
     }
 }

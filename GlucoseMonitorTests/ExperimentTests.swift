@@ -83,8 +83,8 @@ final class ExperimentViewModelTests: XCTestCase {
           "status":"IN_PROGRESS",
           "gramsConsumed":15.0,
           "readings":[
-            {"id":"r1","recordedAt":"2026-06-04T10:00:00","glucoseMmol":6.5,"minutesElapsed":0,"label":"Baseline"},
-            {"id":"r2","recordedAt":"2026-06-04T10:30:00","glucoseMmol":9.2,"minutesElapsed":30,"label":"T+30min"}
+            {"id":"550e8400-e29b-41d4-a716-446655441001","recordedAt":"2026-06-04T10:00:00","glucoseMmol":6.5,"minutesElapsed":0,"label":"Baseline"},
+            {"id":"550e8400-e29b-41d4-a716-446655441002","recordedAt":"2026-06-04T10:30:00","glucoseMmol":9.2,"minutesElapsed":30,"label":"T+30min"}
           ]
         }
         """

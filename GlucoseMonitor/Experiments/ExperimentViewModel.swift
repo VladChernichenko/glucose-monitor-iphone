@@ -99,11 +99,8 @@ final class ExperimentViewModel: ObservableObject {
     func abandonExperiment() async {
         guard let expId = activeExperiment?.id else { return }
         do {
-            if let type = activeExperiment?.type {
-                await ExperimentAlarmManager.shared.cancelAlarms(for: expId)
-                _ = type   // silence unused warning
-            }
-            activeExperiment = try await ExperimentService.abandon(experimentId: expId)
+            await ExperimentAlarmManager.shared.cancelAlarms(for: expId)
+            _ = try await ExperimentService.abandon(experimentId: expId)
             activeExperiment = nil
             await loadAvailable()
         } catch {

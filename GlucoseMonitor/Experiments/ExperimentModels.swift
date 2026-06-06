@@ -42,6 +42,23 @@ enum ExperimentType: String, Codable, CaseIterable {
         }
     }
 
+    /// Minimum wall-clock minutes between start and the "Finish" button enabling.
+    /// Mirrors the backend's `ExperimentService.minElapsedMinutes(Type)` floor — the
+    /// server returns 400 below this, so enforcing client-side avoids the round-trip.
+    var minimumMinutesToFinish: Int {
+        switch self {
+        case .basalCheck:  return 180  // 3 h floor; protocol target 4–6 h
+        case .carbFactor:  return 60
+        case .isfOneUnit:  return 180  // 3 h floor; protocol target 4–5 h
+        }
+    }
+
+    /// The "you can finish now" checkpoint in {@link alarmSchedule}'s minutes, used to
+    /// schedule the single "ready to finish" local notification at start time.
+    var readyToFinishMinute: Int {
+        alarmSchedule.last?.minutes ?? minimumMinutesToFinish
+    }
+
     var systemImage: String {
         switch self {
         case .basalCheck: return "waveform.path.ecg.rectangle"

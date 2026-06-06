@@ -15,6 +15,8 @@ struct ExperimentRunView: View {
     @State private var safetyAlertMessage: String?
     @State private var alertCooldown: [String: Date] = [:]
     @State private var invalidationReason: InvalidationReason?
+    /// Forces the status banner to re-render every minute as elapsed time advances.
+    @State private var elapsedTick: Int = 0
 
     private enum InvalidationReason {
         case insulin(Double)
@@ -71,6 +73,7 @@ struct ExperimentRunView: View {
                 if experimentType == .isfOneUnit, let cgm = currentCGM, cgm < 3.9 {
                     hypoBanner
                 }
+                statusBanner
                 autoCaptureCard
                 if experimentType != .basalCheck {
                     safetyNote
@@ -172,7 +175,11 @@ struct ExperimentRunView: View {
 
     private var completeButton: some View {
         let readingCount = viewModel.activeExperiment?.readings.count ?? 0
-        let canFinish = readingCount >= 2
+        let elapsed = viewModel.elapsedMinutes()
+        let minMinutes = experimentType.minimumMinutesToFinish
+        let hasEnoughReadings = readingCount >= 2
+        let hasEnoughElapsed = elapsed >= minMinutes
+        let canFinish = hasEnoughReadings && hasEnoughElapsed
 
         return VStack(spacing: 8) {
             Button {
@@ -198,8 +205,12 @@ struct ExperimentRunView: View {
             }
             .disabled(!canFinish || viewModel.isCompleting)
 
-            if !canFinish {
+            if !hasEnoughReadings {
                 Text("Waiting for at least 2 auto-captured readings before finishing")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if !hasEnoughElapsed {
+                Text("\(minMinutes - elapsed) more minute(s) needed for a meaningful result")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -209,6 +220,62 @@ struct ExperimentRunView: View {
                 .foregroundStyle(.red)
                 .padding(.top, 4)
         }
+    }
+
+    /// Always-visible elapsed-time + next-milestone banner. Replaces the timer card I
+    /// removed earlier — without some signal of progress, a silent multi-hour experiment
+    /// feels broken ("never ends"). The `elapsedTick` state binding forces a re-render
+    /// every minute so the numbers actually move.
+    private var statusBanner: some View {
+        let elapsed = viewModel.elapsedMinutes()
+        let minMinutes = experimentType.minimumMinutesToFinish
+        let readyToFinish = elapsed >= minMinutes
+        _ = elapsedTick // keep the binding live so SwiftUI re-evaluates on timer tick
+
+        return HStack(alignment: .top, spacing: 12) {
+            Image(systemName: readyToFinish ? "checkmark.seal.fill" : "hourglass")
+                .font(.title3)
+                .foregroundStyle(readyToFinish ? .green : .accentColor)
+                .frame(width: 22)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(readyToFinish ? "Ready to finish" : "In progress")
+                    .font(.subheadline.weight(.semibold))
+                Text(elapsedDescription(elapsed: elapsed, minMinutes: minMinutes, readyToFinish: readyToFinish))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background((readyToFinish ? Color.green : Color.accentColor).opacity(0.10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder((readyToFinish ? Color.green : Color.accentColor).opacity(0.3), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func elapsedDescription(elapsed: Int, minMinutes: Int, readyToFinish: Bool) -> String {
+        let elapsedText = formatMinutes(elapsed)
+        if readyToFinish {
+            return "Running for \(elapsedText) — tap Finish below to see your result."
+        }
+        if let nextMessage = viewModel.nextAlarmLabel {
+            return "Running for \(elapsedText). \(nextMessage)"
+        }
+        let remaining = minMinutes - elapsed
+        return "Running for \(elapsedText). \(formatMinutes(remaining)) until you can finish."
+    }
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        let m = max(0, minutes)
+        if m < 60 { return "\(m) min" }
+        let hours = m / 60
+        let mins = m % 60
+        return mins == 0 ? "\(hours) h" : "\(hours) h \(mins) min"
     }
 
     // MARK: - Auto-capture
@@ -237,6 +304,10 @@ struct ExperimentRunView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             checkAutoRecord()
             checkSafety()
+            // Bump the tick to force the status banner to re-render with the new
+            // elapsed-minutes value. Without this nudge SwiftUI doesn't know the
+            // computed elapsedMinutes() has changed (it's not @Published).
+            elapsedTick &+= 1
         }
     }
 
