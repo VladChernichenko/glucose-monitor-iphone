@@ -40,6 +40,7 @@
 		700000000000000000000040 /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000041 /* TestHelpers.swift */; };
 		700000000000000000000041 /* AppStateBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000042 /* AppStateBugTests.swift */; };
 		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
+		70000000000000000000004D /* RefreshFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004E /* RefreshFlowTests.swift */; };
 		700000000000000000000043 /* FoodModelsBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000044 /* FoodModelsBugTests.swift */; };
 		700000000000000000000044 /* InsulinIOBBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000045 /* InsulinIOBBugTests.swift */; };
 		700000000000000000000045 /* InsulinIOBTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000046 /* InsulinIOBTests.swift */; };
@@ -158,6 +159,7 @@
 		600000000000000000000041 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
 		600000000000000000000042 /* AppStateBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
+		60000000000000000000004E /* RefreshFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshFlowTests.swift; sourceTree = "<group>"; };
 		600000000000000000000044 /* FoodModelsBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000045 /* InsulinIOBBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000046 /* InsulinIOBTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinIOBTests.swift; sourceTree = "<group>"; };
@@ -338,6 +340,7 @@
 				60000000000000000000004B /* ExperimentTests.swift */,
 				60000000000000000000004C /* VerificationViewModelTests.swift */,
 				60000000000000000000004D /* OnboardingFlowTests.swift */,
+				60000000000000000000004E /* RefreshFlowTests.swift */,
 			);
 			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
@@ -578,6 +581,7 @@
 				70000000000000000000004A /* ExperimentTests.swift in Sources */,
 				70000000000000000000004B /* VerificationViewModelTests.swift in Sources */,
 				70000000000000000000004C /* OnboardingFlowTests.swift in Sources */,
+				70000000000000000000004D /* RefreshFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

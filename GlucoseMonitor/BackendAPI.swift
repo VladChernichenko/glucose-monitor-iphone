@@ -424,7 +424,15 @@ enum BackendAPI {
             return try await work()
         } catch let err as GlucoseMonitorAPI.APIError {
             if case .httpStatus(401, _) = err {
-                try await GlucoseMonitorAPI.refreshToken()
+                do {
+                    try await GlucoseMonitorAPI.refreshToken()
+                } catch {
+                    // refresh failed — the refresh token itself is expired/revoked.
+                    // Keeping the dead tokens in the Keychain just repeats this dance
+                    // forever; clear them so the UI can prompt re-login.
+                    GlucoseMonitorAPI.clearSession()
+                    throw err
+                }
                 return try await work()
             }
             throw err

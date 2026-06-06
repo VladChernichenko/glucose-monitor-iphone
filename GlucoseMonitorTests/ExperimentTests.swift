@@ -3,6 +3,7 @@ import XCTest
 
 // MARK: - ExperimentViewModel Tests
 
+@MainActor
 final class ExperimentViewModelTests: XCTestCase {
 
     // T1 — loadAvailable populates the array (via mock service response)
@@ -33,7 +34,7 @@ final class ExperimentViewModelTests: XCTestCase {
 
     // T2 — BackgroundStatus decodes and isClean reflects COB/IOB
     func test_backgroundStatus_isClean_whenCobAndIobBelowThreshold() {
-        let json = """{"isClean":true,"cobGrams":2.0,"iobUnits":0.1,"cleanInMinutes":0}"""
+        let json = "{\"isClean\":true,\"cobGrams\":2.0,\"iobUnits\":0.1,\"cleanInMinutes\":0}"
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let status = try! decoder.decode(BackgroundStatus.self, from: json.data(using: .utf8)!)
@@ -45,7 +46,7 @@ final class ExperimentViewModelTests: XCTestCase {
 
     // T3 — BackgroundStatus isClean = false when COB is high
     func test_backgroundStatus_isNotClean_whenCobHigh() {
-        let json = """{"isClean":false,"cobGrams":22.5,"iobUnits":0.0,"cleanInMinutes":45}"""
+        let json = "{\"isClean\":false,\"cobGrams\":22.5,\"iobUnits\":0.0,\"cleanInMinutes\":45}"
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         let status = try! decoder.decode(BackgroundStatus.self, from: json.data(using: .utf8)!)
@@ -93,7 +94,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(exp.readings.count, 2)
         XCTAssertEqual(exp.readings[0].glucoseMmol, 6.5, accuracy: 0.01)
         XCTAssertEqual(exp.readings[1].minutesElapsed, 30)
-        XCTAssertEqual(exp.gramsConsumed, 15.0, accuracy: 0.01)
+        XCTAssertEqual(exp.gramsConsumed ?? 0, 15.0, accuracy: 0.01)
     }
 
     // T6 — ExperimentResult decodes with savedToSettings = true
@@ -140,7 +141,7 @@ final class ExperimentViewModelTests: XCTestCase {
         let data = try! encoder.encode(req)
         let dict = try! JSONSerialization.jsonObject(with: data) as! [String: Any]
         XCTAssertEqual(dict["type"] as? String, "CARB_FACTOR")
-        XCTAssertEqual(dict["grams_consumed"] as? Double, 15.0, accuracy: 0.01)
+        XCTAssertEqual((dict["grams_consumed"] as? Double) ?? 0, 15.0, accuracy: 0.01)
         XCTAssertNil(dict["units_injected"] as? Double)
     }
 

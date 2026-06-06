@@ -1,6 +1,7 @@
 import XCTest
 @testable import GlucoseMonitor
 
+@MainActor
 final class VerificationViewModelTests: XCTestCase {
 
     // T11 — VerificationSummary decodes correctly from backend JSON
@@ -66,15 +67,15 @@ final class VerificationViewModelTests: XCTestCase {
     func test_confidenceColor_mapsCorrectly() {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
 
-        let highJSON = """{"nEvents":7,"suggestionReady":true,"confidence":"HIGH"}"""
+        let highJSON = "{\"nEvents\":7,\"suggestionReady\":true,\"confidence\":\"HIGH\"}"
         let high = try! decoder.decode(VerificationSummary.self, from: highJSON.data(using: .utf8)!)
         XCTAssertEqual(high.confidenceColor, "green")
 
-        let medJSON = """{"nEvents":5,"suggestionReady":false,"confidence":"MEDIUM"}"""
+        let medJSON = "{\"nEvents\":5,\"suggestionReady\":false,\"confidence\":\"MEDIUM\"}"
         let med = try! decoder.decode(VerificationSummary.self, from: medJSON.data(using: .utf8)!)
         XCTAssertEqual(med.confidenceColor, "yellow")
 
-        let lowJSON = """{"nEvents":2,"suggestionReady":false,"confidence":"LOW"}"""
+        let lowJSON = "{\"nEvents\":2,\"suggestionReady\":false,\"confidence\":\"LOW\"}"
         let low = try! decoder.decode(VerificationSummary.self, from: lowJSON.data(using: .utf8)!)
         XCTAssertEqual(low.confidenceColor, "red")
     }
