@@ -54,6 +54,8 @@ enum BackendAPI {
         var glucoseValue: Double?
         var absorptionMode: String?
         var type: String?
+        /// Serialised nutrition-profile JSON. Set when macros were manually edited.
+        var nutritionProfile: String?
     }
 
     /// Matches Spring `@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")` on note DTOs (naive local wall time).
@@ -66,11 +68,14 @@ enum BackendAPI {
     }
 
     /// COB tuning; `carbRatio` is mmol/L glucose rise per **10 g** carbs (no insulin), matching backend `(COB_g / 10) * carbRatio`.
+    /// `bodyWeightKg` is used by the Hovorka ODE model to scale glucose distribution volume (VG = 0.16 × kg)
+    /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil → backend uses population default 70 kg.
     struct COBSettings: Codable {
         var carbRatio: Double
         var isf: Double
         var carbHalfLife: Double
         var maxCOBDuration: Double
+        var bodyWeightKg: Double?
     }
 
     struct PredictionFactors: Decodable {
@@ -752,6 +757,24 @@ enum BackendAPI {
             }
             return (result, data)
         }
+    }
+
+    /// Minimal nutrition-profile JSON for notes with manually-entered macros (no food scan).
+    /// The backend stores this in Note.nutritionProfile so the prediction pipeline can read macros.
+    static func macroNutritionProfileJson(carbs: Double, protein: Double, fat: Double, fiber: Double) -> String? {
+        struct M: Encodable {
+            let totalCarbs: Double?
+            let protein: Double?
+            let fat: Double?
+            let fiber: Double?
+        }
+        let p = M(
+            totalCarbs: carbs > 0 ? carbs : nil,
+            protein:    protein > 0 ? protein : nil,
+            fat:        fat > 0 ? fat : nil,
+            fiber:      fiber > 0 ? fiber : nil
+        )
+        return (try? JSONEncoder().encode(p)).flatMap { String(data: $0, encoding: .utf8) }
     }
 
     /// Converts a NutritionSnapshot into the JSON string expected by Note.nutritionProfile /

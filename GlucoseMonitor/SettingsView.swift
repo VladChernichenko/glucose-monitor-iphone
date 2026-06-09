@@ -68,7 +68,7 @@ struct SettingsView: View {
     @State private var glucoseUnit = "mmol/L"
     @State private var insulinSummary = ""
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
+        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
     )
     @State private var calculationStatus = ""
     @State private var isSavingCalculations = false
@@ -130,6 +130,13 @@ struct SettingsView: View {
                             value: $cobSettings.isf,
                             fractionDigits: 1...2
                         )
+                        SettingsNumericRow(
+                            label: "Body Weight",
+                            subtitle: "kg · used for glucose model calibration",
+                            placeholder: "70",
+                            value: bodyWeightBinding,
+                            fractionDigits: 0...1
+                        )
 
                         Button("Save") {
                             Task { await saveCalculationSettings() }
@@ -169,6 +176,15 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    /// Bridges the optional `bodyWeightKg` to the non-optional `Double` expected by `SettingsNumericRow`.
+    /// Reading: returns stored weight or 70 (population default). Writing: stores the value, clears if ≤ 0.
+    private var bodyWeightBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.bodyWeightKg ?? 70.0 },
+            set: { cobSettings.bodyWeightKg = $0 > 0 ? $0 : nil }
+        )
     }
 
     private func loadCalculationSettings() async {

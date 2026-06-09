@@ -319,6 +319,9 @@ struct NoteEditorSheet: View {
     @State private var noteDate = Date()
     @State private var meal = "Lunch"
     @State private var carbs: Int = 0
+    @State private var protein: Int = 0
+    @State private var fat: Int = 0
+    @State private var fiber: Int = 0
     @State private var insulin: Double = 0.0
     @State private var glucoseWheelValue: Double = 0.0
     @State private var comment = ""
@@ -412,6 +415,20 @@ struct NoteEditorSheet: View {
                     )
                     NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
                 }
+                Section("Macros (optional)") {
+                    NoteIntStepSliderRow(
+                        title: "Protein (g)", unit: "g",
+                        value: $protein, range: 0...150, step: 5
+                    )
+                    NoteIntStepSliderRow(
+                        title: "Fat (g)", unit: "g",
+                        value: $fat, range: 0...100, step: 5
+                    )
+                    NoteIntStepSliderRow(
+                        title: "Fiber (g)", unit: "g",
+                        value: $fiber, range: 0...50, step: 1
+                    )
+                }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical).lineLimit(3...)
                 }
@@ -450,7 +467,10 @@ struct NoteEditorSheet: View {
     private func prefillFromSnapshot() {
         guard let snap = snapshot else { return }
         let rounded = Int((snap.totalCarbs ?? 0).rounded())
-        carbs = max(0, min(200, (rounded / 5) * 5))
+        carbs   = max(0, min(200, (rounded / 5) * 5))
+        protein = min(150, max(0, Int(((snap.protein ?? 0) / 5).rounded()) * 5))
+        fat     = min(100, max(0, Int(((snap.fat     ?? 0) / 5).rounded()) * 5))
+        fiber   = min(50,  max(0, Int((snap.fiber    ?? 0).rounded())))
     }
 
     private func prefillGlucoseIfEmpty(_ value: Double?) {
@@ -569,6 +589,17 @@ struct NoteEditorSheet: View {
             await MainActor.run { isSaving = true }
             let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue
                 : appState.glucoseMmolForNewNote(at: noteDate)
+            // Build nutrition profile: prefer food-scan snapshot, but always merge manual macros.
+            let nutritionProfile: String?
+            if let snap = snapshot {
+                nutritionProfile = BackendAPI.snapshotToNutritionProfileJson(snap)
+            } else if protein > 0 || fat > 0 || fiber > 0 {
+                nutritionProfile = BackendAPI.macroNutritionProfileJson(
+                    carbs: Double(carbs), protein: Double(protein),
+                    fat: Double(fat), fiber: Double(fiber))
+            } else {
+                nutritionProfile = nil
+            }
             let input = BackendAPI.NoteInput(
                 timestamp: BackendAPI.formatNoteTimestampForRequest(noteDate),
                 carbs: Double(carbs),
@@ -577,7 +608,7 @@ struct NoteEditorSheet: View {
                 comment: buildComment(),
                 glucoseValue: glucoseVal,
                 absorptionMode: snapshot?.absorptionMode,
-                nutritionProfile: snapshot.map { BackendAPI.snapshotToNutritionProfileJson($0) } ?? nil
+                nutritionProfile: nutritionProfile
             )
             await onCreate(input)
             try? await Task.sleep(nanoseconds: 80_000_000)
@@ -607,6 +638,9 @@ struct EditNoteSheet: View {
     @State private var noteDate: Date
     @State private var meal: String
     @State private var carbs: Int           // steps of 5 g  (iOS-3 fix)
+    @State private var protein: Int         // steps of 5 g
+    @State private var fat: Int             // steps of 5 g
+    @State private var fiber: Int           // steps of 1 g
     @State private var insulin: Double      // steps of 0.5 u (iOS-3 fix)
     @State private var comment: String
     @State private var glucoseWheelValue: Double
@@ -624,6 +658,9 @@ struct EditNoteSheet: View {
         // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
         let roundedInsulin = min(30.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
+        _protein = State(initialValue: 0)
+        _fat = State(initialValue: 0)
+        _fiber = State(initialValue: 0)
         _insulin = State(initialValue: roundedInsulin)
         _comment = State(initialValue: note.comment ?? "")
         let snapped = note.glucoseValue.map { (($0 * 10).rounded() / 10) } ?? 0.0
@@ -651,6 +688,20 @@ struct EditNoteSheet: View {
                         value: $insulin, range: 0...30, step: 0.5
                     )
                     NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
+                }
+                Section("Macros (optional)") {
+                    NoteIntStepSliderRow(
+                        title: "Protein (g)", unit: "g",
+                        value: $protein, range: 0...150, step: 5
+                    )
+                    NoteIntStepSliderRow(
+                        title: "Fat (g)", unit: "g",
+                        value: $fat, range: 0...100, step: 5
+                    )
+                    NoteIntStepSliderRow(
+                        title: "Fiber (g)", unit: "g",
+                        value: $fiber, range: 0...50, step: 1
+                    )
                 }
                 Section("Comment") {
                     TextField("Optional note", text: $comment, axis: .vertical)
@@ -685,13 +736,19 @@ struct EditNoteSheet: View {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
             let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue : nil
+            let macroProfile: String? = (protein > 0 || fat > 0 || fiber > 0)
+                ? BackendAPI.macroNutritionProfileJson(
+                    carbs: Double(carbs), protein: Double(protein),
+                    fat: Double(fat), fiber: Double(fiber))
+                : nil
             let body = BackendAPI.UpdateNoteBody(
                 timestamp: ts,
                 carbs: Double(carbs),
                 insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
                 meal: meal,
                 comment: comment.isEmpty ? nil : comment,
-                glucoseValue: glucoseVal
+                glucoseValue: glucoseVal,
+                nutritionProfile: macroProfile
             )
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)
