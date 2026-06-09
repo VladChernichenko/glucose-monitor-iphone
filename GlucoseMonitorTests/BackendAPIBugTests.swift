@@ -310,6 +310,42 @@ final class BackendAPIBugTests: XCTestCase {
             "iOS-10: Missing timestamp field must decode to nil, not throw.")
     }
 
+    // MARK: - LLU trend arrow round-trip
+
+    // Pins the full int→arrow→velocity chain for all 5 LLU TrendArrow values.
+    // Prevents lluTrendArrow and trendArrowToVelocity diverging silently.
+    func testLLUTrendArrowRoundTrip() {
+        let cases: [(Int, String, Double)] = [
+            (1, "\u{2193}\u{2193}", -0.100),
+            (2, "\u{2198}",         -0.033),
+            (3, "\u{2192}",          0.000),
+            (4, "\u{2197}",          0.033),
+            (5, "\u{2191}\u{2191}",  0.100),
+        ]
+        for (trend, expectedArrow, expectedVelocity) in cases {
+            let arrow = BackendAPI.NightscoutEntry.lluTrendArrow(trend)
+            XCTAssertEqual(arrow, expectedArrow,
+                "LLU trend \(trend): wrong arrow")
+            let velocity = BackendAPI.trendArrowToVelocity(arrow)
+            XCTAssertEqual(velocity, expectedVelocity, accuracy: 0.001,
+                "LLU trend \(trend): wrong velocity for arrow \(arrow)")
+        }
+    }
+
+    // Out-of-range LLU trend must return "?" not a flat arrow.
+    func testLLUTrendArrow_outOfRange_returnsQuestionMark() {
+        for trend in [0, 6, -1] {
+            let arrow = BackendAPI.NightscoutEntry.trendArrow(
+                trend: trend, direction: nil, lluEntry: true)
+            XCTAssertEqual(arrow, "?",
+                "LLU trend \(trend) out of range must return '?', not a false flat arrow")
+        }
+        let nilArrow = BackendAPI.NightscoutEntry.trendArrow(
+            trend: nil, direction: nil, lluEntry: true)
+        XCTAssertEqual(nilArrow, "?",
+            "LLU nil trend must return '?' not a false flat arrow")
+    }
+
     // Other fields (value, trend, trendArrow, status, unit) must decode correctly
     // alongside the fixed timestamp.
     func testLibreCurrentTimestamp_otherFieldsUnaffected() throws {

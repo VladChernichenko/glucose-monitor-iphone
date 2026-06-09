@@ -512,7 +512,7 @@ final class AppState: ObservableObject {
                     // The live LLU API can return a reading 30-60 min behind the
                     // scheduler's DB cache, causing a stale "Updated X ago" display.
                     if let latest = Self.latestNightscoutEntry(entries) {
-                        currentReading = latest.toLibreGlucoseCurrent()
+                        currentReading = latest.toLibreGlucoseCurrent(isLLU: true)
                     }
                 } else {
                     // No cached data yet - fall back to live LLU endpoint.

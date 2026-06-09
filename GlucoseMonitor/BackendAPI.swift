@@ -249,15 +249,39 @@ enum BackendAPI {
             }
         }
 
-        func toLibreGlucoseCurrent() -> GlucoseMonitorAPI.LibreGlucoseCurrent {
+        func toLibreGlucoseCurrent(isLLU: Bool = false) -> GlucoseMonitorAPI.LibreGlucoseCurrent {
             GlucoseMonitorAPI.LibreGlucoseCurrent(
                 timestamp: timestamp,
                 value: sgv,
                 trend: trend,
-                trendArrow: NightscoutEntry.directionArrow(direction),
+                trendArrow: NightscoutEntry.trendArrow(
+                    trend: trend,
+                    direction: direction,
+                    lluEntry: isLLU
+                ),
                 status: glucoseStatus(sgv, unit: "mg/dL"),
                 unit: "mg/dL"
             )
+        }
+
+        /// LibreLinkUp `TrendArrow` 1-5 (stable readings are usually 3).
+        static func lluTrendArrow(_ trend: Int) -> String {
+            switch trend {
+            case 1: return "\u{2193}\u{2193}"
+            case 2: return "\u{2198}"
+            case 3: return "\u{2192}"
+            case 4: return "\u{2197}"
+            case 5: return "\u{2191}\u{2191}"
+            default: return "\u{2192}"
+            }
+        }
+
+        static func trendArrow(trend: Int?, direction: String?, lluEntry: Bool) -> String {
+            if lluEntry {
+                guard let t = trend, (1...5).contains(t) else { return "?" }
+                return lluTrendArrow(t)
+            }
+            return directionArrow(direction)
         }
 
         static func directionArrow(_ direction: String?) -> String {
@@ -656,16 +680,16 @@ enum BackendAPI {
     }
 
     /// Maps a CGM trend arrow string to mmol/L per minute velocity.
-    private static func trendArrowToVelocity(_ arrow: String?) -> Double {
+    static func trendArrowToVelocity(_ arrow: String?) -> Double {
         switch arrow {
-        case "↑↑": return  0.100
-        case "↑":   return  0.067
-        case "↗":   return  0.033
-        case "→":   return  0.000
-        case "↘":   return -0.033
-        case "↓":   return -0.067
-        case "↓↓": return -0.100
-        default:    return  0.000
+        case "\u{2191}\u{2191}": return  0.100
+        case "\u{2191}":         return  0.067
+        case "\u{2197}":         return  0.033
+        case "\u{2192}":         return  0.000
+        case "\u{2198}":         return -0.033
+        case "\u{2193}":         return -0.067
+        case "\u{2193}\u{2193}": return -0.100
+        default:                  return  0.000
         }
     }
 

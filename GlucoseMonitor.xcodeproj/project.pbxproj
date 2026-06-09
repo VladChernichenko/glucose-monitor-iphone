@@ -29,6 +29,7 @@
 		700000000000000000000015 /* GlucoseMonitorWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 600000000000000000000016 /* GlucoseMonitorWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		700000000000000000000016 /* GlucoseMonitorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000003 /* GlucoseMonitorAPI.swift */; };
 		700000000000000000000017 /* ClientVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000E /* ClientVersion.swift */; };
+		700000000000000000000018 /* LockScreenWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000011 /* LockScreenWidgetSnapshot.swift */; };
 		700000000000000000000020 /* ARFoodScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000020 /* ARFoodScanner.swift */; };
 		700000000000000000000021 /* FoodDensityDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000021 /* FoodDensityDatabase.swift */; };
 		700000000000000000000022 /* ARFoodScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000022 /* ARFoodScannerView.swift */; };
@@ -592,6 +593,7 @@
 				700000000000000000000004 /* GlucoseMonitorAPI.swift in Sources */,
 				700000000000000000000005 /* GlucoseMonitorWatchApp.swift in Sources */,
 				700000000000000000000006 /* WatchRootView.swift in Sources */,
+				700000000000000000000018 /* LockScreenWidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

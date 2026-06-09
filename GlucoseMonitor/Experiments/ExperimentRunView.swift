@@ -316,7 +316,7 @@ struct ExperimentRunView: View {
     private func checkSafety() {
         guard let cgm = currentCGM else { return }
         let arrow = appState.currentReading?.trendArrow
-        let velocity = trendVelocity(arrow)
+        let velocity = BackendAPI.trendArrowToVelocity(arrow)
 
         if cgm < 3.9 {
             triggerSafetyAlert(
@@ -361,19 +361,6 @@ struct ExperimentRunView: View {
         safetyAlertMessage = message
         Task {
             await ExperimentAlarmManager.shared.fireSafetyNotification(id: id, title: title, body: message)
-        }
-    }
-
-    private func trendVelocity(_ arrow: String?) -> Double {
-        switch arrow {
-        case "↑↑": return  0.100
-        case "↑":   return  0.067
-        case "↗":   return  0.033
-        case "→":   return  0.000
-        case "↘":   return -0.033
-        case "↓":   return -0.067
-        case "↓↓": return -0.100
-        default:    return  0.000
         }
     }
 
