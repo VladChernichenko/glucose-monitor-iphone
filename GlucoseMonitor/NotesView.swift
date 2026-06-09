@@ -324,7 +324,6 @@ struct NoteEditorSheet: View {
     @State private var fiber: Int = 0
     @State private var insulin: Double = 0.0
     @State private var glucoseWheelValue: Double = 0.0
-    @State private var comment = ""
     @State private var isSaving = false
     @State private var prospectiveCalc: BackendAPI.GlucoseCalculationsResponse? = nil
     @State private var isFetchingProspective = false
@@ -394,7 +393,12 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── Editable fields ──────────────────────────────────────────
+                Section("Insulin") {
+                    NoteDoubleStepSliderRow(
+                        title: "Units (u)", unit: "u",
+                        value: $insulin, range: 0...10, step: 0.5
+                    )
+                }
                 Section("Time") {
                     DatePicker("Date & time", selection: $noteDate, in: ...Date(),
                                displayedComponents: [.date, .hourAndMinute])
@@ -407,18 +411,11 @@ struct NoteEditorSheet: View {
                 Section("Amounts") {
                     NoteIntStepSliderRow(
                         title: "Carbs (g)", unit: "g",
-                        value: $carbs, range: 0...200, step: 5
+                        value: $carbs, range: 0...100, step: 5
                     )
-                    NoteDoubleStepSliderRow(
-                        title: "Insulin (u)", unit: "u",
-                        value: $insulin, range: 0...30, step: 0.5
-                    )
-                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
-                }
-                Section("Macros (optional)") {
                     NoteIntStepSliderRow(
                         title: "Protein (g)", unit: "g",
-                        value: $protein, range: 0...150, step: 5
+                        value: $protein, range: 0...100, step: 5
                     )
                     NoteIntStepSliderRow(
                         title: "Fat (g)", unit: "g",
@@ -429,8 +426,8 @@ struct NoteEditorSheet: View {
                         value: $fiber, range: 0...50, step: 1
                     )
                 }
-                Section("Comment") {
-                    TextField("Optional note", text: $comment, axis: .vertical).lineLimit(3...)
+                Section("Glucose") {
+                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
                 }
                 Section {
                     Button(action: saveTapped) {
@@ -467,8 +464,8 @@ struct NoteEditorSheet: View {
     private func prefillFromSnapshot() {
         guard let snap = snapshot else { return }
         let rounded = Int((snap.totalCarbs ?? 0).rounded())
-        carbs   = max(0, min(200, (rounded / 5) * 5))
-        protein = min(150, max(0, Int(((snap.protein ?? 0) / 5).rounded()) * 5))
+        carbs   = max(0, min(100, (rounded / 5) * 5))
+        protein = min(100, max(0, Int(((snap.protein ?? 0) / 5).rounded()) * 5))
         fat     = min(100, max(0, Int(((snap.fat     ?? 0) / 5).rounded()) * 5))
         fiber   = min(50,  max(0, Int((snap.fiber    ?? 0).rounded())))
     }
@@ -621,9 +618,8 @@ struct NoteEditorSheet: View {
         if let foods = snapshot?.normalizedFoods, !foods.isEmpty {
             parts.append(foods.joined(separator: ", "))
         }
-        if !comment.isEmpty { parts.append(comment) }
         if let gi = snapshot?.estimatedGi { parts.append("GI \(Int(gi))") }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+        return parts.isEmpty ? nil : parts.joined(separator: " | ")
     }
 }
 
@@ -642,7 +638,6 @@ struct EditNoteSheet: View {
     @State private var fat: Int             // steps of 5 g
     @State private var fiber: Int           // steps of 1 g
     @State private var insulin: Double      // steps of 0.5 u (iOS-3 fix)
-    @State private var comment: String
     @State private var glucoseWheelValue: Double
     @State private var isSaving = false
 
@@ -654,15 +649,14 @@ struct EditNoteSheet: View {
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
         // iOS-3 fix: snap to 5g steps instead of 10g (35g → 35, not 40g)
-        let roundedCarbs = min(200, max(0, Int((note.carbs / 5).rounded()) * 5))
+        let roundedCarbs = min(100, max(0, Int((note.carbs / 5).rounded()) * 5))
         // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
-        let roundedInsulin = min(30.0, max(0.0, (note.insulin * 2).rounded() / 2))
+        let roundedInsulin = min(10.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
         _protein = State(initialValue: 0)
         _fat = State(initialValue: 0)
         _fiber = State(initialValue: 0)
         _insulin = State(initialValue: roundedInsulin)
-        _comment = State(initialValue: note.comment ?? "")
         let snapped = note.glucoseValue.map { (($0 * 10).rounded() / 10) } ?? 0.0
         _glucoseWheelValue = State(initialValue: snapped)
     }
@@ -670,6 +664,12 @@ struct EditNoteSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section("Insulin") {
+                    NoteDoubleStepSliderRow(
+                        title: "Units (u)", unit: "u",
+                        value: $insulin, range: 0...10, step: 0.5
+                    )
+                }
                 Section("Time") {
                     DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                 }
@@ -681,18 +681,11 @@ struct EditNoteSheet: View {
                 Section("Amounts") {
                     NoteIntStepSliderRow(
                         title: "Carbs (g)", unit: "g",
-                        value: $carbs, range: 0...200, step: 5
+                        value: $carbs, range: 0...100, step: 5
                     )
-                    NoteDoubleStepSliderRow(
-                        title: "Insulin (u)", unit: "u",
-                        value: $insulin, range: 0...30, step: 0.5
-                    )
-                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
-                }
-                Section("Macros (optional)") {
                     NoteIntStepSliderRow(
                         title: "Protein (g)", unit: "g",
-                        value: $protein, range: 0...150, step: 5
+                        value: $protein, range: 0...100, step: 5
                     )
                     NoteIntStepSliderRow(
                         title: "Fat (g)", unit: "g",
@@ -703,9 +696,8 @@ struct EditNoteSheet: View {
                         value: $fiber, range: 0...50, step: 1
                     )
                 }
-                Section("Comment") {
-                    TextField("Optional note", text: $comment, axis: .vertical)
-                        .lineLimit(3...)
+                Section("Glucose") {
+                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
                 }
             }
             .navigationTitle("Edit Note")
@@ -746,7 +738,7 @@ struct EditNoteSheet: View {
                 carbs: Double(carbs),
                 insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
                 meal: meal,
-                comment: comment.isEmpty ? nil : comment,
+                comment: nil,
                 glucoseValue: glucoseVal,
                 nutritionProfile: macroProfile
             )
