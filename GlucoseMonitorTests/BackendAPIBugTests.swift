@@ -332,18 +332,14 @@ final class BackendAPIBugTests: XCTestCase {
         }
     }
 
-    // Out-of-range LLU trend must return "?" not a flat arrow.
+    // Out-of-range or nil LLU trend must return "?" not a flat arrow.
     func testLLUTrendArrow_outOfRange_returnsQuestionMark() {
-        for trend in [0, 6, -1] {
+        for trend: Int? in [0, 6, -1, nil] {
             let arrow = BackendAPI.NightscoutEntry.trendArrow(
                 trend: trend, direction: nil, lluEntry: true)
             XCTAssertEqual(arrow, "?",
-                "LLU trend \(trend) out of range must return '?', not a false flat arrow")
+                "LLU trend \(String(describing: trend)) out of range must return '?', not a false flat arrow")
         }
-        let nilArrow = BackendAPI.NightscoutEntry.trendArrow(
-            trend: nil, direction: nil, lluEntry: true)
-        XCTAssertEqual(nilArrow, "?",
-            "LLU nil trend must return '?' not a false flat arrow")
     }
 
     // Other fields (value, trend, trendArrow, status, unit) must decode correctly

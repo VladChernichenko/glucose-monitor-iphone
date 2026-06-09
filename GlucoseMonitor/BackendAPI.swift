@@ -272,7 +272,7 @@ enum BackendAPI {
             case 3: return "\u{2192}"
             case 4: return "\u{2197}"
             case 5: return "\u{2191}\u{2191}"
-            default: return "\u{2192}"
+            default: return "?"
             }
         }
 
