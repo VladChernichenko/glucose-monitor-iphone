@@ -270,7 +270,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
-                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, expanded: showExtendedForecast)
+                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, trendArrow: r.trendArrow, expanded: showExtendedForecast)
                                 .minimumScaleFactor(0.55)
                                 .lineLimit(1)
                                 .animation(.easeInOut(duration: 0.2), value: showExtendedForecast)
@@ -280,11 +280,6 @@ struct DashboardView: View {
                                 }
 
                             HStack(alignment: .center, spacing: 10) {
-                                if let arrow = r.trendArrow, !arrow.isEmpty, arrow != "?" {
-                                    Text(arrow)
-                                        .font(.system(size: 22, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                }
                                 if let status = r.status {
                                     statusBadge(status)
                                 }
@@ -401,9 +396,10 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, expanded: Bool = false) -> some View {
+    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, trendArrow: String? = nil, expanded: Bool = false) -> some View {
         let unitStr = unitLabel(unit)
         let fourHour = calc?.predictionPath?.last?.predictedGlucose
+        let trendArrowDisplay = (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
 
         if let calc {
             VStack(alignment: .leading, spacing: 2) {
@@ -425,7 +421,7 @@ struct DashboardView: View {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(formatGlucose(current, unit: unit))
                         .frame(minWidth: 60, alignment: .leading)
-                    Text("\u{2192}")
+                    Text(trendArrowDisplay)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
                     Text(formatBackendGlucoseMmol(calc.twoHourPrediction, displayUnit: unit))
