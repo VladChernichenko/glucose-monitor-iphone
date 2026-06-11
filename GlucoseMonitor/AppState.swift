@@ -75,6 +75,7 @@ final class AppState: ObservableObject {
                 comment: n.comment,
                 glucoseValue: n.glucoseValue,
                 absorptionMode: n.absorptionMode,
+                nutritionProfile: n.nutritionProfile,
                 type: n.type,
                 photoUrl: n.photoUrl
             )

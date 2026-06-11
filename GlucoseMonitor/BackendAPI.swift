@@ -21,6 +21,8 @@ enum BackendAPI {
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
+        /// Serialised NutritionSnapshot/macro JSON — same format as NoteInput.nutritionProfile.
+        let nutritionProfile: String?
         /// Note category: "normal" (default) or "long_acting". Nil for legacy responses.
         var type: String? = nil
         let photoUrl: String?
@@ -781,6 +783,25 @@ enum BackendAPI {
             }
             return (result, data)
         }
+    }
+
+    /// Decodes a stored Note.nutritionProfile JSON string back into its macro fields (protein,
+    /// fat, fiber, totalCarbs, ...), or nil if the note has no nutrition profile / it isn't valid JSON.
+    static func parseNutritionProfile(_ json: String?) -> NutritionSnapshot? {
+        guard let json, let data = json.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(NutritionSnapshot.self, from: data)
+    }
+
+    /// Protein/fat/fiber values for pre-populating EditNoteSheet's sliders, parsed from
+    /// `note.nutritionProfile` and snapped to the same step sizes as the sliders
+    /// (protein/fat: 5g steps up to 100g, fiber: 1g steps up to 50g). Returns all-zero
+    /// values when the note has no nutrition profile.
+    static func initialMacroValues(from note: GlucoseNote) -> (protein: Int, fat: Int, fiber: Int) {
+        let macros = parseNutritionProfile(note.nutritionProfile)
+        let protein = min(100, max(0, Int(((macros?.protein ?? 0) / 5).rounded()) * 5))
+        let fat = min(100, max(0, Int(((macros?.fat ?? 0) / 5).rounded()) * 5))
+        let fiber = min(50, max(0, Int((macros?.fiber ?? 0).rounded())))
+        return (protein, fat, fiber)
     }
 
     /// Minimal nutrition-profile JSON for notes with manually-entered macros (no food scan).

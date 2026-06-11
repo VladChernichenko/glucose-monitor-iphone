@@ -12,7 +12,7 @@ final class PreBolusTimerTests: XCTestCase {
         BackendAPI.GlucoseNote(
             id: UUID().uuidString, timestamp: date,
             carbs: carbs, insulin: insulin, meal: meal,
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
     }
 
     // MARK: - Not visible: no matching pre-bolus note
@@ -41,7 +41,7 @@ final class PreBolusTimerTests: XCTestCase {
     func testPreBolusWithNilTimestamp_notVisible() {
         let note = BackendAPI.GlucoseNote(
             id: "1", timestamp: nil, carbs: 0, insulin: 3, meal: "pre-bolus",
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
         let (visible, _) = PreBolusTimer.state(notes: [note], now: Date())
         XCTAssertFalse(visible)
     }

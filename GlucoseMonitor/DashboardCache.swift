@@ -38,6 +38,7 @@ enum DashboardCache {
         var comment: String?
         var glucoseValue: Double?
         var absorptionMode: String?
+        var nutritionProfile: String?
         var type: String?
         var photoUrl: String?
     }
@@ -89,6 +90,7 @@ enum DashboardCache {
                     comment: note.comment,
                     glucoseValue: note.glucoseValue,
                     absorptionMode: note.absorptionMode,
+                    nutritionProfile: note.nutritionProfile,
                     type: note.type,
                     photoUrl: note.photoUrl
                 )

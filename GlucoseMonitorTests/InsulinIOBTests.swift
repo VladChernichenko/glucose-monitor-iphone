@@ -113,7 +113,7 @@ final class InsulinIOBTests: XCTestCase {
     func testNoteWithNilTimestampIgnored() {
         let note = BackendAPI.GlucoseNote(
             id: "1", timestamp: nil, carbs: 0, insulin: 5, meal: "Lunch",
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
         XCTAssertEqual(InsulinIOB.currentIOBFromNotes(notes: [note]), 0)
     }
 
@@ -145,7 +145,7 @@ final class InsulinIOBTests: XCTestCase {
         let doseTs = Date(timeIntervalSince1970: ref.timeIntervalSince1970 - 3600)
         let note = BackendAPI.GlucoseNote(
             id: "x", timestamp: doseTs, carbs: 0, insulin: 8, meal: "Correction",
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
         let iob = InsulinIOB.currentIOBFromNotes(notes: [note], at: ref)
         XCTAssertGreaterThan(iob, 0)
         XCTAssertLessThanOrEqual(iob, 8)
@@ -166,7 +166,7 @@ final class InsulinIOBTests: XCTestCase {
         let basal = BackendAPI.GlucoseNote(
             id: "basal", timestamp: Date(timeIntervalSinceNow: -30 * 60),
             carbs: 0, insulin: 20, meal: "Tresiba",
-            comment: nil, glucoseValue: nil, absorptionMode: nil,
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil,
             type: BackendAPI.NoteType.longActing, photoUrl: nil)
         XCTAssertEqual(InsulinIOB.currentIOBFromNotes(notes: [basal]), 0, accuracy: 1e-9)
     }
@@ -177,7 +177,7 @@ final class InsulinIOBTests: XCTestCase {
         let basal = BackendAPI.GlucoseNote(
             id: "basal", timestamp: Date(timeIntervalSinceNow: -30 * 60),
             carbs: 0, insulin: 20, meal: "Tresiba",
-            comment: nil, glucoseValue: nil, absorptionMode: nil,
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil,
             type: BackendAPI.NoteType.longActing, photoUrl: nil)
         // Use one reference instant so both calls sample the bolus curve at the same time.
         let now = Date()
@@ -193,6 +193,6 @@ final class InsulinIOBTests: XCTestCase {
             id: UUID().uuidString,
             timestamp: Date(timeIntervalSinceNow: -minsAgo * 60),
             carbs: 0, insulin: insulin, meal: "Correction",
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
     }
 }

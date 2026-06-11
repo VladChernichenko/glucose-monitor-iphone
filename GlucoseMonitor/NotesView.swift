@@ -653,9 +653,12 @@ struct EditNoteSheet: View {
         // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
         let roundedInsulin = min(10.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
-        _protein = State(initialValue: 0)
-        _fat = State(initialValue: 0)
-        _fiber = State(initialValue: 0)
+        // Populate protein/fat/fiber from the stored nutrition profile (snap to the same step
+        // sizes as the sliders below, like carbs/insulin above).
+        let macros = BackendAPI.initialMacroValues(from: note)
+        _protein = State(initialValue: macros.protein)
+        _fat = State(initialValue: macros.fat)
+        _fiber = State(initialValue: macros.fiber)
         _insulin = State(initialValue: roundedInsulin)
         let snapped = note.glucoseValue.map { (($0 * 10).rounded() / 10) } ?? 0.0
         _glucoseWheelValue = State(initialValue: snapped)

@@ -21,7 +21,7 @@ final class AppStateBugTests: XCTestCase {
         let note = BackendAPI.GlucoseNote(
             id: "note-1", timestamp: Date(), carbs: 30, insulin: 2,
             meal: "Lunch", comment: nil, glucoseValue: nil,
-            absorptionMode: nil, photoUrl: nil)
+            absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
         appState.notes = [note]
 
         // Register a failing URLProtocol so every network request fails.

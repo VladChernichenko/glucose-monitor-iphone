@@ -12,7 +12,7 @@ final class InsulinIOBBugTests: XCTestCase {
             id: UUID().uuidString,
             timestamp: Date(timeIntervalSinceNow: -minsAgo * 60),
             carbs: 0, insulin: insulin, meal: "Correction",
-            comment: nil, glucoseValue: nil, absorptionMode: nil, photoUrl: nil)
+            comment: nil, glucoseValue: nil, absorptionMode: nil, nutritionProfile: nil, photoUrl: nil)
     }
 
     // MARK: - iOS-4: DIA duration must be 4.5 h to match the backend default
