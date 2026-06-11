@@ -77,8 +77,8 @@ struct NotesView: View {
             .sheet(item: $activeSheet) { sheet in
                 switch sheet {
                 case .add:
-                    NoteEditorSheet { input in
-                        await appState.createNote(input)
+                    NoteEditorSheet { input, photo in
+                        await appState.createNote(input, photo: photo)
                         selectedTab = 0
                     }
                     .environmentObject(appState)
@@ -89,8 +89,8 @@ struct NotesView: View {
                     }
                     .environmentObject(appState)
                 case .foodScan:
-                    FoodScanSheet { input in
-                        await appState.createNote(input)
+                    FoodScanSheet { input, photo in
+                        await appState.createNote(input, photo: photo)
                         selectedTab = 0
                     }
                     .environmentObject(appState)
@@ -311,7 +311,7 @@ struct NoteEditorSheet: View {
     var image: UIImage? = nil
     var snapshot: BackendAPI.NutritionSnapshot? = nil
     var arVolumeReport: NutrientSummary? = nil
-    let onCreate: (BackendAPI.NoteInput) async -> Void
+    let onCreate: (BackendAPI.NoteInput, UIImage?) async -> Void
 
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -607,7 +607,7 @@ struct NoteEditorSheet: View {
                 absorptionMode: snapshot?.absorptionMode,
                 nutritionProfile: nutritionProfile
             )
-            await onCreate(input)
+            await onCreate(input, image)
             try? await Task.sleep(nanoseconds: 80_000_000)
             await MainActor.run { hideKeyboard(); isSaving = false; dismiss() }
         }
@@ -664,6 +664,13 @@ struct EditNoteSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
+                    Section("Photo") {
+                        NotePhotoThumbnail(urlString: photoUrl, width: nil, height: 220, contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .listRowInsets(EdgeInsets())
+                    }
+                }
                 Section("Insulin") {
                     NoteDoubleStepSliderRow(
                         title: "Units (u)", unit: "u",
@@ -796,7 +803,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
 // MARK: - Food Scan Sheet
 
 struct FoodScanSheet: View {
-    let onCreate: (BackendAPI.NoteInput) async -> Void
+    let onCreate: (BackendAPI.NoteInput, UIImage?) async -> Void
     @EnvironmentObject private var appState: AppState
     @Environment(\.dismiss) private var dismiss
 
@@ -859,8 +866,8 @@ struct FoodScanSheet: View {
                     image: capturedImage ?? arSummary?.capturedImage,
                     snapshot: editorSnapshot,
                     arVolumeReport: arSummary,
-                    onCreate: { input in
-                        await onCreate(input)
+                    onCreate: { input, photo in
+                        await onCreate(input, photo)
                         await MainActor.run { noteSaved = true }
                     }
                 )

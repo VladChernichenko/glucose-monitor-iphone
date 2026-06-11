@@ -608,10 +608,13 @@ final class AppState: ObservableObject {
         }
     }
 
-    func createNote(_ input: BackendAPI.NoteInput) async {
+    func createNote(_ input: BackendAPI.NoteInput, photo: UIImage? = nil) async {
         // iOS-2 fix: surface errors instead of silently swallowing them with try?
         do {
-            let note = try await BackendAPI.createNote(input)
+            var note = try await BackendAPI.createNote(input)
+            if let photo {
+                note = try await BackendAPI.uploadNotePhoto(noteId: note.id, image: photo)
+            }
             notes.append(note)
             await refreshCalculations()
         } catch {

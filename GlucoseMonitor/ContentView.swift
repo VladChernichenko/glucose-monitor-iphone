@@ -107,6 +107,7 @@ struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
+    @State private var showFoodScan = false
     @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
     @State private var showAI = false
@@ -209,8 +210,14 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showAddNote) {
-                NoteEditorSheet { input in
-                    await appState.createNote(input)
+                NoteEditorSheet { input, photo in
+                    await appState.createNote(input, photo: photo)
+                }
+                .environmentObject(appState)
+            }
+            .sheet(isPresented: $showFoodScan) {
+                FoodScanSheet { input, photo in
+                    await appState.createNote(input, photo: photo)
                 }
                 .environmentObject(appState)
             }
@@ -573,6 +580,20 @@ struct DashboardView: View {
                     ProgressView()
                         .scaleEffect(0.75)
                 }
+                Button {
+                    showFoodScan = true
+                } label: {
+                    Image(systemName: "camera.viewfinder")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                Button {
+                    showAddNote = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
             }
             if appState.isLoadingNotes && appState.notes.isEmpty {
                 HStack(spacing: 8) {
@@ -840,8 +861,11 @@ private struct RecentNoteRow: View {
 }
 
 
-private struct NotePhotoThumbnail: View {
+struct NotePhotoThumbnail: View {
     let urlString: String
+    var width: CGFloat? = 52
+    var height: CGFloat = 52
+    var contentMode: ContentMode = .fill
     @State private var image: UIImage?
 
     var body: some View {
@@ -849,13 +873,13 @@ private struct NotePhotoThumbnail: View {
             if let img = image {
                 Image(uiImage: img)
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 52)
+                    .aspectRatio(contentMode: contentMode)
+                    .frame(width: width, height: height)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.secondary.opacity(0.15))
-                    .frame(width: 52, height: 52)
+                    .frame(width: width, height: height)
                     .overlay(Image(systemName: "photo").foregroundStyle(.secondary))
             }
         }
