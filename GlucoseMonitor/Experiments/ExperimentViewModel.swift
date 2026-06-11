@@ -99,8 +99,8 @@ final class ExperimentViewModel: ObservableObject {
     func abandonExperiment() async {
         guard let expId = activeExperiment?.id else { return }
         do {
-            await ExperimentAlarmManager.shared.cancelAlarms(for: expId)
             _ = try await ExperimentService.abandon(experimentId: expId)
+            await ExperimentAlarmManager.shared.cancelAlarms(for: expId)
             activeExperiment = nil
             await loadAvailable()
         } catch {
@@ -112,17 +112,11 @@ final class ExperimentViewModel: ObservableObject {
 
     func elapsedMinutes() -> Int {
         guard let startedAt = activeExperiment?.startedAt,
-              let date = ISO8601DateFormatter().date(from: startedAt) else { return 0 }
+              let date = BackendAPI.parseBackendDate(startedAt) else { return 0 }
         return Int(Date().timeIntervalSince(date) / 60)
     }
 
     // MARK: - Convenience
 
     var hasActiveExperiment: Bool { activeExperiment?.status == .inProgress }
-
-    var nextAlarmLabel: String? {
-        guard let type = activeExperiment?.type else { return nil }
-        let elapsed = elapsedMinutes()
-        return type.alarmSchedule.first(where: { $0.minutes > elapsed })?.message
-    }
 }

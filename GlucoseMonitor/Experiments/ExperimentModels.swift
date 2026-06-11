@@ -53,12 +53,6 @@ enum ExperimentType: String, Codable, CaseIterable {
         }
     }
 
-    /// The "you can finish now" checkpoint in {@link alarmSchedule}'s minutes, used to
-    /// schedule the single "ready to finish" local notification at start time.
-    var readyToFinishMinute: Int {
-        alarmSchedule.last?.minutes ?? minimumMinutesToFinish
-    }
-
     var systemImage: String {
         switch self {
         case .basalCheck: return "waveform.path.ecg.rectangle"

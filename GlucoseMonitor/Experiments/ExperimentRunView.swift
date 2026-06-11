@@ -39,8 +39,18 @@ struct ExperimentRunView: View {
         }
     }
 
+    /// CGM readings older than this are considered a dropout — readings are normally
+    /// refreshed every few minutes, so a longer gap means the sensor/feed has stopped.
+    private static let cgmStaleThresholdMinutes: Double = 20
+
     private var currentCGM: Double? {
         appState.currentReading?.value
+    }
+
+    /// True when the last CGM reading is recent enough to trust for auto-capture and safety checks.
+    private var hasFreshCGMSignal: Bool {
+        guard let ts = appState.currentReading?.timestamp else { return false }
+        return Date().timeIntervalSince(ts) <= Self.cgmStaleThresholdMinutes * 60
     }
 
     var body: some View {
@@ -105,7 +115,7 @@ struct ExperimentRunView: View {
             checkSafety()
             checkForInvalidation(notes: appState.notes)
         }
-        .onChange(of: appState.notes.count) { _ in checkForInvalidation(notes: appState.notes) }
+        .onChange(of: appState.notes) { notes in checkForInvalidation(notes: notes) }
         .onDisappear { timer?.invalidate() }
     }
 
@@ -133,7 +143,7 @@ struct ExperimentRunView: View {
                 Label("Auto-capture", systemImage: "waveform.path.ecg")
                     .font(.subheadline.bold())
                 Spacer()
-                if currentCGM != nil {
+                if currentCGM != nil && hasFreshCGMSignal {
                     Label("Active", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.green)
@@ -144,7 +154,7 @@ struct ExperimentRunView: View {
                 }
             }
 
-            if let cgm = currentCGM {
+            if let cgm = currentCGM, hasFreshCGMSignal {
                 Text("Readings are captured automatically at each checkpoint from your CGM (currently **\(String(format: "%.1f mmol/L", cgm))**).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -263,9 +273,6 @@ struct ExperimentRunView: View {
         if readyToFinish {
             return "Running for \(elapsedText) — tap Finish below to see your result."
         }
-        if let nextMessage = viewModel.nextAlarmLabel {
-            return "Running for \(elapsedText). \(nextMessage)"
-        }
         let remaining = minMinutes - elapsed
         return "Running for \(elapsedText). \(formatMinutes(remaining)) until you can finish."
     }
@@ -281,7 +288,7 @@ struct ExperimentRunView: View {
     // MARK: - Auto-capture
 
     private func checkAutoRecord() {
-        guard let cgm = currentCGM else { return }
+        guard let cgm = currentCGM, hasFreshCGMSignal else { return }
         let elapsed = viewModel.elapsedMinutes()
         let existingReadings = viewModel.activeExperiment?.readings ?? []
 
@@ -314,7 +321,14 @@ struct ExperimentRunView: View {
     // MARK: - Safety monitoring
 
     private func checkSafety() {
-        guard let cgm = currentCGM else { return }
+        guard let cgm = currentCGM, hasFreshCGMSignal else {
+            triggerSafetyAlert(
+                id: "cgm-dropout",
+                title: "CGM Signal Lost",
+                message: "No recent glucose reading (last update over \(Int(Self.cgmStaleThresholdMinutes)) minutes ago, or none yet). Check your sensor connection — your experiment data may be incomplete."
+            )
+            return
+        }
         let arrow = appState.currentReading?.trendArrow
         let velocity = BackendAPI.trendArrowToVelocity(arrow)
 
@@ -369,7 +383,7 @@ struct ExperimentRunView: View {
     private func checkForInvalidation(notes: [BackendAPI.GlucoseNote]) {
         guard invalidationReason == nil else { return }
         guard let startedAt = viewModel.activeExperiment?.startedAt,
-              let startDate = ISO8601DateFormatter().date(from: startedAt) else { return }
+              let startDate = BackendAPI.parseBackendDate(startedAt) else { return }
 
         for note in notes {
             guard let ts = note.timestamp, ts > startDate else { continue }

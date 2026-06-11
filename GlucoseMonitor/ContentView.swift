@@ -890,14 +890,32 @@ struct NotePhotoThumbnail: View {
 
     private func loadImage(from urlString: String) async -> UIImage? {
         let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
-        let fullURL: String
-        if urlString.hasPrefix("http://") || urlString.hasPrefix("https://") {
-            fullURL = urlString
-        } else {
-            fullURL = base + (urlString.hasPrefix("/") ? urlString : "/\(urlString)")
+        let isBackendRelative = !(urlString.hasPrefix("http://") || urlString.hasPrefix("https://"))
+        let fullURL = isBackendRelative
+            ? base + (urlString.hasPrefix("/") ? urlString : "/\(urlString)")
+            : urlString
+        guard let url = URL(string: fullURL) else {
+            print("[NotePhotoThumbnail] invalid URL: \(fullURL)")
+            return nil
         }
-        guard let url = URL(string: fullURL),
-              let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-        return UIImage(data: data)
+        var request = URLRequest(url: url)
+        if isBackendRelative, let token = GlucoseMonitorAPI.storedAccessToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                print("[NotePhotoThumbnail] HTTP \(http.statusCode) loading \(url)")
+                return nil
+            }
+            if let image = UIImage(data: data) {
+                return image
+            }
+            print("[NotePhotoThumbnail] could not decode image data (\(data.count) bytes) from \(url)")
+            return nil
+        } catch {
+            print("[NotePhotoThumbnail] failed to load \(url): \(error)")
+            return nil
+        }
     }
 }

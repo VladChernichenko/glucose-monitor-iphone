@@ -36,7 +36,7 @@ final class ExperimentAlarmManager {
         let settings = await center.notificationSettings()
         guard settings.authorizationStatus == .authorized else { return }
 
-        let fireInMinutes = type.readyToFinishMinute
+        let fireInMinutes = type.minimumMinutesToFinish
         guard fireInMinutes > 0 else { return }
 
         let content = UNMutableNotificationContent()

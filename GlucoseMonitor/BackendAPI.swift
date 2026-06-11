@@ -12,7 +12,7 @@ enum BackendAPI {
         static let longActing = "long_acting"
     }
 
-    struct GlucoseNote: Decodable, Identifiable {
+    struct GlucoseNote: Decodable, Identifiable, Equatable {
         let id: String
         let timestamp: Date?
         let carbs: Double
@@ -69,6 +69,25 @@ enum BackendAPI {
         return f.string(from: date)
     }
 
+    /// Parses a backend date/time string. The backend sends naive local time (no
+    /// timezone suffix), so that form is interpreted in the device's current
+    /// timezone — not UTC — before falling back to ISO-8601 with an explicit
+    /// timezone (Z / ±HH:MM).
+    static func parseBackendDate(_ s: String) -> Date? {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone.current
+        for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"] {
+            df.dateFormat = format
+            if let d = df.date(from: s) { return d }
+        }
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = iso.date(from: s) { return d }
+        iso.formatOptions = [.withInternetDateTime]
+        return iso.date(from: s)
+    }
+
     /// COB tuning; `carbRatio` is mmol/L glucose rise per **10 g** carbs (no insulin), matching backend `(COB_g / 10) * carbRatio`.
     /// `bodyWeightKg` is used by the Hovorka ODE model to scale glucose distribution volume (VG = 0.16 × kg)
     /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil → backend uses population default 70 kg.
@@ -111,11 +130,11 @@ enum BackendAPI {
             insulinActivityEffect = Self.decodeFlexibleDouble(c, key: .insulinActivityEffect)
             absorptionMode = try c.decodeIfPresent(String.self, forKey: .absorptionMode)
 
-            if let s = try? c.decode(String.self, forKey: .timestamp) {
-                timestamp = Self.parseBackendDate(s) ?? Date()
-            } else {
-                timestamp = Date()
+            let s = try c.decode(String.self, forKey: .timestamp)
+            guard let date = BackendAPI.parseBackendDate(s) else {
+                throw DecodingError.dataCorruptedError(forKey: .timestamp, in: c, debugDescription: "Bad date: \(s)")
             }
+            timestamp = date
         }
 
         private static func decodeFlexibleDouble<K: CodingKey>(
@@ -124,24 +143,6 @@ enum BackendAPI {
             if let x = try? c.decodeIfPresent(Double.self, forKey: key) { return x }
             if let x = try? c.decodeIfPresent(Int.self, forKey: key) { return Double(x) }
             return nil
-        }
-
-        private static func parseBackendDate(_ s: String) -> Date? {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            // Backend sends naive local time (no timezone suffix), so interpret
-            // it in the device's current timezone — not UTC.
-            df.timeZone = TimeZone.current
-            for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"] {
-                df.dateFormat = format
-                if let d = df.date(from: s) { return d }
-            }
-            // Fall back to ISO-8601 with explicit timezone (Z / ±HH:MM)
-            let iso = ISO8601DateFormatter()
-            iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let d = iso.date(from: s) { return d }
-            iso.formatOptions = [.withInternetDateTime]
-            return iso.date(from: s)
         }
     }
 
