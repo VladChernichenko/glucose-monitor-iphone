@@ -124,10 +124,24 @@ struct SettingsView: View {
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
-                            label: "ISF",
-                            subtitle: "mmol/L per unit",
+                            label: "ISF Breakfast",
+                            subtitle: "mmol/L per unit · 05:00 – 11:00",
                             placeholder: "2.5",
-                            value: $cobSettings.isf,
+                            value: isfBreakfastBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "ISF Lunch",
+                            subtitle: "mmol/L per unit · 11:00 – 16:00",
+                            placeholder: "2.5",
+                            value: isfLunchBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "ISF Dinner",
+                            subtitle: "mmol/L per unit · 16:00 – 22:00",
+                            placeholder: "2.5",
+                            value: isfDinnerBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
@@ -184,6 +198,29 @@ struct SettingsView: View {
         Binding(
             get: { cobSettings.bodyWeightKg ?? 70.0 },
             set: { cobSettings.bodyWeightKg = $0 > 0 ? $0 : nil }
+        )
+    }
+
+    /// Per-meal-window ISF overrides default to the autotuned `isf` until the user edits them;
+    /// any edit pins a manual override for that window (saved on "Save").
+    private var isfBreakfastBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.isfBreakfast ?? cobSettings.isf },
+            set: { cobSettings.isfBreakfast = $0 }
+        )
+    }
+
+    private var isfLunchBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.isfLunch ?? cobSettings.isf },
+            set: { cobSettings.isfLunch = $0 }
+        )
+    }
+
+    private var isfDinnerBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.isfDinner ?? cobSettings.isf },
+            set: { cobSettings.isfDinner = $0 }
         )
     }
 

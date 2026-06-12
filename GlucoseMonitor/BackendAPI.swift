@@ -97,6 +97,12 @@ enum BackendAPI {
         var carbHalfLife: Double
         var maxCOBDuration: Double
         var bodyWeightKg: Double?
+        /// Manual ISF override for 05:00-11:00 (mmol/L per unit). Nil = use autotuned `isf`.
+        var isfBreakfast: Double?
+        /// Manual ISF override for 11:00-16:00 (mmol/L per unit). Nil = use autotuned `isf`.
+        var isfLunch: Double?
+        /// Manual ISF override for 16:00-22:00 (mmol/L per unit). Nil = use autotuned `isf`.
+        var isfDinner: Double?
     }
 
     struct PredictionFactors: Decodable {
