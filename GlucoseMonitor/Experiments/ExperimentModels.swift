@@ -121,6 +121,25 @@ enum ExperimentStatus: String, Codable {
     case abandoned  = "ABANDONED"
 }
 
+// MARK: - Preferences
+
+/// Persists the "Notify me when ready" toggle on the Experiments "Not Ready Yet" sheet,
+/// per experiment type, so the toggle reflects the user's last choice the next time the
+/// sheet is shown (e.g. after tapping "Got it" and reopening the experiment).
+enum ExperimentNotifyPreference {
+    private static func key(for type: ExperimentType) -> String {
+        "experiment.notifyWhenReady.\(type.rawValue)"
+    }
+
+    static func isEnabled(for type: ExperimentType, defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: key(for: type))
+    }
+
+    static func setEnabled(_ enabled: Bool, for type: ExperimentType, defaults: UserDefaults = .standard) {
+        defaults.set(enabled, forKey: key(for: type))
+    }
+}
+
 // MARK: - API Models
 
 struct ExperimentReading: Codable, Identifiable {

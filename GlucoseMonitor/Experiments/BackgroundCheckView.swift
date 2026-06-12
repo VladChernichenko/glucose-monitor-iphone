@@ -6,7 +6,14 @@ struct BackgroundCheckView: View {
     let experimentType: ExperimentType
     let onDismiss: () -> Void
 
-    @State private var notifyWhenReady = false
+    @State private var notifyWhenReady: Bool
+
+    init(status: BackgroundStatus, experimentType: ExperimentType, onDismiss: @escaping () -> Void) {
+        self.status = status
+        self.experimentType = experimentType
+        self.onDismiss = onDismiss
+        _notifyWhenReady = State(initialValue: ExperimentNotifyPreference.isEnabled(for: experimentType))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -74,6 +81,7 @@ struct BackgroundCheckView: View {
             .toggleStyle(SwitchToggleStyle(tint: Color.accentColor))
             .padding(.horizontal)
             .onChange(of: notifyWhenReady) { enabled in
+                ExperimentNotifyPreference.setEnabled(enabled, for: experimentType)
                 if enabled {
                     Task {
                         await ExperimentAlarmManager.shared

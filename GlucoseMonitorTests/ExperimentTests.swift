@@ -151,3 +151,55 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(vm.elapsedMinutes(), 0)
     }
 }
+
+// MARK: - ExperimentNotifyPreference Tests
+
+/// Regression coverage for the "Notify me when ready" toggle on the Experiments
+/// "Not Ready Yet" sheet resetting to off every time the sheet is reopened.
+final class ExperimentNotifyPreferenceTests: XCTestCase {
+
+    private var defaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        defaults = UserDefaults(suiteName: #file)
+        defaults.removePersistentDomain(forName: #file)
+    }
+
+    override func tearDown() {
+        defaults.removePersistentDomain(forName: #file)
+        defaults = nil
+        super.tearDown()
+    }
+
+    // Before the user ever toggles it, the preference defaults to off.
+    func test_isEnabled_defaultsToFalse() {
+        XCTAssertFalse(ExperimentNotifyPreference.isEnabled(for: .basalCheck, defaults: defaults))
+    }
+
+    // BUG: toggling on, dismissing with "Got it", then reopening showed the toggle as off.
+    // Persisting the value and reading it back must round-trip to true.
+    func test_setEnabled_true_persistsAcrossReopen() {
+        ExperimentNotifyPreference.setEnabled(true, for: .basalCheck, defaults: defaults)
+
+        XCTAssertTrue(ExperimentNotifyPreference.isEnabled(for: .basalCheck, defaults: defaults),
+                       "Reopening the sheet should see the previously-enabled toggle as on")
+    }
+
+    // Turning the toggle back off must also persist.
+    func test_setEnabled_false_afterTrue_persists() {
+        ExperimentNotifyPreference.setEnabled(true, for: .basalCheck, defaults: defaults)
+        ExperimentNotifyPreference.setEnabled(false, for: .basalCheck, defaults: defaults)
+
+        XCTAssertFalse(ExperimentNotifyPreference.isEnabled(for: .basalCheck, defaults: defaults))
+    }
+
+    // Each experiment type's "Not Ready Yet" sheet has its own independent toggle.
+    func test_preference_isIsolatedPerExperimentType() {
+        ExperimentNotifyPreference.setEnabled(true, for: .basalCheck, defaults: defaults)
+
+        XCTAssertTrue(ExperimentNotifyPreference.isEnabled(for: .basalCheck, defaults: defaults))
+        XCTAssertFalse(ExperimentNotifyPreference.isEnabled(for: .carbFactor, defaults: defaults))
+        XCTAssertFalse(ExperimentNotifyPreference.isEnabled(for: .isfOneUnit, defaults: defaults))
+    }
+}
