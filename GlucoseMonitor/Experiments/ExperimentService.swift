@@ -15,7 +15,7 @@ enum ExperimentService {
     // MARK: - Endpoints
 
     static func checkBackground() async throws -> BackgroundStatus {
-        let req = try authorizedGET("/api/experiments/check-background")
+        let req = try authorizedGET("/api/experiments/check-background?clientTimestamp=\(currentTimestampQueryValue())")
         return try await perform(req)
     }
 
@@ -25,7 +25,7 @@ enum ExperimentService {
     }
 
     static func start(_ request: StartExperimentRequest) async throws -> ExperimentModel {
-        var req = try authorizedPOST("/api/experiments")
+        var req = try authorizedPOST("/api/experiments?clientTimestamp=\(currentTimestampQueryValue())")
         req.httpBody = try encoder.encode(request)
         return try await perform(req)
     }
@@ -42,7 +42,7 @@ enum ExperimentService {
     }
 
     static func complete(experimentId: UUID) async throws -> ExperimentResult {
-        let req = try authorizedPOST("/api/experiments/\(experimentId)/complete")
+        let req = try authorizedPOST("/api/experiments/\(experimentId)/complete?clientTimestamp=\(currentTimestampQueryValue())")
         return try await perform(req)
     }
 
@@ -57,6 +57,15 @@ enum ExperimentService {
     }
 
     // MARK: - Helpers
+
+    /// The device's current local time, formatted to match note timestamps (naive,
+    /// no timezone) and URL-encoded for use as a query value. The backend's clock may
+    /// run in a different timezone than the device, so COB/IOB and elapsed-time checks
+    /// need this to line up with note timestamps, which are also device-local.
+    private static func currentTimestampQueryValue() -> String {
+        let raw = BackendAPI.formatNoteTimestampForRequest(Date())
+        return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? raw
+    }
 
     private static func authorizedGET(_ path: String) throws -> URLRequest {
         try buildRequest(path: path, method: "GET")

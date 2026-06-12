@@ -226,13 +226,12 @@ final class AppState: ObservableObject {
         return nil
     }
 
-    /// IOB: backend when > 0, otherwise estimate from notes (web parity).
+    /// IOB shown on the dashboard. Single source of truth: the backend's `activeInsulinOnBoard`
+    /// from `/api/glucose-calculations/`. We deliberately do NOT fall back to a client-side
+    /// note estimate — that fallback made the dashboard disagree with the Experiments tab
+    /// (which reads the backend directly). Both screens now show the same backend value.
     var displayedIOB: Double? {
-        let backend = calculations?.activeInsulinOnBoard
-        let fromNotes = InsulinIOB.currentIOBFromNotes(notes: notes)
-        if let b = backend, b > 0 { return b }
-        if fromNotes > 0 { return fromNotes }
-        return backend
+        calculations?.activeInsulinOnBoard
     }
 
     func predictionChartPoints() -> [PredictionChartPoint] {
