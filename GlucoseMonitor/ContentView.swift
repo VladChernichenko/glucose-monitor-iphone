@@ -313,6 +313,15 @@ struct DashboardView: View {
                                 value: iobStr,
                                 tint: Self.dashboardIobTint
                             )
+                            if appState.calculationsStale {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .font(.caption2)
+                                    Text("Stale")
+                                        .font(.caption2.weight(.semibold))
+                                }
+                                .foregroundStyle(.orange)
+                            }
                         }
                         .padding(.vertical, 10)
                         .padding(.horizontal, 12)
@@ -322,7 +331,7 @@ struct DashboardView: View {
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
+                                .strokeBorder(appState.calculationsStale ? Color.orange.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
                         )
                     }
 

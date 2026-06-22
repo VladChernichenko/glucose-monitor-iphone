@@ -16,6 +16,8 @@ final class AppState: ObservableObject {
     @Published var isLoading = false
     @Published var currentReading: GlucoseMonitorAPI.LibreGlucoseCurrent?
     @Published var calculations: BackendAPI.GlucoseCalculationsResponse?
+    /// True when the last calculations refresh failed and `calculations` is showing a stale (previously fetched) value.
+    @Published var calculationsStale: Bool = false
     @Published var notes: [BackendAPI.GlucoseNote] = []
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
@@ -33,6 +35,9 @@ final class AppState: ObservableObject {
     private var glucoseRefreshTask: Task<Void, Never>?
     private var backgroundRefreshTask: Task<Void, Never>?
     private var lastCalculationsResponseJSON: Data?
+    /// Bumped on every logout so in-flight refresh tasks started before logout can detect that
+    /// their results are stale and must not write into a now-logged-out session.
+    private var authGeneration = 0
 
     init() {
         Self.shared = self
@@ -113,18 +118,30 @@ final class AppState: ObservableObject {
     }
 
     func logout() async {
+        // Invalidate any refresh task started before logout *first*, synchronously, so its
+        // eventual completion (after the awaits below) can detect the session changed and
+        // skip writing stale post-logout data into @Published state.
+        authGeneration += 1
+        autoRefreshTask?.cancel()
+        autoRefreshTask = nil
+        fullRefreshTask?.cancel()
+        fullRefreshTask = nil
+        glucoseRefreshTask?.cancel()
+        glucoseRefreshTask = nil
+        backgroundRefreshTask?.cancel()
+        backgroundRefreshTask = nil
+
         await GlucoseMonitorAPI.logout()
         isAuthenticated = false
         currentReading = nil
         calculations = nil
+        calculationsStale = false
         notes = []
         isLoadingNotes = false
         notesLoadError = nil
         glucoseHistory = []
         errorMessage = nil
         sensorInfo = nil
-        autoRefreshTask?.cancel()
-        autoRefreshTask = nil
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
         DashboardCache.clear()
         WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
@@ -413,10 +430,13 @@ final class AppState: ObservableObject {
         // return a reading that is 30-60 min older than what the scheduler has cached,
         // making the card show "Updated 58 min ago" while the chart looked current.
         guard dataSource == "nightscout" else { return }
+        let generation = authGeneration
         do {
             let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 48)
+            guard generation == authGeneration else { return }
             currentReading = Self.latestNightscoutEntry(entries)?.toLibreGlucoseCurrent()
         } catch {
+            guard generation == authGeneration else { return }
             errorMessage = error.localizedDescription
         }
     }
@@ -434,6 +454,7 @@ final class AppState: ObservableObject {
     }
 
     private func refreshCalculations() async {
+        let generation = authGeneration
         // Use any available CGM reading regardless of age - the UI already shows "Updated X ago".
         // Fall back to a recent manual note only when no CGM reading is available at all.
         let mmol: Double?
@@ -448,7 +469,11 @@ final class AppState: ObservableObject {
                 .first?.glucoseValue
         }
         guard let mmol else {
+            guard generation == authGeneration else { return }
+            // Nothing to calculate from yet (e.g. first launch, no CGM/notes) - not a refresh
+            // failure, so there's nothing stale to flag.
             calculations = nil
+            calculationsStale = false
             persistWidgetSnapshot()
             return
         }
@@ -457,18 +482,26 @@ final class AppState: ObservableObject {
                 currentGlucose: mmol,
                 trendArrow: currentReading?.trendArrow
             )
+            guard generation == authGeneration else { return }
             calculations = fetched.response
             lastCalculationsResponseJSON = fetched.rawData
+            calculationsStale = false
         } catch {
             do {
                 let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
                     currentGlucose: mmol,
                     trendArrow: currentReading?.trendArrow
                 )
+                guard generation == authGeneration else { return }
                 calculations = fetched.response
                 lastCalculationsResponseJSON = fetched.rawData
+                calculationsStale = false
             } catch {
-                calculations = nil
+                guard generation == authGeneration else { return }
+                // Keep showing the last-known COB/IOB instead of blanking the dashboard to "--" -
+                // a stale-but-real number is more useful (and safer) for a medical app than no
+                // number at all. Flag it as stale so the UI can indicate it explicitly.
+                calculationsStale = true
             }
         }
         persistWidgetSnapshot()
@@ -479,9 +512,11 @@ final class AppState: ObservableObject {
     ///   5-min scheduler. Silent/background refreshes pass false and rely on the scheduler.
     private func loadGlucoseHistory(forceServerSync: Bool = false) async {
         let source = dataSource
+        let generation = authGeneration
         do {
             if source == "nightscout" {
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
+                guard generation == authGeneration else { return }
                 glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
             } else {
                 // LLU: on an explicit refresh, trigger an on-demand server sync so the chart cache
@@ -489,11 +524,13 @@ final class AppState: ObservableObject {
                 if forceServerSync {
                     _ = try? await BackendAPI.syncLibreNow()
                 }
+                guard generation == authGeneration else { return }
                 // LLU: read from the cached chart data written by the background scheduler
                 // (runs every 5 min). Pass the latest cached timestamp so the backend only
                 // returns new readings; merge them into the existing history.
                 let sinceDate = glucoseHistory.last.map { $0.time }
                 let entries = try await BackendAPI.fetchNightscoutChartData(count: 200, since: sinceDate)
+                guard generation == authGeneration else { return }
                 if !entries.isEmpty {
                     let newPoints = Self.nightscoutEntriesToChartPoints(entries)
                     if sinceDate != nil {
@@ -517,6 +554,7 @@ final class AppState: ObservableObject {
                 } else {
                     // No cached data yet - fall back to live LLU endpoint.
                     let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
+                    guard generation == authGeneration else { return }
                     let points: [GlucoseChartPoint] = rows.compactMap { r in
                         guard let t = r.timestamp, let v = r.value else { return nil }
                         let mmol = GlucoseUnit.isMmol(r.unit) ? v : GlucoseUnit.mgdlToMmol(v)
@@ -527,6 +565,7 @@ final class AppState: ObservableObject {
                 }
             }
         } catch {
+            guard generation == authGeneration else { return }
             if errorMessage == nil {
                 errorMessage = error.localizedDescription
             }
@@ -548,13 +587,19 @@ final class AppState: ObservableObject {
     /// Fetches sensor info. No-op for Nightscout.
     private func refreshSensorData() async {
         guard dataSource == "libre" else { return }
-        if let s = await GlucoseMonitorAPI.fetchSensorInfo() { sensorInfo = s }
+        let generation = authGeneration
+        if let s = await GlucoseMonitorAPI.fetchSensorInfo() {
+            guard generation == authGeneration else { return }
+            sensorInfo = s
+        }
     }
 
     /// Fetch the user's insulin preferences (long-acting name + optional injection time) used by the
     /// dashboard long-acting logging action. Best-effort: keeps the cached value on failure.
     func refreshInsulinPrefs() async {
+        let generation = authGeneration
         if let prefs = try? await BackendAPI.fetchInsulinPreferences() {
+            guard generation == authGeneration else { return }
             insulinPrefs = prefs
         }
     }
@@ -584,20 +629,27 @@ final class AppState: ObservableObject {
     // MARK: - Notes
 
     func fetchNotes() async {
+        let generation = authGeneration
         isLoadingNotes = true
         notesLoadError = nil
-        defer { isLoadingNotes = false }
+        defer { if generation == authGeneration { isLoadingNotes = false } }
         do {
-            notes = try await BackendAPI.fetchNotes()
+            let fetched = try await BackendAPI.fetchNotes()
+            guard generation == authGeneration else { return }
+            notes = fetched
             persistDashboardCache()
         } catch {
             // Retry once after a short pause - transient network errors (including concurrent
             // token-refresh races) usually clear immediately.
             try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard generation == authGeneration else { return }
             do {
-                notes = try await BackendAPI.fetchNotes()
+                let fetched = try await BackendAPI.fetchNotes()
+                guard generation == authGeneration else { return }
+                notes = fetched
                 persistDashboardCache()
             } catch {
+                guard generation == authGeneration else { return }
                 // Only surface the error when there are no cached notes to show. If notes
                 // are already loaded, a silent refresh failure is far less disruptive than
                 // replacing the list with an error banner.

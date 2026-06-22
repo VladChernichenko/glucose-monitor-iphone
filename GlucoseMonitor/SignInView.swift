@@ -41,6 +41,10 @@ struct SignInView: View {
 
 private struct SignInForm: View {
     @EnvironmentObject var appState: AppState
+    #if DEBUG
+    @State private var localIP = ""
+    @State private var useLocalServer = false
+    #endif
     @State private var username = ""
     @State private var password = ""
     @State private var status = ""
@@ -48,6 +52,39 @@ private struct SignInForm: View {
 
     var body: some View {
         VStack(spacing: 16) {
+            #if DEBUG
+            VStack(alignment: .leading, spacing: 8) {
+                Toggle("Use local server (debug)", isOn: $useLocalServer)
+                if useLocalServer {
+                    HStack {
+                        Text("Server IP")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        TextField("192.168.1.10", text: $localIP)
+                            .keyboardType(.numbersAndPunctuation)
+                            .multilineTextAlignment(.trailing)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onChange(of: localIP) { newIP in
+                                let filtered = newIP.filter { $0.isNumber || $0 == "." }
+                                if filtered != newIP { localIP = filtered }
+                            }
+                    }
+                    Button("Apply local server") {
+                        GlucoseMonitorAPI.storeLocalIP(localIP)
+                        if !localIP.isEmpty {
+                            GlucoseMonitorAPI.storeBackendBaseURL(GlucoseMonitorAPI.localBackendURL())
+                            status = "Backend set to local server."
+                        }
+                    }
+                    .disabled(localIP.isEmpty)
+                }
+            }
+            .padding(12)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            #endif
+
             Group {
                 TextField("Username", text: $username)
                     .textContentType(.username)
@@ -86,6 +123,10 @@ private struct SignInForm: View {
         }
         .padding()
         .onAppear {
+            #if DEBUG
+            localIP = GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
+            useLocalServer = !localIP.isEmpty
+            #endif
             username = GlucoseMonitorAPI.storedAppUsername()
             password = GlucoseMonitorAPI.storedAppPassword()
         }
@@ -96,7 +137,13 @@ private struct SignInForm: View {
         status = ""
         defer { isBusy = false }
         do {
+            #if DEBUG
+            let base = useLocalServer && !localIP.isEmpty
+                ? GlucoseMonitorAPI.localBackendURL()
+                : GlucoseMonitorAPI.effectiveBackendBaseURL()
+            #else
             let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
+            #endif
             try await GlucoseMonitorAPI.loginAppAccount(username: username, password: password, baseURL: base)
             GlucoseMonitorAPI.saveAppLoginCredentials(username: username, password: password)
             await MainActor.run { appState.checkAuthentication() }
