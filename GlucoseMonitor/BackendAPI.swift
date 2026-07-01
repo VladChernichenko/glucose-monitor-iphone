@@ -657,7 +657,7 @@ enum BackendAPI {
 
     static func fetchCOBSettings() async throws -> COBSettings {
         try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/cob-settings/")
+            let req = try authorizedRequest(path: "/api/user-settings/")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode(COBSettings.self, from: data)
@@ -666,7 +666,7 @@ enum BackendAPI {
 
     static func saveCOBSettings(_ settings: COBSettings) async throws -> COBSettings {
         try await performWithRefresh {
-            var req = try authorizedRequest(path: "/api/cob-settings/", method: "POST")
+            var req = try authorizedRequest(path: "/api/user-settings/", method: "POST")
             req.httpBody = try JSONEncoder().encode(settings)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
