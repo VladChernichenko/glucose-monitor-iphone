@@ -164,14 +164,14 @@ private struct MiniGlucoseSparkline: View {
 
     var body: some View {
         GeometryReader { geo in
-            let smoothed = GlucoseChartSmoothing.movingAverage(points, window: 5)
-            let values = smoothed.map { GlucoseUnit.isMmol(unit) ? $0.mmol : GlucoseUnit.mmolToMgdl($0.mmol) }
+            let raw = points.sorted { $0.time < $1.time }
+            let values = raw.map { GlucoseUnit.isMmol(unit) ? $0.mmol : GlucoseUnit.mmolToMgdl($0.mmol) }
             let minV = (values.min() ?? 0) - 1
             let maxV = (values.max() ?? 1) + 1
             let range = max(maxV - minV, 1)
             let w = geo.size.width
             let h = geo.size.height
-            let step = smoothed.count > 1 ? w / CGFloat(smoothed.count - 1) : w
+            let step = raw.count > 1 ? w / CGFloat(raw.count - 1) : w
 
             Path { path in
                 for (i, v) in values.enumerated() {

@@ -418,17 +418,17 @@ struct DashboardView: View {
         let trendArrowDisplay = (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
 
         if let calc {
+            // Tap switches the single forecast slot between 2h and 4h (same position),
+            // so high 2-digit values never get truncated by trying to show both at once.
+            let showFour = expanded && fourHour != nil
+            let forecastValue: Double = showFour ? (fourHour ?? calc.twoHourPrediction) : calc.twoHourPrediction
             VStack(alignment: .leading, spacing: 2) {
                 // Label row
                 HStack(spacing: 0) {
                     Text("Now")
                         .frame(minWidth: 60, alignment: .leading)
                     Spacer().frame(width: 36)
-                    Text("2h forecast")
-                    if expanded, fourHour != nil {
-                        Spacer().frame(width: 36)
-                        Text("4h forecast")
-                    }
+                    Text(showFour ? "4h forecast" : "2h forecast")
                 }
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -440,13 +440,7 @@ struct DashboardView: View {
                     Text(trendArrowDisplay)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
-                    Text(formatBackendGlucoseMmol(calc.twoHourPrediction, displayUnit: unit))
-                    if expanded, let fh = fourHour {
-                        Text("\u{2192}")
-                            .font(.system(size: 24, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
-                        Text(formatBackendGlucoseMmol(fh, displayUnit: unit))
-                    }
+                    Text(formatBackendGlucoseMmol(forecastValue, displayUnit: unit))
                     Text(unitStr)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)

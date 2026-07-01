@@ -17,24 +17,6 @@ struct PredictionChartPoint: Identifiable, Equatable {
     var id: String { String(format: "p_%.3f", time.timeIntervalSince1970) }
 }
 
-/// Light smoothing for CGM lines (reduces 5-min noise without hiding real trends).
-enum GlucoseChartSmoothing {
-    /// Centered moving average; keeps original timestamps.
-    static func movingAverage(_ points: [GlucoseChartPoint], window: Int = 5) -> [GlucoseChartPoint] {
-        guard points.count >= 3, window > 1 else { return points }
-        let sorted = points.sorted { $0.time < $1.time }
-        let w = min(window, sorted.count)
-        let half = w / 2
-        return sorted.enumerated().map { index, point in
-            let lo = max(0, index - half)
-            let hi = min(sorted.count - 1, index + half)
-            let slice = sorted[lo...hi]
-            let avg = slice.map(\.mmol).reduce(0, +) / Double(slice.count)
-            return GlucoseChartPoint(time: point.time, mmol: avg)
-        }
-    }
-}
-
 /// Time window for dashboard glucose charts.
 struct GlucoseChartWindow {
     let historyLookback: TimeInterval?
@@ -114,17 +96,17 @@ struct GlucoseHistoryChart: View {
         return history.filter { $0.time >= cutoff }
     }
 
-    /// Display history with centered moving average (5 samples ~25 min at 5-min CGM).
+    /// Display history is the raw CGM data, unsmoothed (no averaging).
     /// The most-recent point is snapped to `currentGlucose` (the raw sensor reading) so the
-    /// smoothed history naturally ends at the same value the backend used as its prediction base,
-    /// preventing any visual step at the solid/dashed boundary.
+    /// history ends at the same value the backend used as its prediction base, preventing any
+    /// visual step at the solid/dashed boundary.
     private var displayHistory: [GlucoseChartPoint] {
-        var smoothed = GlucoseChartSmoothing.movingAverage(filteredHistory, window: 5)
-        if let cg = currentGlucose, !smoothed.isEmpty {
-            let i = smoothed.count - 1
-            smoothed[i] = GlucoseChartPoint(time: smoothed[i].time, mmol: cg)
+        var raw = filteredHistory.sorted { $0.time < $1.time }
+        if let cg = currentGlucose, !raw.isEmpty {
+            let i = raw.count - 1
+            raw[i] = GlucoseChartPoint(time: raw[i].time, mmol: cg)
         }
-        return smoothed
+        return raw
     }
 
     /// History extended by the prediction anchor so the solid line runs continuously to "now".

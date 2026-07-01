@@ -396,11 +396,10 @@ final class AppState: ObservableObject {
             delta = nil
         }
         let chartCutoff = Date().addingTimeInterval(-4 * 3600)
-        let chart = GlucoseChartSmoothing.movingAverage(
-            glucoseHistory.filter { $0.time >= chartCutoff },
-            window: 5
-        )
-        .map { LockScreenWidgetSnapshot.ChartPoint(time: $0.time, mmol: $0.mmol) }
+        let chart = glucoseHistory
+            .filter { $0.time >= chartCutoff }
+            .sorted { $0.time < $1.time }
+            .map { LockScreenWidgetSnapshot.ChartPoint(time: $0.time, mmol: $0.mmol) }
         let readingAgeStart = currentReading?.timestamp ?? glucoseHistory.last?.time ?? Date()
         let snap = LockScreenWidgetSnapshot(
             savedAt: readingAgeStart,
