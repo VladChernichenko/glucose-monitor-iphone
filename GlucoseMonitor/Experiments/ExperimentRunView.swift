@@ -43,8 +43,10 @@ struct ExperimentRunView: View {
     /// refreshed every few minutes, so a longer gap means the sensor/feed has stopped.
     private static let cgmStaleThresholdMinutes: Double = 20
 
+    /// Current CGM in mmol/L (Libre/Nightscout may deliver mg/dL; always normalize here).
     private var currentCGM: Double? {
-        appState.currentReading?.value
+        guard let reading = appState.currentReading, let value = reading.value else { return nil }
+        return GlucoseUnit.toMmol(value, unit: reading.unit)
     }
 
     /// True when the last CGM reading is recent enough to trust for auto-capture and safety checks.
@@ -361,7 +363,7 @@ struct ExperimentRunView: View {
                 triggerSafetyAlert(
                     id: "isf-rapid-fall",
                     title: "Glucose Dropping Very Fast",
-                    message: String(format: "Your glucose is dropping rapidly (%.1f mmol/L, %@). Be ready to treat if you approach 4 mmol/L.", cgm, arrow ?? "↓↓")
+                    message: String(format: "Your glucose is dropping rapidly (%.1f mmol/L, %@). Be ready to treat if you approach 4 mmol/L.", cgm, arrow ?? "down fast")
                 )
             }
         }
