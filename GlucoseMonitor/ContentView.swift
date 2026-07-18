@@ -120,6 +120,7 @@ struct DashboardView: View {
     @State private var showVersion = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
+    @State private var showActivity = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
@@ -242,6 +243,10 @@ struct DashboardView: View {
                     insulinName: appState.insulinPrefs?.longActingInsulin.displayName ?? "Long-acting insulin"
                 )
                 .environmentObject(appState)
+            }
+            .sheet(isPresented: $showActivity) {
+                ActivityNoteSheet()
+                    .environmentObject(appState)
             }
             .sheet(item: $noteToEdit) { note in
                 EditNoteSheet(note: note) { body in
@@ -805,6 +810,10 @@ struct DashboardView: View {
                 .font(.headline)
             VStack(spacing: 0) {
                 longActingActionRow
+                Divider()
+                Button { showActivity = true } label: {
+                    quickActionRow(title: "Log activity", systemImage: "figure.run")
+                }
                 Divider()
                 Button { showAI = true } label: {
                     quickActionRow(title: "AI insights", systemImage: "sparkles")

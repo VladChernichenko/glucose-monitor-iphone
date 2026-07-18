@@ -10,6 +10,57 @@ enum BackendAPI {
     enum NoteType {
         static let normal = "normal"
         static let longActing = "long_acting"
+        static let activity = "activity"
+    }
+
+    /// Backend `ActivityType` values for activity notes.
+    enum ActivityKind: String, CaseIterable, Identifiable {
+        case walking = "WALKING"
+        case running = "RUNNING"
+        case cycling = "CYCLING"
+        case strength = "STRENGTH"
+        case other = "OTHER"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .walking: return "Walking"
+            case .running: return "Running"
+            case .cycling: return "Cycling"
+            case .strength: return "Strength"
+            case .other: return "Other"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .walking: return "figure.walk"
+            case .running: return "figure.run"
+            case .cycling: return "bicycle"
+            case .strength: return "dumbbell.fill"
+            case .other: return "figure.mixed.cardio"
+            }
+        }
+    }
+
+    /// Backend `ActivityIntensity` values.
+    enum ActivityIntensityLevel: String, CaseIterable, Identifiable {
+        case low = "LOW"
+        case moderate = "MODERATE"
+        case high = "HIGH"
+        case veryHard = "VERY_HARD"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .low: return "Low"
+            case .moderate: return "Moderate"
+            case .high: return "High"
+            case .veryHard: return "Very hard"
+            }
+        }
     }
 
     struct GlucoseNote: Decodable, Identifiable, Equatable {
@@ -23,12 +74,20 @@ enum BackendAPI {
         let absorptionMode: String?
         /// Serialised NutritionSnapshot/macro JSON - same format as NoteInput.nutritionProfile.
         let nutritionProfile: String?
-        /// Note category: "normal" (default) or "long_acting". Nil for legacy responses.
+        /// Note category: "normal" (default), "long_acting", or "activity". Nil for legacy responses.
         var type: String? = nil
         let photoUrl: String?
+        /// Activity type (WALKING/RUNNING/...) when `type == activity`.
+        var activityType: String? = nil
+        /// Intensity (LOW/MODERATE/HIGH/VERY_HARD) when `type == activity`.
+        var intensity: String? = nil
+        /// Duration in minutes when `type == activity`.
+        var durationMin: Int? = nil
 
         /// True when this note records a long-acting (basal) dose - not a rapid-acting bolus.
         var isLongActing: Bool { type == NoteType.longActing }
+        /// True when this note logs physical activity for the glucose model.
+        var isActivity: Bool { type == NoteType.activity }
     }
 
     struct NoteInput: Encodable {
@@ -43,8 +102,11 @@ enum BackendAPI {
         /// When set, the backend stores it directly and skips server-side re-enrichment,
         /// preserving `suggestedDurationHours` so 8 h HFHP meals get the correct forecast.
         let nutritionProfile: String?
-        /// Note category: nil -> backend defaults to "normal"; "long_acting" for basal doses.
+        /// Note category: nil -> backend defaults to "normal"; "long_acting" / "activity".
         var type: String? = nil
+        var activityType: String? = nil
+        var intensity: String? = nil
+        var durationMin: Int? = nil
     }
 
     struct UpdateNoteBody: Encodable {
@@ -58,6 +120,9 @@ enum BackendAPI {
         var type: String?
         /// Serialised nutrition-profile JSON. Set when macros were manually edited.
         var nutritionProfile: String?
+        var activityType: String? = nil
+        var intensity: String? = nil
+        var durationMin: Int? = nil
     }
 
     /// Matches Spring `@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")` on note DTOs (naive local wall time).

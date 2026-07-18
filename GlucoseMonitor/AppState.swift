@@ -655,6 +655,37 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// Logs a physical-activity note that drives the model's activity signal.
+    func logActivity(
+        kind: BackendAPI.ActivityKind,
+        intensity: BackendAPI.ActivityIntensityLevel,
+        durationMin: Int,
+        at time: Date,
+        comment: String? = nil
+    ) async {
+        let input = BackendAPI.NoteInput(
+            timestamp: BackendAPI.formatNoteTimestampForRequest(time),
+            carbs: 0,
+            insulin: 0,
+            meal: kind.title,
+            comment: comment,
+            glucoseValue: nil,
+            absorptionMode: nil,
+            nutritionProfile: nil,
+            type: BackendAPI.NoteType.activity,
+            activityType: kind.rawValue,
+            intensity: intensity.rawValue,
+            durationMin: durationMin
+        )
+        do {
+            let note = try await BackendAPI.createNote(input)
+            notes.append(note)
+            await refreshCalculations()
+        } catch {
+            errorMessage = "Failed to log activity: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Notes
 
     func fetchNotes() async {
