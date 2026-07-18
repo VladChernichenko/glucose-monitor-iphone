@@ -267,7 +267,7 @@ struct DashboardView: View {
 
     // MARK: - Morning ISF suggestion banner
 
-    /// Local morning window (05:00-11:00) — banner only surfaces then even if the server says show.
+    /// Local morning window (05:00-11:00) - banner only surfaces then even if the server says show.
     private var isLocalMorning: Bool {
         let hour = Calendar.current.component(.hour, from: Date())
         return (5 ..< 11).contains(hour)
@@ -715,7 +715,7 @@ struct DashboardView: View {
             if appState.isLoadingNotes && appState.notes.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("Loading notesâ€¦")
+                    Text("Loading notes???")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
