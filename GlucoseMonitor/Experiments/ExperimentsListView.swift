@@ -186,7 +186,7 @@ struct ExperimentsListView: View {
                 .foregroundStyle(.orange)
                 .clipShape(Capsule())
         } else if let stable = item.isStable {
-            Text(stable ? "Stable ✓" : "Unstable ✗")
+            Text(stable ? "Stable OK" : "Unstable ✗")
                 .font(.caption)
                 .padding(.horizontal, 8).padding(.vertical, 4)
                 .background(stable ? Color.green.opacity(0.15) : Color.red.opacity(0.15))
@@ -198,7 +198,7 @@ struct ExperimentsListView: View {
     // MARK: - Actions
 
     private func handleTap(_ exp: AvailableExperiment) {
-        guard exp.available else { return }   // locked — card shows lock reason
+        guard exp.available else { return }   // locked - card shows lock reason
         if vm.hasActiveExperiment {
             showRun = true
             return
@@ -275,7 +275,7 @@ private struct ExperimentCard: View {
                             .font(.caption2)
                             .foregroundStyle(.orange)
                     } else if experiment.available {
-                        Text("Start →")
+                        Text("Start ->")
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Color.accentColor)
                     }

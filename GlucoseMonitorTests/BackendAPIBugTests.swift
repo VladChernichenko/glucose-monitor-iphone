@@ -22,7 +22,7 @@ final class BackendAPIBugTests: XCTestCase {
         XCTAssertNil(GlucoseMonitorAPI.storedAccessToken())
     }
 
-    // BUG: I1 — Verify the access-token key string is what we expect
+    // BUG: I1 - Verify the access-token key string is what we expect
     // (guards against a silent key rename that would break the Keychain migration).
     func testJWT_storageKeyValue() {
         XCTAssertEqual(
@@ -46,7 +46,7 @@ final class BackendAPIBugTests: XCTestCase {
 
     // MARK: - iOS-9: Timezone offset sign convention and wall-clock timestamps
 
-    // BUG: iOS-9 — BackendAPI timezone offset sign convention undocumented / historically incorrect
+    // BUG: iOS-9 - BackendAPI timezone offset sign convention undocumented / historically incorrect
     // The X-Timezone-Offset header previously sent a negated value for UTC+ zones.
     // Fix: use `TimeZone.current.secondsFromGMT() / 60` (positive for UTC+, negative for UTC-),
     // which matches the JS convention the backend expects.
@@ -82,13 +82,13 @@ final class BackendAPIBugTests: XCTestCase {
             + "Got: \(formatted) (\(formatted.count) chars)")
     }
 
-    // BUG: iOS-9 — Header and body timezone offset must use the same sign convention
+    // BUG: iOS-9 - Header and body timezone offset must use the same sign convention
     // The header sends `TimeZone.current.secondsFromGMT() / 60`.
     // The body (fetchGlucoseCalculations) previously sent the negated value.
     // After fix: both must agree.  We verify the public sign convention here.
     func testTimezoneOffset_signConvention() {
         // Swift's secondsFromGMT() returns positive values for UTC+ zones.
-        // E.g. Europe/Kyiv (UTC+2): secondsFromGMT() = 7200 → offset = +120
+        // E.g. Europe/Kyiv (UTC+2): secondsFromGMT() = 7200 -> offset = +120
         // The backend interprets the offset as "minutes ahead of UTC" (same sign as POSIX tz).
         // A negative value would push the server's clock in the wrong direction.
         let offset = TimeZone.current.secondsFromGMT() / 60
@@ -107,10 +107,10 @@ final class BackendAPIBugTests: XCTestCase {
 
     // MARK: - iOS-10: LibreGlucoseCurrent timestamp parsed in device timezone instead of UTC
 
-    // BUG: iOS-10 — When Spring sends "2024-05-23T13:49:00" (UTC time, no 'Z' suffix due to
+    // BUG: iOS-10 - When Spring sends "2024-05-23T13:49:00" (UTC time, no 'Z' suffix due to
     // global `spring.jackson.date-format: "yyyy-MM-dd'T'HH:mm:ss"`), GlucoseMonitorAPI's
     // shared jsonDecoder() falls back to DateFormatter with TimeZone.current.
-    // On a UTC+3 device this makes 13:49 read as 13:49 local = 10:49 UTC — 3 hours behind —
+    // On a UTC+3 device this makes 13:49 read as 13:49 local = 10:49 UTC - 3 hours behind -
     // causing "Updated 3 hrs ago" despite the sensor reading being current.
     //
     // FIX: LibreGlucoseCurrent.decodeCGMTimestamp() uses TimeZone(identifier: "UTC") for the
@@ -158,12 +158,12 @@ final class BackendAPIBugTests: XCTestCase {
             expected.timeIntervalSince1970,
             accuracy: 1.0,
             "iOS-10: Naive timestamp '2024-05-23T13:49:00' must be decoded as 13:49 UTC. "
-            + "Got \(reading.timestamp!) — if this is ±(UTC offset) hours off, the "
+            + "Got \(reading.timestamp!) - if this is ±(UTC offset) hours off, the "
             + "TimeZone.current regression is back in decodeCGMTimestamp().")
     }
 
     // With fractional seconds (Spring @JsonFormat fix output): "yyyy-MM-dd'T'HH:mm:ss.SSSXXX"
-    // → "2024-05-23T13:49:00.000+00:00"
+    // -> "2024-05-23T13:49:00.000+00:00"
     func testLibreCurrentTimestamp_isoWithOffset_parsedCorrectly() throws {
         let data = libreJSON(timestamp: "2024-05-23T13:49:00.000+00:00")
         let reading = try JSONDecoder().decode(GlucoseMonitorAPI.LibreGlucoseCurrent.self, from: data)
@@ -274,7 +274,7 @@ final class BackendAPIBugTests: XCTestCase {
     }
 
     func testLibreSensorInfo_missingOptionalFields_graceful() throws {
-        // All fields are optional in the iOS struct — partial JSON must not throw
+        // All fields are optional in the iOS struct - partial JSON must not throw
         let json = """
         { "status": "warmup", "daysRemaining": -2 }
         """.data(using: .utf8)!
@@ -312,7 +312,7 @@ final class BackendAPIBugTests: XCTestCase {
 
     // MARK: - LLU trend arrow round-trip
 
-    // Pins the full int→arrow→velocity chain for all 5 LLU TrendArrow values.
+    // Pins the full int->arrow->velocity chain for all 5 LLU TrendArrow values.
     // Prevents lluTrendArrow and trendArrowToVelocity diverging silently.
     func testLLUTrendArrowRoundTrip() {
         let cases: [(Int, String, Double)] = [

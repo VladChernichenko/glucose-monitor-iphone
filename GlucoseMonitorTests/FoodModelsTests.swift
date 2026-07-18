@@ -6,7 +6,7 @@ import UIKit
 #endif
 
 /// Unit tests for FoodScanError, SegmentationResult, ScanState, and NutrientSummary.
-/// Pure logic tests — no networking.
+/// Pure logic tests - no networking.
 /// Pyramid layer: Unit (base).
 final class FoodModelsTests: XCTestCase {
 
@@ -45,7 +45,7 @@ final class FoodModelsTests: XCTestCase {
         }
     }
 
-    // MARK: - SegmentationResult.contains — bounds checking
+    // MARK: - SegmentationResult.contains - bounds checking
 
     private func makeResult(width: Int, height: Int,
                             mask: [Bool]? = nil) -> SegmentationResult {
@@ -102,7 +102,7 @@ final class FoodModelsTests: XCTestCase {
         XCTAssertTrue(seg.contains(maskX: 3, maskY: 3))
     }
 
-    // MARK: - SegmentationResult.imageToMask — coordinate mapping
+    // MARK: - SegmentationResult.imageToMask - coordinate mapping
 
     private func makeResultForMapping(maskW: Int, maskH: Int,
                                       imgW: CGFloat, imgH: CGFloat) -> SegmentationResult {
@@ -114,7 +114,7 @@ final class FoodModelsTests: XCTestCase {
     }
 
     func testImageToMask_oneToOneMapping() {
-        // 160×160 image, 160×160 mask → pixel (80,80) maps to mask (80,80)
+        // 160×160 image, 160×160 mask -> pixel (80,80) maps to mask (80,80)
         let seg = makeResultForMapping(maskW: 160, maskH: 160, imgW: 160, imgH: 160)
         let (mx, my) = seg.imageToMask(imageX: 80, imageY: 80)
         XCTAssertEqual(mx, 80)
@@ -123,8 +123,8 @@ final class FoodModelsTests: XCTestCase {
 
     func testImageToMask_scalesDown() {
         // 640×480 image mapped to 10×10 mask
-        // imageX=320 (mid) → 320/640 * 10 = 5
-        // imageY=240 (mid) → 240/480 * 10 = 5
+        // imageX=320 (mid) -> 320/640 * 10 = 5
+        // imageY=240 (mid) -> 240/480 * 10 = 5
         let seg = makeResultForMapping(maskW: 10, maskH: 10, imgW: 640, imgH: 480)
         let (mx, my) = seg.imageToMask(imageX: 320, imageY: 240)
         XCTAssertEqual(mx, 5)
@@ -139,7 +139,7 @@ final class FoodModelsTests: XCTestCase {
     }
 
     func testImageToMask_clampsAtUpperBound() {
-        // imageX=640 = full width → mask index clamped to maskWidth-1=9
+        // imageX=640 = full width -> mask index clamped to maskWidth-1=9
         let seg = makeResultForMapping(maskW: 10, maskH: 10, imgW: 640, imgH: 480)
         let (mx, my) = seg.imageToMask(imageX: 640, imageY: 480)
         XCTAssertLessThanOrEqual(mx, 9)

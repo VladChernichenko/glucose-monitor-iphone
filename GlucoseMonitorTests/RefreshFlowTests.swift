@@ -3,15 +3,15 @@ import XCTest
 
 /// Tests for the 401-driven refresh-token flow in `BackendAPI.performWithRefresh`.
 ///
-/// **Two layers of coverage** — both RED before the fix lands, GREEN after:
+/// **Two layers of coverage** - both RED before the fix lands, GREEN after:
 ///
-/// 1. **Source-level contract tests** (this file) — verify the source of `BackendAPI.swift`
+/// 1. **Source-level contract tests** (this file) - verify the source of `BackendAPI.swift`
 ///    contains the expected fix markers (calls to `clearSession` from the refresh-failure
 ///    branch). This pattern is established in the codebase
 ///    (`BackendAPIBugTests.testAnalyzePhotoNutrition_sessionCreation`) and is reliable
 ///    regardless of test-runner infrastructure.
 ///
-/// 2. **Runtime contract tests** (further down, gated with `XCTSkipIf`) — exercise the
+/// 2. **Runtime contract tests** (further down, gated with `XCTSkipIf`) - exercise the
 ///    real flow via `StubURLProtocol`. These are stricter but currently dependent on
 ///    Xcode result-bundle writing which is broken on this dev box. Re-enabled by deleting
 ///    the skip line once the infra issue is sorted.
@@ -20,7 +20,7 @@ import XCTest
 ///
 /// When the refresh endpoint itself returns 401 (refresh token expired / revoked),
 /// `performWithRefresh` currently propagates the error but leaves the dead tokens in
-/// the Keychain — so the next API call repeats the same failed dance, and the user is
+/// the Keychain - so the next API call repeats the same failed dance, and the user is
 /// stuck "logged in" with no working session. **Fix:** detect refresh-endpoint failure,
 /// clear the session, then re-throw so the UI can prompt re-login.
 final class RefreshFlowTests: XCTestCase {
@@ -46,7 +46,7 @@ final class RefreshFlowTests: XCTestCase {
 
         // The fix introduces a do/catch around the inner refreshToken() call so the
         // refresh-endpoint failure is observable and triggers a session clear.
-        // Any of these idioms is acceptable — what matters is that clearSession() is
+        // Any of these idioms is acceptable - what matters is that clearSession() is
         // invoked from the refresh-error path, not just on user-initiated logout.
         let hasClearOnRefreshFailure =
             source.contains("clearSession()") &&
@@ -59,7 +59,7 @@ final class RefreshFlowTests: XCTestCase {
         XCTAssertTrue(
             hasClearOnRefreshFailure,
             "BUG FIX: when /api/auth/refresh fails inside performWithRefresh, "
-            + "GlucoseMonitorAPI.clearSession() must be called before re-throwing — "
+            + "GlucoseMonitorAPI.clearSession() must be called before re-throwing - "
             + "otherwise the user is stuck with dead tokens and the next call repeats "
             + "the failed dance. Expected a clearSession() call inside the refresh-catch branch."
         )
@@ -97,7 +97,7 @@ final class RefreshFlowTests: XCTestCase {
     /// declaration line can't be found.
     private func extractPerformWithRefreshBody(_ source: String) -> String? {
         guard let range = source.range(of: "func performWithRefresh") else { return nil }
-        // Take everything from the declaration through the end of file — coarse but safe
+        // Take everything from the declaration through the end of file - coarse but safe
         // for marker assertions that only need to confirm a string appears within scope.
         // Refining to the closing brace of just this function is unnecessary for the
         // checks above and would add brittle brace counting.
@@ -110,14 +110,14 @@ final class RefreshFlowTests: XCTestCase {
         return String(suffix)
     }
 
-    // MARK: - Runtime contract tests (aspirational — gated until xcresult infra is fixed)
+    // MARK: - Runtime contract tests (aspirational - gated until xcresult infra is fixed)
 
     /// All four runtime tests below exercise `performWithRefresh` against `StubURLProtocol`.
     /// They're the gold-standard contract but currently the xcresult bundle writer on this
     /// dev box can't capture their assertion output, masking real failures. Once the
     /// infrastructure is sorted, delete this single guard line to re-enable.
     private func skipRuntimeTestsUntilInfraFixed() throws {
-        try XCTSkipIf(true, "Runtime URLProtocol tests skipped — xcresult writer is broken "
+        try XCTSkipIf(true, "Runtime URLProtocol tests skipped - xcresult writer is broken "
                       + "on this machine; source-level tests above provide the bug-fix contract. "
                       + "Remove this guard once Xcode/DerivedData infra is healthy.")
     }

@@ -213,7 +213,7 @@ struct GlucoseHistoryChart: View {
                 .foregroundStyle(Color.green.opacity(0.14))
             }
 
-            // Confidence band (digital-twin uncertainty) — a widening cone around the forecast.
+            // Confidence band (digital-twin uncertainty) - a widening cone around the forecast.
             // Only the points that carry both edges contribute; the anchor pinches it shut at "now".
             ForEach(futurePrediction) { p in
                 if let lo = p.lower, let hi = p.upper {
@@ -273,7 +273,7 @@ struct GlucoseHistoryChart: View {
                 }
             }
 
-            // Vertical "now" line — black in light mode, white in dark mode
+            // Vertical "now" line - black in light mode, white in dark mode
             RuleMark(x: .value("Now", Date()))
                 .foregroundStyle(Color.primary.opacity(0.75))
                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 3]))
@@ -304,7 +304,7 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
                         }
                         .sorted { $0.x < $1.x }
 
-                    // ── Carb labels: grouped & summed ──────────────────────────
+                    // -- Carb labels: grouped & summed --------------------------
                     let carbItems = positioned.filter { $0.note.carbs > 0 }
                     let carbGroups = Self.groupByProximity(carbItems,
                                                           threshold: Self.groupingThreshold)
@@ -314,7 +314,7 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
                         CarbGroupLabel(carbs: totalCarbs, x: centerX, y: plotFrame.minY + 18)
                     }
 
-                    // ── Insulin bars: grouped & summed ────────────────────────
+                    // -- Insulin bars: grouped & summed ------------------------
                     let insulinItems = positioned.filter { $0.note.insulin > 0 }
                     let insulinGroups = Self.groupByProximity(insulinItems,
                                                              threshold: Self.groupingThreshold)
@@ -491,7 +491,7 @@ struct AIInsightsSheet: View {
         NavigationStack {
             Group {
                 if isStreaming && streamedMarkdown.isEmpty {
-                    ProgressView("Analyzing last 12 hours…")
+                    ProgressView("Analyzing last 12 hours...")
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let err = errorMessage {
                     ScrollView {
@@ -508,7 +508,7 @@ struct AIInsightsSheet: View {
                                 HStack(spacing: 4) {
                                     ProgressView()
                                         .scaleEffect(0.7)
-                                    Text("Generating…")
+                                    Text("Generating...")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -570,7 +570,7 @@ struct AIInsightsSheet: View {
                     streamedMarkdown += token
                 }
             } catch is CancellationError {
-                // dismissed — no error message needed
+                // dismissed - no error message needed
             } catch {
                 errorMessage = error.localizedDescription
             }

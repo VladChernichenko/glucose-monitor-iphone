@@ -6,7 +6,7 @@ import XCTest
 @MainActor
 final class ExperimentViewModelTests: XCTestCase {
 
-    // T1 — loadAvailable populates the array (via mock service response)
+    // T1 - loadAvailable populates the array (via mock service response)
     func test_loadAvailable_populatesAvailableExperiments() async {
         // Given: a view model that can receive mock data
         let vm = ExperimentViewModel()
@@ -14,12 +14,12 @@ final class ExperimentViewModelTests: XCTestCase {
         // The VM starts empty
         XCTAssertTrue(vm.availableExperiments.isEmpty, "Should start with no experiments")
 
-        // AvailableExperiment is Codable — verify it decodes correctly from expected backend shape
+        // AvailableExperiment is Codable - verify it decodes correctly from expected backend shape
         let json = """
         [
           {"type":"BASAL_CHECK","title":"Basal Rate Check","description":"Desc","durationMinutes":360,"available":true,"lockReason":null},
           {"type":"CARB_FACTOR","title":"Carb Factor Test","description":"Desc","durationMinutes":90,"available":false,"lockReason":"Complete basal first"},
-          {"type":"ISF_ONE_UNIT","title":"ISF — 1-Unit Test","description":"Desc","durationMinutes":300,"available":false,"lockReason":"Complete basal first"}
+          {"type":"ISF_ONE_UNIT","title":"ISF - 1-Unit Test","description":"Desc","durationMinutes":300,"available":false,"lockReason":"Complete basal first"}
         ]
         """
         let decoder = JSONDecoder()
@@ -32,7 +32,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(exps[1].lockReason, "Complete basal first")
     }
 
-    // T2 — BackgroundStatus decodes and isClean reflects COB/IOB
+    // T2 - BackgroundStatus decodes and isClean reflects COB/IOB
     func test_backgroundStatus_isClean_whenCobAndIobBelowThreshold() {
         let json = "{\"isClean\":true,\"cobGrams\":2.0,\"iobUnits\":0.1,\"cleanInMinutes\":0}"
         let decoder = JSONDecoder()
@@ -44,7 +44,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(status.cleanInMinutes, 0)
     }
 
-    // T3 — BackgroundStatus isClean = false when COB is high
+    // T3 - BackgroundStatus isClean = false when COB is high
     func test_backgroundStatus_isNotClean_whenCobHigh() {
         let json = "{\"isClean\":false,\"cobGrams\":22.5,\"iobUnits\":0.0,\"cleanInMinutes\":45}"
         let decoder = JSONDecoder()
@@ -55,7 +55,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(status.cleanInMinutes, 45)
     }
 
-    // T4 — ExperimentModel decodes from backend JSON including status IN_PROGRESS
+    // T4 - ExperimentModel decodes from backend JSON including status IN_PROGRESS
     func test_experimentModel_decodesInProgressStatus() {
         let json = """
         {
@@ -74,7 +74,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertTrue(exp.readings.isEmpty)
     }
 
-    // T5 — ExperimentModel decodes readings correctly
+    // T5 - ExperimentModel decodes readings correctly
     func test_experimentModel_decodesReadings() {
         let json = """
         {
@@ -97,7 +97,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(exp.gramsConsumed ?? 0, 15.0, accuracy: 0.01)
     }
 
-    // T6 — ExperimentResult decodes with savedToSettings = true
+    // T6 - ExperimentResult decodes with savedToSettings = true
     func test_experimentResult_decodesSavedToSettings() {
         let json = """
         {
@@ -114,7 +114,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertNotNil(result.explanation)
     }
 
-    // T7 — ExperimentType alarm schedule for CARB_FACTOR has 3 entries
+    // T7 - ExperimentType alarm schedule for CARB_FACTOR has 3 entries
     func test_carbFactorAlarmSchedule_hasThreeCheckpoints() {
         let schedule = ExperimentType.carbFactor.alarmSchedule
         XCTAssertEqual(schedule.count, 3, "Carb Factor should have 3 alarm checkpoints")
@@ -123,7 +123,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(schedule[2].minutes, 60)
     }
 
-    // T8 — ExperimentType alarm schedule for ISF_ONE_UNIT has 4 entries
+    // T8 - ExperimentType alarm schedule for ISF_ONE_UNIT has 4 entries
     func test_isfOneUnitAlarmSchedule_hasFourCheckpoints() {
         let schedule = ExperimentType.isfOneUnit.alarmSchedule
         XCTAssertEqual(schedule.count, 4, "ISF 1-Unit should have 4 alarm checkpoints")
@@ -133,7 +133,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertEqual(schedule[3].minutes, 240)
     }
 
-    // T9 — StartExperimentRequest encodes correctly
+    // T9 - StartExperimentRequest encodes correctly
     func test_startExperimentRequest_encodesGramsConsumed() {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
@@ -145,7 +145,7 @@ final class ExperimentViewModelTests: XCTestCase {
         XCTAssertNil(dict["units_injected"] as? Double)
     }
 
-    // T10 — ExperimentViewModel.elapsedMinutes returns 0 when no active experiment
+    // T10 - ExperimentViewModel.elapsedMinutes returns 0 when no active experiment
     func test_elapsedMinutes_returnsZeroWithNoActiveExperiment() {
         let vm = ExperimentViewModel()
         XCTAssertEqual(vm.elapsedMinutes(), 0)

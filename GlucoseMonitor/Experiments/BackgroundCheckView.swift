@@ -24,7 +24,7 @@ struct BackgroundCheckView: View {
                     .foregroundStyle(.orange)
                 Text("Not Ready Yet")
                     .font(.title2.bold())
-                Text("To get accurate results, your body needs a neutral metabolic state — no active insulin or carbs.")
+                Text("To get accurate results, your body needs a neutral metabolic state - no active insulin or carbs.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

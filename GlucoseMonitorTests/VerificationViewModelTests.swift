@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class VerificationViewModelTests: XCTestCase {
 
-    // T11 — VerificationSummary decodes correctly from backend JSON
+    // T11 - VerificationSummary decodes correctly from backend JSON
     func test_verificationSummary_decodes_nEvents_and_suggestionReady() {
         let json = """
         {
@@ -26,7 +26,7 @@ final class VerificationViewModelTests: XCTestCase {
         XCTAssertEqual(summary.meanError!, 0.62, accuracy: 0.001)
     }
 
-    // T12 — VerificationSummary with low confidence and no suggestion
+    // T12 - VerificationSummary with low confidence and no suggestion
     func test_verificationSummary_noSuggestion_whenLowConfidence() {
         let json = """
         {"nEvents":3,"meanError":0.4,"consistencyScore":0.3,"suggestionReady":false,"confidence":"LOW"}
@@ -39,7 +39,7 @@ final class VerificationViewModelTests: XCTestCase {
         XCTAssertNil(summary.suggestedIsf)
     }
 
-    // T13 — VerificationEventModel decodes status and deltas
+    // T13 - VerificationEventModel decodes status and deltas
     func test_verificationEvent_decodes_predictedAndActualDelta() {
         let json = """
         {
@@ -63,7 +63,7 @@ final class VerificationViewModelTests: XCTestCase {
         XCTAssertEqual(event.error!, 0.5, accuracy: 0.01)
     }
 
-    // T14 — VerificationSummary.confidenceColor matches expected values
+    // T14 - VerificationSummary.confidenceColor matches expected values
     func test_confidenceColor_mapsCorrectly() {
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
 
@@ -80,7 +80,7 @@ final class VerificationViewModelTests: XCTestCase {
         XCTAssertEqual(low.confidenceColor, "red")
     }
 
-    // T15 — VerificationViewModel.completedEvents filters correctly
+    // T15 - VerificationViewModel.completedEvents filters correctly
     func test_completedEvents_filtersOnlyCompleted() {
         let vm = VerificationViewModel()
         let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase

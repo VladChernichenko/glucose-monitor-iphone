@@ -126,7 +126,7 @@ struct ExperimentResultView: View {
     }
 
     private var headerTitle: String {
-        if result.isStable == true  { return "Basal Rate Stable ✓" }
+        if result.isStable == true  { return "Basal Rate Stable OK" }
         if result.isStable == false { return "Basal Needs Attention" }
         return "Experiment Complete"
     }
@@ -150,7 +150,7 @@ struct ExperimentResultView: View {
             // Extract delta from resultNotes
             if let stable = result.isStable { return stable ? "Stable" : "Unstable" }
         }
-        return "—"
+        return "-"
     }
 
     private var primaryValueUnit: String {

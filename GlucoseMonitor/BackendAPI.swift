@@ -21,13 +21,13 @@ enum BackendAPI {
         let comment: String?
         let glucoseValue: Double?
         let absorptionMode: String?
-        /// Serialised NutritionSnapshot/macro JSON — same format as NoteInput.nutritionProfile.
+        /// Serialised NutritionSnapshot/macro JSON - same format as NoteInput.nutritionProfile.
         let nutritionProfile: String?
         /// Note category: "normal" (default) or "long_acting". Nil for legacy responses.
         var type: String? = nil
         let photoUrl: String?
 
-        /// True when this note records a long-acting (basal) dose — not a rapid-acting bolus.
+        /// True when this note records a long-acting (basal) dose - not a rapid-acting bolus.
         var isLongActing: Bool { type == NoteType.longActing }
     }
 
@@ -43,7 +43,7 @@ enum BackendAPI {
         /// When set, the backend stores it directly and skips server-side re-enrichment,
         /// preserving `suggestedDurationHours` so 8 h HFHP meals get the correct forecast.
         let nutritionProfile: String?
-        /// Note category: nil → backend defaults to "normal"; "long_acting" for basal doses.
+        /// Note category: nil -> backend defaults to "normal"; "long_acting" for basal doses.
         var type: String? = nil
     }
 
@@ -71,7 +71,7 @@ enum BackendAPI {
 
     /// Parses a backend date/time string. The backend sends naive local time (no
     /// timezone suffix), so that form is interpreted in the device's current
-    /// timezone — not UTC — before falling back to ISO-8601 with an explicit
+    /// timezone - not UTC - before falling back to ISO-8601 with an explicit
     /// timezone (Z / ±HH:MM).
     static func parseBackendDate(_ s: String) -> Date? {
         let df = DateFormatter()
@@ -90,7 +90,7 @@ enum BackendAPI {
 
     /// COB tuning; `carbRatio` is mmol/L glucose rise per **10 g** carbs (no insulin), matching backend `(COB_g / 10) * carbRatio`.
     /// `bodyWeightKg` is used by the Hovorka ODE model to scale glucose distribution volume (VG = 0.16 × kg)
-    /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil → backend uses population default 70 kg.
+    /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil -> backend uses population default 70 kg.
     struct COBSettings: Codable {
         var carbRatio: Double
         var isf: Double
@@ -165,7 +165,7 @@ enum BackendAPI {
         let activeInsulinOnBoard: Double
         let twoHourPrediction: Double
         let fourHourPrediction: Double?
-        /// Non-nil only when the HFHP / Dual-Wave path extends beyond 4 h (≥ 8 h window).
+        /// Non-nil only when the HFHP / Dual-Wave path extends beyond 4 h (>= 8 h window).
         let eightHourPrediction: Double?
         let predictionTrend: String
         let confidence: Double
@@ -473,7 +473,7 @@ enum BackendAPI {
                 do {
                     try await GlucoseMonitorAPI.refreshToken()
                 } catch {
-                    // refresh failed — the refresh token itself is expired/revoked.
+                    // refresh failed - the refresh token itself is expired/revoked.
                     // Keeping the dead tokens in the Keychain just repeats this dance
                     // forever; clear them so the UI can prompt re-login.
                     GlucoseMonitorAPI.clearSession()
@@ -606,7 +606,7 @@ enum BackendAPI {
     // MARK: - ISF meal-window profile
 
     /// One bucket of the per-user observational ISF profile, mirroring backend `IsfMealWindowDTO`.
-    /// `isfMmolPerU` is nil when the bucket has < 7 weighted samples — the chart renders that as
+    /// `isfMmolPerU` is nil when the bucket has < 7 weighted samples - the chart renders that as
     /// a gap with a "Run ISF experiment at this hour" CTA.
     struct IsfMealWindow: Decodable, Identifiable {
         let mealWindow: String       // "BREAKFAST" | "LUNCH" | "DINNER" | "NIGHT"
@@ -630,9 +630,9 @@ enum BackendAPI {
             }
         }
 
-        /// e.g. "05:00 – 11:00". Used as the x-axis label.
+        /// e.g. "05:00 - 11:00". Used as the x-axis label.
         var rangeLabel: String {
-            String(format: "%02d:00 – %02d:00", startHour, endHour)
+            String(format: "%02d:00 - %02d:00", startHour, endHour)
         }
     }
 
@@ -753,7 +753,7 @@ enum BackendAPI {
         let carbs: Double?
         let insulin: Double?
         let meal: String
-        /// Serialised NutritionSnapshot JSON — same format stored in Note.nutritionProfile.
+        /// Serialised NutritionSnapshot JSON - same format stored in Note.nutritionProfile.
         let nutritionProfileJson: String?
         /// Minutes ago the meal started; 0 = eating right now.
         let minutesAgo: Int
@@ -826,7 +826,7 @@ enum BackendAPI {
                 let profileJson = snapshotToNutritionProfileJson(snap)
                 prospectiveNotes = [ProspectiveNote(
                     carbs: snap.totalCarbs,
-                    insulin: nil,          // no insulin yet — user hasn't dosed
+                    insulin: nil,          // no insulin yet - user hasn't dosed
                     meal: "Prospective",
                     nutritionProfileJson: profileJson,
                     minutesAgo: 0
@@ -976,7 +976,7 @@ enum BackendAPI {
 
     /// On-demand LibreLinkUp sync: asks the backend to fetch fresh CGM readings immediately,
     /// bypassing the periodic scheduler, so the chart cache is up to date before we read it.
-    /// The backend serialises per-user syncs and coalesces rapid repeat calls. Best-effort —
+    /// The backend serialises per-user syncs and coalesces rapid repeat calls. Best-effort -
     /// callers should treat failure as non-fatal (the cached data still loads). Returns the
     /// server outcome string (e.g. "NEW_DATA", "NO_CHANGE", "IN_PROGRESS").
     @discardableResult
@@ -1019,10 +1019,10 @@ enum BackendAPI {
         }
     }
 
-    /// Fetches Nightscout entries using a progressive fallback strategy (live → stored → chart-data).
+    /// Fetches Nightscout entries using a progressive fallback strategy (live -> stored -> chart-data).
     ///
     /// iOS-P1-5 fix: the `useStored` fallback (strategy 2) is only attempted when the live call
-    /// throws an error — not when it succeeds but returns an empty list. An empty live response
+    /// throws an error - not when it succeeds but returns an empty list. An empty live response
     /// means the backend successfully reached Nightscout and got 0 entries; hammering `useStored`
     /// and `chart-data` in that case wastes RPS and battery without adding new data.
     /// Strategies 2 and 3 are still tried when strategy 1 throws (network / 5xx).
@@ -1032,7 +1032,7 @@ enum BackendAPI {
         // Strategy 1: live Nightscout proxy.
         do {
             let fresh = try await fetchNightscoutEntries(count: count, useStored: false)
-            // If the live call succeeded (no throw), return whatever we got — even empty.
+            // If the live call succeeded (no throw), return whatever we got - even empty.
             // Falling through to strategy 2 when the server returned 0 entries just adds
             // unnecessary HTTP round-trips.
             return fresh

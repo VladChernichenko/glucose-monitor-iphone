@@ -25,7 +25,7 @@ func hideKeyboard() {
 
 extension View {
     /// Dismisses the keyboard when the user scrolls and adds a "Done" button
-    /// in the keyboard toolbar — covers both scroll-away and tap-elsewhere UX.
+    /// in the keyboard toolbar - covers both scroll-away and tap-elsewhere UX.
     func dismissKeyboardOnInteraction() -> some View {
         self
             .scrollDismissesKeyboard(.interactively)

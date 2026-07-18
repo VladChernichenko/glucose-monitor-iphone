@@ -11,7 +11,7 @@ enum ExperimentType: String, Codable, CaseIterable {
         switch self {
         case .basalCheck: return "Basal Rate Check"
         case .carbFactor: return "Carb Factor Test"
-        case .isfOneUnit: return "ISF — 1-Unit Test"
+        case .isfOneUnit: return "ISF - 1-Unit Test"
         }
     }
 
@@ -30,26 +30,26 @@ enum ExperimentType: String, Codable, CaseIterable {
         case .carbFactor:
             return "Eat exactly 15g of fast-acting carbs with no insulin. We measure the glucose rise to calculate how much 1g of carbs affects your blood sugar."
         case .isfOneUnit:
-            return "Inject 1 unit of rapid insulin during stable hyperglycaemia (11–14 mmol/L). We track the drop over 4–5 hours to determine your Insulin Sensitivity Factor."
+            return "Inject 1 unit of rapid insulin during stable hyperglycaemia (11-14 mmol/L). We track the drop over 4-5 hours to determine your Insulin Sensitivity Factor."
         }
     }
 
     var durationText: String {
         switch self {
-        case .basalCheck: return "4–6 hours"
-        case .carbFactor: return "1–2 hours"
-        case .isfOneUnit: return "4–5 hours"
+        case .basalCheck: return "4-6 hours"
+        case .carbFactor: return "1-2 hours"
+        case .isfOneUnit: return "4-5 hours"
         }
     }
 
     /// Minimum wall-clock minutes between start and the "Finish" button enabling.
-    /// Mirrors the backend's `ExperimentService.minElapsedMinutes(Type)` floor — the
+    /// Mirrors the backend's `ExperimentService.minElapsedMinutes(Type)` floor - the
     /// server returns 400 below this, so enforcing client-side avoids the round-trip.
     var minimumMinutesToFinish: Int {
         switch self {
-        case .basalCheck:  return 180  // 3 h floor; protocol target 4–6 h
+        case .basalCheck:  return 180  // 3 h floor; protocol target 4-6 h
         case .carbFactor:  return 60
-        case .isfOneUnit:  return 180  // 3 h floor; protocol target 4–5 h
+        case .isfOneUnit:  return 180  // 3 h floor; protocol target 4-5 h
         }
     }
 
@@ -65,22 +65,22 @@ enum ExperimentType: String, Codable, CaseIterable {
         switch self {
         case .basalCheck:
             return [
-                (60,  "⏰ Record your glucose — 1 hour into your Basal Check"),
-                (120, "⏰ Record your glucose — 2 hours into your Basal Check"),
-                (180, "⏰ Record your glucose — 3 hours into your Basal Check"),
+                (60,  "⏰ Record your glucose - 1 hour into your Basal Check"),
+                (120, "⏰ Record your glucose - 2 hours into your Basal Check"),
+                (180, "⏰ Record your glucose - 3 hours into your Basal Check"),
                 (240, "✅ You can finish the Basal Rate Check now"),
             ]
         case .carbFactor:
             return [
-                (30,  "⏰ Record your glucose — 30 minutes after eating"),
-                (45,  "⏰ Record your glucose — 45 minutes after eating"),
+                (30,  "⏰ Record your glucose - 30 minutes after eating"),
+                (45,  "⏰ Record your glucose - 45 minutes after eating"),
                 (60,  "✅ You can finish the Carb Factor Test now"),
             ]
         case .isfOneUnit:
             return [
-                (60,  "⏰ Record your glucose — 1 hour after injection"),
-                (120, "⏰ Record your glucose — 2 hours after injection"),
-                (180, "⏰ Record your glucose — 3 hours after injection"),
+                (60,  "⏰ Record your glucose - 1 hour after injection"),
+                (120, "⏰ Record your glucose - 2 hours after injection"),
+                (180, "⏰ Record your glucose - 3 hours after injection"),
                 (240, "✅ You can finish the ISF test now"),
             ]
         }
@@ -105,10 +105,10 @@ enum ExperimentType: String, Codable, CaseIterable {
         case .isfOneUnit:
             return [
                 "Completed a successful Basal Rate Check",
-                "Glucose between 11–14 mmol/L",
+                "Glucose between 11-14 mmol/L",
                 "No active insulin (IOB < 0.3u)",
                 "No active carbs (COB < 5g)",
-                "4–5 hours free with no planned meals",
+                "4-5 hours free with no planned meals",
             ]
         }
     }

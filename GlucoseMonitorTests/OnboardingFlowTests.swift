@@ -135,7 +135,7 @@ final class DataSourceSetupViewModelTests: XCTestCase {
         XCTAssertEqual(DataSourceSetupViewModel.libreRegions.count, 8)
     }
 
-    // MARK: canContinue — libre
+    // MARK: canContinue - libre
 
     func test_canContinue_libre_false_whenBothEmpty() {
         vm.selectedSource = .libre
@@ -161,7 +161,7 @@ final class DataSourceSetupViewModelTests: XCTestCase {
         XCTAssertTrue(vm.canContinue)
     }
 
-    // MARK: canContinue — nightscout
+    // MARK: canContinue - nightscout
 
     func test_canContinue_nightscout_false_whenEmpty() {
         vm.selectedSource = .nightscout
@@ -226,7 +226,7 @@ final class DataSourceSetupViewModelTests: XCTestCase {
         XCTAssertTrue(vm.canContinue)
 
         vm.selectedSource = .nightscout
-        // nightscoutURL still empty — canContinue must be false
+        // nightscoutURL still empty - canContinue must be false
         XCTAssertFalse(vm.canContinue)
     }
 }

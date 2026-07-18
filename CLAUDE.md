@@ -7,13 +7,13 @@
 - ALWAYS prefer editing an existing file to creating a new one
 - NEVER proactively create documentation files (*.md) or README files unless explicitly requested
 - NEVER save working files, text/mds, or tests to the root folder
-- Never continuously check status after spawning a swarm — wait for results
+- Never continuously check status after spawning a swarm - wait for results
 - ALWAYS read a file before editing it
 - NEVER commit secrets, credentials, or .env files
 
 ## File Organization
 
-- NEVER save to root folder — use the directories below
+- NEVER save to root folder - use the directories below
 - Use `/src` for source code files
 - Use `/tests` for test files
 - Use `/docs` for documentation and markdown files
@@ -74,18 +74,18 @@ npm run lint
 
 - MUST initialize the swarm using CLI tools when starting complex tasks
 - MUST spawn concurrent agents using Claude Code's Agent tool
-- Never use CLI tools alone for execution — Agent tool agents do the actual work
+- Never use CLI tools alone for execution - Agent tool agents do the actual work
 - MUST call CLI tools AND Agent tool in ONE message for complex work
 
 ### 3-Tier Model Routing (ADR-026)
 
 | Tier | Handler | Latency | Cost | Use Cases |
 |------|---------|---------|------|-----------|
-| **1** | Agent Booster (WASM) | <1ms | $0 | Simple transforms (var→const, add types) — Skip LLM |
+| **1** | Agent Booster (WASM) | <1ms | $0 | Simple transforms (var->const, add types) - Skip LLM |
 | **2** | Haiku | ~500ms | $0.0002 | Simple tasks, low complexity (<30%) |
 | **3** | Sonnet/Opus | 2-5s | $0.003-0.015 | Complex reasoning, architecture, security (>30%) |
 
-- For Tier 1 simple transforms, use Edit tool directly — no LLM agent needed
+- For Tier 1 simple transforms, use Edit tool directly - no LLM agent needed
 
 ## Swarm Configuration & Anti-Drift
 
@@ -104,8 +104,8 @@ npx @claude-flow/cli@latest swarm init --topology hierarchical --max-agents 8 --
 
 - ALWAYS use `run_in_background: true` for all Agent tool calls
 - ALWAYS put ALL Agent calls in ONE message for parallel execution
-- After spawning, STOP — do NOT add more tool calls or check status
-- Never poll agent status repeatedly — trust agents to return
+- After spawning, STOP - do NOT add more tool calls or check status
+- Never poll agent status repeatedly - trust agents to return
 - When agent results arrive, review ALL results before proceeding
 
 ## V3 CLI Commands
@@ -147,7 +147,7 @@ npx @claude-flow/cli@latest doctor --fix
 ### GitHub & Repository
 `pr-manager`, `code-review-swarm`, `issue-tracker`, `release-manager`
 
-Any string can be used as a custom agent type — these are the typed roles with specialized behavior.
+Any string can be used as a custom agent type - these are the typed roles with specialized behavior.
 
 ## Memory & Vector Search
 
@@ -181,7 +181,7 @@ node .claude/helpers/auto-memory-hook.mjs import-all
 
 Claude Code auto-memory files (`~/.claude/projects/*/memory/*.md`) are automatically imported into AgentDB with ONNX vector embeddings on session start. Use `memory_search_unified` to search across both stores.
 
-## Key MCP Tools (314 available — use ToolSearch to discover)
+## Key MCP Tools (314 available - use ToolSearch to discover)
 
 ### Most Used Tools
 
@@ -206,21 +206,21 @@ Claude Code auto-memory files (`~/.claude/projects/*/memory/*.md`) are automatic
 
 ### Memory Capabilities
 
-- **ONNX Embeddings**: all-MiniLM-L6-v2, 384 dimensions — real neural vectors
+- **ONNX Embeddings**: all-MiniLM-L6-v2, 384 dimensions - real neural vectors
 - **DiskANN**: SSD-friendly vector search (8,000x faster insert than HNSW, perfect recall at 1K)
 - **sql.js**: Cross-platform SQLite (WASM, no native compilation)
 - **Claude Code Bridge**: Auto-imports MEMORY.md files into AgentDB on session start
 - **Unified Search**: `memory_search_unified` searches Claude memories + AgentDB + patterns
-- **SONA Learning**: Trajectory recording → pattern extraction → file persistence
+- **SONA Learning**: Trajectory recording -> pattern extraction -> file persistence
 
 ### How to Discover Tools
 
 Use ToolSearch to find specific tools:
 ```
-ToolSearch("memory search")     → memory_store, memory_search, memory_search_unified
-ToolSearch("swarm")             → swarm_init, swarm_status, swarm_health, swarm_shutdown
-ToolSearch("hive consensus")    → hive-mind_consensus, hive-mind_status
-ToolSearch("+aidefence")        → aidefence_scan, aidefence_is_safe, aidefence_has_pii
+ToolSearch("memory search")     -> memory_store, memory_search, memory_search_unified
+ToolSearch("swarm")             -> swarm_init, swarm_status, swarm_health, swarm_shutdown
+ToolSearch("hive consensus")    -> hive-mind_consensus, hive-mind_status
+ToolSearch("+aidefence")        -> aidefence_scan, aidefence_is_safe, aidefence_has_pii
 ```
 
 ## Quick Setup

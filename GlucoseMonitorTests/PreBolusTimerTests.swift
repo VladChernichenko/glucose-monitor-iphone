@@ -1,7 +1,7 @@
 import XCTest
 @testable import GlucoseMonitor
 
-/// Unit tests for PreBolusTimer.state() — pure business logic, no networking, no UI.
+/// Unit tests for PreBolusTimer.state() - pure business logic, no networking, no UI.
 /// Pyramid layer: Unit (base).
 final class PreBolusTimerTests: XCTestCase {
 
@@ -61,7 +61,7 @@ final class PreBolusTimerTests: XCTestCase {
     }
 
     func testMealNoteBeforeBolus_doesNotHide() {
-        // Meal timestamp is BEFORE the bolus — must NOT hide the timer
+        // Meal timestamp is BEFORE the bolus - must NOT hide the timer
         let now = Date()
         let meal  = now.addingTimeInterval(-900)   // 15 min ago
         let bolus = now.addingTimeInterval(-600)   // 10 min ago (after meal)
@@ -74,7 +74,7 @@ final class PreBolusTimerTests: XCTestCase {
     }
 
     func testMealWithZeroCarbs_doesNotHide() {
-        // Meal note after bolus but carbs == 0 → timer stays visible
+        // Meal note after bolus but carbs == 0 -> timer stays visible
         let now = Date()
         let bolus = now.addingTimeInterval(-600)
         let meal  = now.addingTimeInterval(-300)
@@ -165,7 +165,7 @@ final class PreBolusTimerTests: XCTestCase {
     }
 
     func testMultiplePreBolus_latestFollowedByMeal_notVisible() {
-        // Latest pre-bolus was followed by a meal → hidden (even though an older bolus exists)
+        // Latest pre-bolus was followed by a meal -> hidden (even though an older bolus exists)
         let now   = Date()
         let older = now.addingTimeInterval(-900)
         let newer = now.addingTimeInterval(-600)

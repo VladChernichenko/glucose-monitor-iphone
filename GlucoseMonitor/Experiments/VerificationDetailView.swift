@@ -186,9 +186,9 @@ struct VerificationDetailView: View {
     private func confidenceRow(_ confidence: String) -> some View {
         let (color, label): (Color, String) = {
             switch confidence {
-            case "HIGH":   return (.green,  "High confidence — 7+ consistent meals")
-            case "MEDIUM": return (.orange, "Medium confidence — 4–6 meals")
-            default:       return (.red,    "Low confidence — collecting more data")
+            case "HIGH":   return (.green,  "High confidence - 7+ consistent meals")
+            case "MEDIUM": return (.orange, "Medium confidence - 4-6 meals")
+            default:       return (.red,    "Low confidence - collecting more data")
             }
         }()
         HStack(spacing: 6) {
@@ -256,7 +256,7 @@ struct VerificationDetailView: View {
     // MARK: - Helpers
 
     private func format(_ v: Double?) -> String {
-        guard let v else { return "—" }
+        guard let v else { return "-" }
         return String(format: "%+.1f", v)
     }
 

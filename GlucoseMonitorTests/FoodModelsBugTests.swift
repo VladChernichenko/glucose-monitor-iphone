@@ -9,7 +9,7 @@ import XCTest
 ///     struct FoodMassBreakdown: Decodable, Identifiable {
 ///         var id: String { label ?? UUID().uuidString }
 ///         let label: String?
-///         …
+///         ...
 ///     }
 ///
 /// The `id` property is a COMPUTED property: when `label` is nil it calls `UUID()` every
@@ -19,13 +19,13 @@ final class FoodModelsBugTests: XCTestCase {
 
     // MARK: - I2: FoodMassBreakdown.id must be stable across accesses
 
-    // BUG: I2 — FoodMassBreakdown.id computed property returns new UUID() on every access
+    // BUG: I2 - FoodMassBreakdown.id computed property returns new UUID() on every access
     // when label is nil.  After fix: id should be a stored property so it returns the same
     // value on every call.
-    // CURRENT STATUS: NOT FIXED — id is still a computed var returning UUID() when label is nil.
+    // CURRENT STATUS: NOT FIXED - id is still a computed var returning UUID() when label is nil.
     // This test CURRENTLY FAILS and should pass once the fix is applied.
     func testFoodMassBreakdown_idIsStable_whenLabelIsPresent() {
-        // When a label is present, id returns label on every call → already stable.
+        // When a label is present, id returns label on every call -> already stable.
         // This sub-case passes even before the fix.
         let item = makeItem(label: "Rice")
         let id1 = item.id
@@ -36,12 +36,12 @@ final class FoodModelsBugTests: XCTestCase {
         XCTAssertEqual(id1, "Rice", "id must equal the label string")
     }
 
-    // BUG: I2 — FoodMassBreakdown.id returns a NEW UUID() on every access when label is nil
+    // BUG: I2 - FoodMassBreakdown.id returns a NEW UUID() on every access when label is nil
     // CURRENT STATUS: NOT FIXED.  This test CURRENTLY FAILS.
     func testFoodMassBreakdown_idIsStable_whenLabelIsNil() {
         // When label is nil, the current implementation is:
         //   var id: String { label ?? UUID().uuidString }
-        // → UUID() is called anew on each property access → id1 != id2
+        // -> UUID() is called anew on each property access -> id1 != id2
         //
         // After the fix (stored let id = UUID().uuidString or injected in init),
         // id1 and id2 must be equal.
@@ -52,10 +52,10 @@ final class FoodModelsBugTests: XCTestCase {
             id1, id2,
             "I2: FoodMassBreakdown.id must return the same value on every access even when "
             + "label is nil. Currently `var id: String { label ?? UUID().uuidString }` "
-            + "generates a new UUID on each call — fix by using a stored property.")
+            + "generates a new UUID on each call - fix by using a stored property.")
     }
 
-    // BUG: I2 — Two different items with nil labels must have DIFFERENT stable ids
+    // BUG: I2 - Two different items with nil labels must have DIFFERENT stable ids
     // (so SwiftUI can distinguish them in a list).
     func testFoodMassBreakdown_twoNilLabelItems_haveDifferentIds() {
         let item1 = makeItem(label: nil)

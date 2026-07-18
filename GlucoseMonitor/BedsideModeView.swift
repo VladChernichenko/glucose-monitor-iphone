@@ -76,7 +76,7 @@ struct BedsideModeView: View {
                     Text(formatGlucose(current, unit: unit))
                         .font(.system(size: 38, weight: .bold, design: .rounded))
                         .foregroundStyle(glucoseColor(current, unit: unit))
-                    Text("→")
+                    Text("->")
                         .font(.system(size: 22, weight: .light))
                         .foregroundStyle(.white.opacity(0.5))
                     Text(formatGlucose(pred, unit: unit))

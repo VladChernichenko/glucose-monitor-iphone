@@ -335,7 +335,7 @@ struct NoteEditorSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // ── Image (food scan photo or AR frame) ─────────────────────
+                // -- Image (food scan photo or AR frame) ---------------------
                 if let img = image {
                     Section {
                         Image(uiImage: img)
@@ -346,7 +346,7 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── AR volume scan card ──────────────────────────────────────
+                // -- AR volume scan card --------------------------------------
                 if let summary = arVolumeReport {
                     Section {
                         NutrientScanCard(summary: summary)
@@ -355,12 +355,12 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── Pre-bolus advice ─────────────────────────────────────────
+                // -- Pre-bolus advice -----------------------------------------
                 if let pause = snapshot?.preBolusPauseMinutes {
                     Section { preBolusBanner(pause: pause) }
                 }
 
-                // ── Detected foods ───────────────────────────────────────────
+                // -- Detected foods -------------------------------------------
                 // Prefer the per-food mass breakdown so each segment shows its
                 // total weight in grams; fall back to the name-only list.
                 if let breakdown = snapshot?.foodMassBreakdown, !breakdown.isEmpty {
@@ -381,7 +381,7 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── Nutrition summary (read-only) ────────────────────────────
+                // -- Nutrition summary (read-only) ----------------------------
                 if let snap = snapshot {
                     Section("Nutrition") {
                         nutritionRow("Carbs",          value: snap.totalCarbs,   unit: "g")
@@ -521,7 +521,7 @@ struct NoteEditorSheet: View {
             if isFetchingProspective {
                 HStack(spacing: 6) {
                     ProgressView().scaleEffect(0.7)
-                    Text("Calculating meal impact…").font(.caption2).foregroundStyle(.secondary)
+                    Text("Calculating meal impact...").font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -538,7 +538,7 @@ struct NoteEditorSheet: View {
             if let v = value {
                 Text(String(format: "%.1f", v)).font(.title3.bold()).foregroundStyle(glucoseColor(v))
             } else {
-                Text("—").font(.title3.bold()).foregroundStyle(.secondary)
+                Text("-").font(.title3.bold()).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -559,7 +559,7 @@ struct NoteEditorSheet: View {
                 Text(unit.isEmpty ? String(format: "%.0f", v)
                                   : String(format: "%.1f %@", v, unit))
                     .foregroundColor(.secondary)
-            } else { Text("—").foregroundColor(.secondary) }
+            } else { Text("-").foregroundColor(.secondary) }
         }
     }
 
@@ -571,7 +571,7 @@ struct NoteEditorSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 if pause == 0 {
                     Text("Bolus at meal start").font(.headline)
-                    Text("Split or post-meal bolus — inject when you begin eating")
+                    Text("Split or post-meal bolus - inject when you begin eating")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("Inject \(pause) min before eating").font(.headline)
@@ -584,10 +584,10 @@ struct NoteEditorSheet: View {
 
     private func preBolusPauseReason(pause: Int) -> String {
         switch pause {
-        case 20...: return "High-GI food — early injection prevents post-meal spike"
-        case 15..<20: return "Medium-GI food — pre-bolus improves peak control"
-        case 10..<15: return "Low-medium GI — short head-start recommended"
-        default:     return "Low-GI / high-fiber — minimal pre-bolus needed"
+        case 20...: return "High-GI food - early injection prevents post-meal spike"
+        case 15..<20: return "Medium-GI food - pre-bolus improves peak control"
+        case 10..<15: return "Low-medium GI - short head-start recommended"
+        default:     return "Low-GI / high-fiber - minimal pre-bolus needed"
         }
     }
 
@@ -662,9 +662,9 @@ struct EditNoteSheet: View {
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
-        // iOS-3 fix: snap to 5g steps instead of 10g (35g → 35, not 40g)
+        // iOS-3 fix: snap to 5g steps instead of 10g (35g -> 35, not 40g)
         let roundedCarbs = min(100, max(0, Int((note.carbs / 5).rounded()) * 5))
-        // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
+        // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u -> 2.5, not 3u)
         let roundedInsulin = min(10.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
         // Populate protein/fat/fiber from the stored nutrition profile (snap to the same step
@@ -805,7 +805,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
                 parent.isPresented = false
                 return
             }
-            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum — silently saved every
+            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum - silently saved every
             // food/note photo to the user's Camera Roll without permission or consent.
             parent.isPresented = false
             parent.onCapture(image)
@@ -843,7 +843,7 @@ struct FoodScanSheet: View {
                     Color.black.ignoresSafeArea()
                 } else if showARScanner {
                     // ARFoodScannerView runs the full pipeline internally
-                    // (segmentation → LiDAR volume → local nutrition lookup) and returns NutrientSummary.
+                    // (segmentation -> LiDAR volume -> local nutrition lookup) and returns NutrientSummary.
                     ARFoodScannerView(
                         onResult: { summary in
                             Task { @MainActor in
@@ -921,7 +921,7 @@ struct FoodScanSheet: View {
                 Image(uiImage: img).resizable().scaledToFit()
                     .frame(maxHeight: 240).cornerRadius(12).padding(.horizontal)
             }
-            ProgressView("Recognizing nutrition…").font(.headline)
+            ProgressView("Recognizing nutrition...").font(.headline)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -947,7 +947,7 @@ struct FoodScanSheet: View {
                 DispatchQueue.main.async { if granted { showCamera = true } else { dismiss() } }
             }
         default:
-            // Denied/restricted — open Settings so the user can re-enable
+            // Denied/restricted - open Settings so the user can re-enable
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
@@ -968,7 +968,7 @@ struct FoodScanSheet: View {
         isAnalyzing = false
     }
 
-    // MARK: - NutrientSummary → NutritionSnapshot bridge
+    // MARK: - NutrientSummary -> NutritionSnapshot bridge
 
     /// Converts a NutrientSummary into the BackendAPI snapshot format needed by
     /// NoteEditorSheet for carb prefill and glucose forecasting.
@@ -1069,4 +1069,3 @@ struct LongActingInsulinSheet: View {
         return 10
     }
 }
-

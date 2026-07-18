@@ -131,35 +131,35 @@ struct SettingsView: View {
                         )
                         SettingsNumericRow(
                             label: "ISF Breakfast",
-                            subtitle: "mmol/L per unit · 05:00 – 11:00",
+                            subtitle: "mmol/L per unit * 05:00 - 11:00",
                             placeholder: "2.5",
                             value: isfBreakfastBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
                             label: "ISF Lunch",
-                            subtitle: "mmol/L per unit · 11:00 – 16:00",
+                            subtitle: "mmol/L per unit * 11:00 - 16:00",
                             placeholder: "2.5",
                             value: isfLunchBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
                             label: "ISF Dinner",
-                            subtitle: "mmol/L per unit · 16:00 – 22:00",
+                            subtitle: "mmol/L per unit * 16:00 - 22:00",
                             placeholder: "2.5",
                             value: isfDinnerBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
                             label: "ISF Night",
-                            subtitle: "mmol/L per unit · 22:00 – 05:00",
+                            subtitle: "mmol/L per unit * 22:00 - 05:00",
                             placeholder: "2.5",
                             value: isfNightBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
                             label: "Body Weight",
-                            subtitle: "kg · used for glucose model calibration",
+                            subtitle: "kg * used for glucose model calibration",
                             placeholder: "70",
                             value: bodyWeightBinding,
                             fractionDigits: 0...1
@@ -206,7 +206,7 @@ struct SettingsView: View {
     }
 
     /// Bridges the optional `bodyWeightKg` to the non-optional `Double` expected by `SettingsNumericRow`.
-    /// Reading: returns stored weight or 70 (population default). Writing: stores the value, clears if ≤ 0.
+    /// Reading: returns stored weight or 70 (population default). Writing: stores the value, clears if <= 0.
     private var bodyWeightBinding: Binding<Double> {
         Binding(
             get: { cobSettings.bodyWeightKg ?? 70.0 },
