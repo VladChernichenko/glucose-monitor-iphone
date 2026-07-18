@@ -678,7 +678,7 @@ public enum GlucoseMonitorAPI {
             )
             _ = try? await URLSession.shared.data(for: req)
         }
-        // AppState.logout already flips isAuthenticated — avoid a second sessionCleared round-trip.
+        // AppState.logout already flips isAuthenticated - avoid a second sessionCleared round-trip.
         clearSession(notify: false)
     }
 
