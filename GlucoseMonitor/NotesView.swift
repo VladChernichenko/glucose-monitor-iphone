@@ -361,7 +361,21 @@ struct NoteEditorSheet: View {
                 }
 
                 // ── Detected foods ───────────────────────────────────────────
-                if let foods = snapshot?.normalizedFoods, !foods.isEmpty {
+                // Prefer the per-food mass breakdown so each segment shows its
+                // total weight in grams; fall back to the name-only list.
+                if let breakdown = snapshot?.foodMassBreakdown, !breakdown.isEmpty {
+                    Section("Detected foods") {
+                        ForEach(breakdown) { item in
+                            HStack {
+                                Text((item.label ?? item.offProductName ?? "Food").capitalized)
+                                Spacer()
+                                if let mass = item.massG {
+                                    Text("\(Int(mass.rounded())) g").foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                } else if let foods = snapshot?.normalizedFoods, !foods.isEmpty {
                     Section("Detected foods") {
                         ForEach(foods, id: \.self) { Text($0.capitalized) }
                     }

@@ -124,9 +124,13 @@ enum BackendAPI {
         let carbAbsorptionEffect: Double?
         let insulinActivityEffect: Double?
         let absorptionMode: String?
+        /// Confidence-band edges [mmol/L]; nil when the digital twin emits no uncertainty.
+        let predictedGlucoseLower: Double?
+        let predictedGlucoseUpper: Double?
 
         enum CodingKeys: String, CodingKey {
             case timestamp, predictedGlucose, carbAbsorptionEffect, insulinActivityEffect, absorptionMode
+            case predictedGlucoseLower, predictedGlucoseUpper
         }
 
         init(from decoder: Decoder) throws {
@@ -134,6 +138,8 @@ enum BackendAPI {
             predictedGlucose = Self.decodeFlexibleDouble(c, key: .predictedGlucose)
             carbAbsorptionEffect = Self.decodeFlexibleDouble(c, key: .carbAbsorptionEffect)
             insulinActivityEffect = Self.decodeFlexibleDouble(c, key: .insulinActivityEffect)
+            predictedGlucoseLower = Self.decodeFlexibleDouble(c, key: .predictedGlucoseLower)
+            predictedGlucoseUpper = Self.decodeFlexibleDouble(c, key: .predictedGlucoseUpper)
             absorptionMode = try c.decodeIfPresent(String.self, forKey: .absorptionMode)
 
             let s = try c.decode(String.self, forKey: .timestamp)

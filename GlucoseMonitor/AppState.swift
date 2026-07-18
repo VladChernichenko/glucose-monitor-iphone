@@ -255,7 +255,9 @@ final class AppState: ObservableObject {
         guard let path = calculations?.predictionPath, !path.isEmpty else { return [] }
         return path.compactMap { p -> PredictionChartPoint? in
             guard let y = p.predictedGlucose else { return nil }
-            return PredictionChartPoint(time: p.timestamp, mmol: y)
+            return PredictionChartPoint(time: p.timestamp, mmol: y,
+                                        lower: p.predictedGlucoseLower,
+                                        upper: p.predictedGlucoseUpper)
         }
     }
 

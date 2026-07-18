@@ -14,6 +14,9 @@ struct GlucoseChartPoint: Identifiable, Equatable {
 struct PredictionChartPoint: Identifiable, Equatable {
     let time: Date
     let mmol: Double
+    /// Confidence-band edges [mmol/L]; nil when the backend emits no uncertainty band.
+    var lower: Double? = nil
+    var upper: Double? = nil
     var id: String { String(format: "p_%.3f", time.timeIntervalSince1970) }
 }
 
@@ -149,7 +152,9 @@ struct GlucoseHistoryChart: View {
         let future = prediction.filter { $0.time > now && $0.time <= cap }
         guard !future.isEmpty else { return [] }
         let anchorMmol = currentGlucose ?? displayHistory.last?.mmol ?? future[0].mmol
-        let anchor = PredictionChartPoint(time: now, mmol: anchorMmol)
+        // Pinch the band to zero width at "now" so the confidence cone fans out from the current value.
+        let anchor = PredictionChartPoint(time: now, mmol: anchorMmol,
+                                          lower: anchorMmol, upper: anchorMmol)
         return [anchor] + future
     }
 
@@ -208,6 +213,20 @@ struct GlucoseHistoryChart: View {
                 .foregroundStyle(Color.green.opacity(0.14))
             }
 
+            // Confidence band (digital-twin uncertainty) — a widening cone around the forecast.
+            // Only the points that carry both edges contribute; the anchor pinches it shut at "now".
+            ForEach(futurePrediction) { p in
+                if let lo = p.lower, let hi = p.upper {
+                    AreaMark(
+                        x: .value("Time", p.time),
+                        yStart: .value("Lower", lo),
+                        yEnd: .value("Upper", hi)
+                    )
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(Color.blue.opacity(0.12))
+                }
+            }
+
             ForEach(bridgedHistory) { p in
                 LineMark(
                     x: .value("Time", p.time),
@@ -224,7 +243,7 @@ struct GlucoseHistoryChart: View {
                     y: .value("Pred", p.mmol),
                     series: .value("Series", "prediction")
                 )
-                .interpolationMethod(.linear)
+                .interpolationMethod(.monotone)
                 .foregroundStyle(Color.blue)
                 .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 4]))
             }
