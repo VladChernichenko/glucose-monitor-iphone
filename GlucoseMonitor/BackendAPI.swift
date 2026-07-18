@@ -662,6 +662,68 @@ enum BackendAPI {
         }
     }
 
+    // MARK: - ISF meal-window suggestion (morning banner)
+
+    struct IsfMealWindowSuggestion: Decodable {
+        let show: Bool
+        let suppressReason: String?
+        let twinReady: Bool?
+        let twinApplied: Bool?
+        let windows: [WindowProposal]
+        let historyDays: Int?
+        let minWeightedSamples: Double?
+        let cadenceDays: Int?
+        let nextEligibleAt: Date?
+
+        struct WindowProposal: Decodable, Identifiable {
+            let mealWindow: String
+            let proposedIsf: Double?
+            let currentIsf: Double?
+            let hasData: Bool
+            let weightedSamples: Double?
+
+            var id: String { mealWindow }
+
+            var displayName: String {
+                switch mealWindow {
+                case "BREAKFAST": return "Breakfast"
+                case "LUNCH": return "Lunch"
+                case "DINNER": return "Dinner"
+                case "NIGHT": return "Night"
+                default: return mealWindow.capitalized
+                }
+            }
+        }
+
+        /// Windows with enough data to propose a new ISF.
+        var proposalLines: [WindowProposal] { windows.filter { $0.hasData && $0.proposedIsf != nil } }
+    }
+
+    static func fetchIsfMealWindowSuggestion() async throws -> IsfMealWindowSuggestion {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(IsfMealWindowSuggestion.self, from: data)
+        }
+    }
+
+    static func acceptIsfMealWindowSuggestion() async throws {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/accept", method: "POST")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+        }
+    }
+
+    static func dismissIsfMealWindowSuggestion() async throws {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/dismiss", method: "POST")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+        }
+    }
+
     // MARK: - COB Settings
 
     static func fetchCOBSettings() async throws -> COBSettings {
