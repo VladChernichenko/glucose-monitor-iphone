@@ -151,6 +151,13 @@ struct SettingsView: View {
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
+                            label: "ISF Night",
+                            subtitle: "mmol/L per unit · 22:00 – 05:00",
+                            placeholder: "2.5",
+                            value: isfNightBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
                             label: "Body Weight",
                             subtitle: "kg · used for glucose model calibration",
                             placeholder: "70",
@@ -227,6 +234,13 @@ struct SettingsView: View {
         Binding(
             get: { cobSettings.isfDinner ?? cobSettings.isf },
             set: { cobSettings.isfDinner = $0 }
+        )
+    }
+
+    private var isfNightBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.isfNight ?? cobSettings.isf },
+            set: { cobSettings.isfNight = $0 }
         )
     }
 

@@ -98,11 +98,13 @@ enum BackendAPI {
         var maxCOBDuration: Double
         var bodyWeightKg: Double?
         /// Manual ISF override for 05:00-11:00 (mmol/L per unit). Nil = use autotuned `isf`.
-        var isfBreakfast: Double?
+        var isfBreakfast: Double? = nil
         /// Manual ISF override for 11:00-16:00 (mmol/L per unit). Nil = use autotuned `isf`.
-        var isfLunch: Double?
+        var isfLunch: Double? = nil
         /// Manual ISF override for 16:00-22:00 (mmol/L per unit). Nil = use autotuned `isf`.
-        var isfDinner: Double?
+        var isfDinner: Double? = nil
+        /// Manual ISF override for 22:00-05:00 (mmol/L per unit). Nil = use autotuned `isf`.
+        var isfNight: Double? = nil
     }
 
     struct PredictionFactors: Decodable {
@@ -607,9 +609,9 @@ enum BackendAPI {
     /// `isfMmolPerU` is nil when the bucket has < 7 weighted samples — the chart renders that as
     /// a gap with a "Run ISF experiment at this hour" CTA.
     struct IsfMealWindow: Decodable, Identifiable {
-        let mealWindow: String       // "BREAKFAST" | "LUNCH" | "DINNER"
+        let mealWindow: String       // "BREAKFAST" | "LUNCH" | "DINNER" | "NIGHT"
         let startHour: Int           // inclusive
-        let endHour: Int             // exclusive
+        let endHour: Int             // exclusive (NIGHT wraps: 22 -> 5)
         let isfMmolPerU: Double?
         let weightedSamples: Double?
         let rawSampleCount: Int?
@@ -623,6 +625,7 @@ enum BackendAPI {
             case "BREAKFAST": return "Breakfast"
             case "LUNCH":     return "Lunch"
             case "DINNER":    return "Dinner"
+            case "NIGHT":     return "Night"
             default:          return mealWindow.capitalized
             }
         }
