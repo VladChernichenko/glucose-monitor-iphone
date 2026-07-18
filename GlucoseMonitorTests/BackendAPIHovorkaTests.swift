@@ -182,6 +182,34 @@ final class BackendAPIHovorkaTests: XCTestCase {
             + "forward compatibility for future model variants")
     }
 
+    /// Digital-twin confidence band — predictedGlucoseLower/Upper must decode as the band edges.
+    func testPredictionPathPoint_decode_confidenceBand() throws {
+        let json = """
+        {
+          "timestamp": "2025-06-09T12:00:00",
+          "predictedGlucose": 6.8,
+          "predictedGlucoseLower": 5.9,
+          "predictedGlucoseUpper": 7.7
+        }
+        """.data(using: .utf8)!
+        let point = try decoder.decode(BackendAPI.PredictionPathPoint.self, from: json)
+
+        XCTAssertEqual(point.predictedGlucoseLower ?? 0, 5.9, accuracy: 0.01,
+            "predictedGlucoseLower must decode as the lower band edge")
+        XCTAssertEqual(point.predictedGlucoseUpper ?? 0, 7.7, accuracy: 0.01,
+            "predictedGlucoseUpper must decode as the upper band edge")
+    }
+
+    /// Band absent (replay / uncalibrated twin) — edges must be nil, not throw.
+    func testPredictionPathPoint_decode_missingBand_isNil() throws {
+        let data  = predictionPointJSON(absorptionMode: "HOVORKA_2COMP")
+        let point = try decoder.decode(BackendAPI.PredictionPathPoint.self, from: data)
+
+        XCTAssertNil(point.predictedGlucoseLower,
+            "band edges must be nil when the backend emits no uncertainty band")
+        XCTAssertNil(point.predictedGlucoseUpper)
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // MARK: 3 — GlucoseCalculationsResponse: Hovorka path backward compatibility
     // ─────────────────────────────────────────────────────────────────────────

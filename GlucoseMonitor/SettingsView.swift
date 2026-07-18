@@ -3,18 +3,24 @@ import SwiftUI
 // MARK: - Backend preset
 
 private enum BackendPreset: String, CaseIterable, Identifiable {
+    #if DEBUG
     case local
+    #endif
     case remote
     var id: String { rawValue }
     var title: String {
         switch self {
+        #if DEBUG
         case .local: return "Local"
+        #endif
         case .remote: return "Remote"
         }
     }
     var url: String {
         switch self {
+        #if DEBUG
         case .local: return GlucoseMonitorAPI.localBackendURL()
+        #endif
         case .remote: return GlucoseMonitorAPI.defaultBackendBaseURL
         }
     }
@@ -251,14 +257,18 @@ struct SettingsView: View {
     }
 
     private func localIPSummary(ud: UserDefaults) {
-        let localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
         let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
         let normStored = storedBackend.isEmpty ? "" : SettingsHelpers.normalizeURLString(storedBackend)
-        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
         let nRemote = SettingsHelpers.normalizeURLString(BackendPreset.remote.url)
+        #if DEBUG
+        let localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
+        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
         if normStored == nLocal && !localIP.isEmpty {
             backendSummary = "Local"
-        } else if normStored == nRemote || normStored.isEmpty {
+            return
+        }
+        #endif
+        if normStored == nRemote || normStored.isEmpty {
             backendSummary = "Remote"
         } else {
             backendSummary = "Remote"
@@ -292,6 +302,7 @@ private struct BackendSettingsDetailView: View {
                     onChange()
                 }
 
+                #if DEBUG
                 if backendPreset == .local {
                     HStack {
                         Text("IP Address")
@@ -310,6 +321,7 @@ private struct BackendSettingsDetailView: View {
                             }
                     }
                 }
+                #endif
 
                 LabeledContent("URL") {
                     Text(backendPreset.url)
@@ -354,8 +366,9 @@ private struct BackendSettingsDetailView: View {
         localIP = ud.string(forKey: GlucoseMonitorAPI.StorageKey.localIP) ?? ""
         let storedBackend = ud.string(forKey: GlucoseMonitorAPI.StorageKey.backendURL) ?? ""
         let normStored = storedBackend.isEmpty ? "" : SettingsHelpers.normalizeURLString(storedBackend)
-        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
         let nRemote = SettingsHelpers.normalizeURLString(BackendPreset.remote.url)
+        #if DEBUG
+        let nLocal = SettingsHelpers.normalizeURLString(GlucoseMonitorAPI.localBackendURL())
         if normStored.isEmpty {
             backendPreset = .remote
         } else if normStored == nLocal && !localIP.isEmpty {
@@ -366,6 +379,13 @@ private struct BackendSettingsDetailView: View {
             backendPreset = .remote
             GlucoseMonitorAPI.storeBackendBaseURL(BackendPreset.remote.url)
         }
+        #else
+        // Release: never keep a cleartext local backend from a prior debug install.
+        if normStored != nRemote {
+            GlucoseMonitorAPI.storeBackendBaseURL(BackendPreset.remote.url)
+        }
+        backendPreset = .remote
+        #endif
         username = GlucoseMonitorAPI.storedAppUsername()
         password = GlucoseMonitorAPI.storedAppPassword()
     }

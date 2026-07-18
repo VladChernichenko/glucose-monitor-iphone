@@ -279,7 +279,7 @@
 				600000000000000000000011 /* LockScreenWidgetSnapshot.swift */,
 			);
 			name = Shared;
-			path = "../glucose-monitor-watch/Shared";
+			path = Shared;
 			sourceTree = "<group>";
 		};
 		800000000000000000000004 /* GlucoseMonitorWatch */ = {

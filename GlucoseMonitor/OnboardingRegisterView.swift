@@ -26,6 +26,7 @@ struct OnboardingRegisterView: View {
                         .fieldStyle()
                     TextField("Username", text: $vm.username)
                         .textContentType(.username)
+                        .keyboardType(.asciiCapable)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .fieldStyle()
