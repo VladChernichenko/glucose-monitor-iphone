@@ -26,7 +26,7 @@ enum ExperimentType: String, Codable, CaseIterable {
     var description: String {
         switch self {
         case .basalCheck:
-            return "Skip eating and bolusing for 4–6 hours. We track whether your glucose stays flat, verifying your basal rate is set correctly."
+            return "Skip eating and bolusing for 4-6 hours. We check that readings stay flat and that the 4-hour forecast stays flat too, verifying your basal rate is set correctly."
         case .carbFactor:
             return "Eat exactly 15g of fast-acting carbs with no insulin. We measure the glucose rise to calculate how much 1g of carbs affects your blood sugar."
         case .isfOneUnit:
