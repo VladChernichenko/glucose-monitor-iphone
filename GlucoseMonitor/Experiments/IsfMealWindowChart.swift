@@ -3,7 +3,7 @@ import Charts
 
 /// Per-meal-window observational ISF chart shown inside the ISF result view.
 ///
-/// One bar per window (Breakfast / Lunch / Dinner). Buckets without enough data
+/// One bar per window (Breakfast / Lunch / Dinner / Night). Buckets without enough data
 /// (< 7 weighted samples on the backend) render as a faded placeholder bar with a
 /// "Run ISF experiment" CTA. Refresh-on-appear; explicit recompute button kicks
 /// the backend's on-demand path.
@@ -168,6 +168,7 @@ struct IsfMealWindowChart: View {
         case "BREAKFAST": return .orange
         case "LUNCH":     return .blue
         case "DINNER":    return .indigo
+        case "NIGHT":     return .gray
         default:          return .purple
         }
     }

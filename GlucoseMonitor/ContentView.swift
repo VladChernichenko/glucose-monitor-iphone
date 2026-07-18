@@ -84,6 +84,11 @@ struct ContentView: View {
                 Task {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokensOnLaunch()
                     await MainActor.run { appState.checkAuthentication() }
+                    // Fetch the user's data immediately after sign-in / LibreLinkUp connect so the
+                    // dashboard shows real values right away instead of waiting for a manual
+                    // pull-to-refresh or the 5-min auto-refresh. refreshAll forces a server-side
+                    // LibreLinkUp sync (loadGlucoseHistory forceServerSync: true).
+                    await appState.refreshAll()
                     await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()

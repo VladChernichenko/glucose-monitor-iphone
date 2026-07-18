@@ -38,6 +38,7 @@ final class AppState: ObservableObject {
     /// Bumped on every logout so in-flight refresh tasks started before logout can detect that
     /// their results are stale and must not write into a now-logged-out session.
     private var authGeneration = 0
+    private var sessionClearedObserver: NSObjectProtocol?
 
     init() {
         Self.shared = self
@@ -48,6 +49,16 @@ final class AppState: ObservableObject {
         // safe and instantaneous at init time.
         checkAuthentication()
         restoreFromCacheIfAvailable()
+        sessionClearedObserver = NotificationCenter.default.addObserver(
+            forName: GlucoseMonitorAPI.sessionClearedNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in
+                self.handleSessionCleared()
+            }
+        }
     }
 
     /// Hydrate published state from disk (no network). Call after `checkAuthentication()` when signed in.
@@ -89,6 +100,9 @@ final class AppState: ObservableObject {
     }
 
     deinit {
+        if let sessionClearedObserver {
+            NotificationCenter.default.removeObserver(sessionClearedObserver)
+        }
         autoRefreshTask?.cancel()
         fullRefreshTask?.cancel()
         glucoseRefreshTask?.cancel()
@@ -121,6 +135,19 @@ final class AppState: ObservableObject {
         // Invalidate any refresh task started before logout *first*, synchronously, so its
         // eventual completion (after the awaits below) can detect the session changed and
         // skip writing stale post-logout data into @Published state.
+        beginLocalSignOut()
+        await GlucoseMonitorAPI.logout()
+        applyLoggedOutUIState()
+    }
+
+    /// Called when Keychain tokens were wiped (e.g. refresh returned 401) without an explicit Sign Out tap.
+    private func handleSessionCleared() {
+        guard isAuthenticated else { return }
+        beginLocalSignOut()
+        applyLoggedOutUIState()
+    }
+
+    private func beginLocalSignOut() {
         authGeneration += 1
         autoRefreshTask?.cancel()
         autoRefreshTask = nil
@@ -130,8 +157,9 @@ final class AppState: ObservableObject {
         glucoseRefreshTask = nil
         backgroundRefreshTask?.cancel()
         backgroundRefreshTask = nil
+    }
 
-        await GlucoseMonitorAPI.logout()
+    private func applyLoggedOutUIState() {
         isAuthenticated = false
         currentReading = nil
         calculations = nil
