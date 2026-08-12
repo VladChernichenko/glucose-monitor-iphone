@@ -11,6 +11,42 @@ private func formReadonlyRow(label: String, valueText: String) -> some View {
     }
 }
 
+// MARK: - Meal type defaults
+
+/// Note types and the rules that pre-select one from the entry itself.
+enum MealTypeDefaults {
+    static let categories = ["Breakfast", "Lunch", "Dinner", "Pre-bolus", "Correction", "Other"]
+
+    /// At or above this glucose an insulin-only entry is a correction, not a pre-bolus.
+    static let correctionGlucoseThresholdMmol = 10.0
+
+    /// Meal windows: Breakfast 05:00-11:00, Lunch 11:00-16:00, Dinner 16:00-05:00.
+    /// Dinner covers the night so every carb entry lands on a named meal.
+    static func byTime(_ date: Date) -> String {
+        switch Calendar.current.component(.hour, from: date) {
+        case 5..<11:  return "Breakfast"
+        case 11..<16: return "Lunch"
+        default:      return "Dinner"
+        }
+    }
+
+    /// Insulin with no carbs is a pre-bolus below the correction threshold and a
+    /// correction at or above it; anything else falls back to the time window.
+    static func suggested(carbs: Double, insulin: Double,
+                          glucoseMmol: Double?, at date: Date) -> String {
+        if carbs == 0 && insulin > 0 {
+            return (glucoseMmol ?? 0) >= correctionGlucoseThresholdMmol ? "Correction" : "Pre-bolus"
+        }
+        return byTime(date)
+    }
+
+    /// Picker options: the current set, plus the note's own type when it is a
+    /// retired category (e.g. "Snack") so editing an old note never retags it.
+    static func options(including current: String) -> [String] {
+        categories.contains(current) ? categories : categories + [current]
+    }
+}
+
 // MARK: - Notes List
 
 // MARK: - Sheet state
@@ -365,7 +401,8 @@ struct NoteEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var noteDate = Date()
-    @State private var meal = "Lunch"
+    @State private var meal = MealTypeDefaults.byTime(Date())
+    @State private var manualMealSelection = false
     @State private var carbs: Int = 0
     @State private var protein: Int = 0
     @State private var fat: Int = 0
@@ -376,7 +413,6 @@ struct NoteEditorSheet: View {
     @State private var prospectiveCalc: BackendAPI.GlucoseCalculationsResponse? = nil
     @State private var isFetchingProspective = false
 
-    private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1)
                                                        .map { ($0 * 10).rounded() / 10 }
 
@@ -466,8 +502,11 @@ struct NoteEditorSheet: View {
                                displayedComponents: [.date, .hourAndMinute])
                 }
                 Section("Meal") {
-                    Picker("Type", selection: $meal) {
-                        ForEach(meals, id: \.self) { Text($0) }
+                    Picker("Type", selection: Binding(
+                        get: { meal },
+                        set: { manualMealSelection = true; meal = $0 }
+                    )) {
+                        ForEach(MealTypeDefaults.options(including: meal), id: \.self) { Text($0) }
                     }
                 }
                 Section("Amounts") {
@@ -512,13 +551,31 @@ struct NoteEditorSheet: View {
                 await appState.refreshGlucoseOnly()
                 prefillFromSnapshot()
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
+                refreshSuggestedMeal()
                 if snapshot != nil { await fetchProspectivePrediction() }
             }
             .onChange(of: noteDate) { _ in
                 glucoseWheelValue = 0.0
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
+                refreshSuggestedMeal()
             }
+            .onChange(of: carbs) { _ in refreshSuggestedMeal() }
+            .onChange(of: insulin) { _ in refreshSuggestedMeal() }
+            .onChange(of: glucoseWheelValue) { _ in refreshSuggestedMeal() }
         }
+    }
+
+    // MARK: Meal type
+
+    /// Re-derive the pre-selected type from the current entry, until the user
+    /// picks a type by hand.
+    private func refreshSuggestedMeal() {
+        guard !manualMealSelection else { return }
+        let glucose = glucoseWheelValue > 0
+            ? glucoseWheelValue
+            : appState.glucoseMmolForNewNote(at: noteDate)
+        meal = MealTypeDefaults.suggested(carbs: Double(carbs), insulin: insulin,
+                                          glucoseMmol: glucose, at: noteDate)
     }
 
     // MARK: Prefill
@@ -706,8 +763,6 @@ struct EditNoteSheet: View {
     @State private var durationMin: Int
     @State private var isSaving = false
 
-    private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
-
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
         self.onSave = onSave
@@ -784,7 +839,7 @@ struct EditNoteSheet: View {
         }
         Section("Meal") {
             Picker("Type", selection: $meal) {
-                ForEach(meals, id: \.self) { Text($0) }
+                ForEach(MealTypeDefaults.options(including: meal), id: \.self) { Text($0) }
             }
         }
         Section("Amounts") {
