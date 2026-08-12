@@ -20,6 +20,42 @@ struct PredictionChartPoint: Identifiable, Equatable {
     var id: String { String(format: "p_%.3f", time.timeIntervalSince1970) }
 }
 
+/// Anchoring for the dashed forecast series.
+///
+/// The backend emits its path at `anchorTime + step, +2·step, …`, where `anchorTime` is the
+/// moment the calculation ran - not the moment the chart draws. Pinning the dashed line to
+/// `Date()` therefore squeezes the model's entire first step into whatever time is left
+/// between "now" and the first emitted point. Just before a refresh that remainder is only
+/// seconds wide, so a normal 5-minute move renders as a vertical step at the solid/dashed
+/// join. Anchoring on the path's own origin gives that first segment its true width.
+enum ForecastAnchoring {
+    /// Emit interval assumed when the path is too short to measure one.
+    static let defaultStep: TimeInterval = 5 * 60
+
+    /// The instant the backend anchored the path on: first emitted point minus one interval.
+    static func origin(of path: [PredictionChartPoint]) -> Date? {
+        guard let first = path.first else { return nil }
+        let measured = path.count >= 2 ? path[1].time.timeIntervalSince(first.time) : defaultStep
+        return first.time.addingTimeInterval(-(measured > 0 ? measured : defaultStep))
+    }
+
+    /// The dashed series: the path capped to `horizonEnd`, prefixed with an anchor at the
+    /// path's own origin carrying the reading the backend started from. The band is pinched
+    /// shut at the anchor so the confidence cone fans out from it.
+    ///
+    /// Points already in the past are deliberately kept: when a response is stale the dashed
+    /// line visibly reaches back to where the model started, which is honest about its age
+    /// instead of disguising it as a jump.
+    static func series(path: [PredictionChartPoint],
+                       anchorMmol: Double,
+                       horizonEnd: Date) -> [PredictionChartPoint] {
+        let capped = path.filter { $0.time <= horizonEnd }
+        guard let origin = origin(of: capped) else { return [] }
+        return [PredictionChartPoint(time: origin, mmol: anchorMmol,
+                                     lower: anchorMmol, upper: anchorMmol)] + capped
+    }
+}
+
 /// Time window for dashboard glucose charts.
 struct GlucoseChartWindow {
     let historyLookback: TimeInterval?
@@ -112,9 +148,10 @@ struct GlucoseHistoryChart: View {
         return raw
     }
 
-    /// History extended by the prediction anchor so the solid line runs continuously to "now".
-    /// The bridge endpoint uses the raw current glucose (same value the backend started from)
-    /// so the solid and dashed lines share the same y-value at the "now" boundary.
+    /// History extended to meet the prediction anchor so the solid line runs continuously into
+    /// the dashed one. The bridge endpoint uses the raw current glucose (the value the backend
+    /// started from) so both lines share a y-value where they meet. No bridge is needed when
+    /// the anchor already sits at or before the last reading.
     private var bridgedHistory: [GlucoseChartPoint] {
         let base = displayHistory
         guard let anchor = futurePrediction.first else { return base }
@@ -142,20 +179,16 @@ struct GlucoseHistoryChart: View {
         return mn...(mx < cap ? mx : cap)
     }
 
-    /// Prediction points starting exactly at "now", capped to forecast horizon.
-    /// Drops past points, then prepends a synthetic anchor at Date() whose value
-    /// matches the raw current sensor reading (same value the backend started from),
-    /// eliminating the visual step caused by history smoothing vs. raw current glucose.
+    /// Prediction series capped to the forecast horizon and anchored on the path's own
+    /// origin - the moment the backend ran the calculation - rather than on `Date()`.
+    /// See `ForecastAnchoring` for why anchoring at "now" produced a step at the join.
     private var futurePrediction: [PredictionChartPoint] {
-        let now = Date()
-        let cap = now.addingTimeInterval(window.forecastHorizon)
-        let future = prediction.filter { $0.time > now && $0.time <= cap }
-        guard !future.isEmpty else { return [] }
-        let anchorMmol = currentGlucose ?? displayHistory.last?.mmol ?? future[0].mmol
-        // Pinch the band to zero width at "now" so the confidence cone fans out from the current value.
-        let anchor = PredictionChartPoint(time: now, mmol: anchorMmol,
-                                          lower: anchorMmol, upper: anchorMmol)
-        return [anchor] + future
+        let horizonEnd = Date().addingTimeInterval(window.forecastHorizon)
+        guard let anchorMmol = currentGlucose ?? displayHistory.last?.mmol ?? prediction.first?.mmol
+        else { return [] }
+        return ForecastAnchoring.series(path: prediction,
+                                        anchorMmol: anchorMmol,
+                                        horizonEnd: horizonEnd)
     }
 
     private var notesOnChart: [BackendAPI.GlucoseNote] {

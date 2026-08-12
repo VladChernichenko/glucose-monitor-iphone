@@ -46,6 +46,7 @@
 		700000000000000000000043 /* FoodModelsBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000044 /* FoodModelsBugTests.swift */; };
 		700000000000000000000046 /* UIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000047 /* UIBugTests.swift */; };
 		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
+		700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000091 /* ForecastAnchoringTests.swift */; };
 		700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000049 /* NutritionAPIServiceTests.swift */; };
 		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
 		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
@@ -164,6 +165,7 @@
 		600000000000000000000044 /* FoodModelsBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000047 /* UIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
+		600000000000000000000091 /* ForecastAnchoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastAnchoringTests.swift; sourceTree = "<group>"; };
 		600000000000000000000049 /* NutritionAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIServiceTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
 		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
@@ -332,6 +334,7 @@
 				600000000000000000000044 /* FoodModelsBugTests.swift */,
 				600000000000000000000047 /* UIBugTests.swift */,
 				600000000000000000000048 /* PreBolusTimerTests.swift */,
+				600000000000000000000091 /* ForecastAnchoringTests.swift */,
 				600000000000000000000049 /* NutritionAPIServiceTests.swift */,
 				60000000000000000000004A /* FoodModelsTests.swift */,
 				60000000000000000000004B /* ExperimentTests.swift */,
@@ -572,6 +575,7 @@
 				700000000000000000000043 /* FoodModelsBugTests.swift in Sources */,
 				700000000000000000000046 /* UIBugTests.swift in Sources */,
 				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
+				700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */,
 				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
 				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
 				70000000000000000000004A /* ExperimentTests.swift in Sources */,
