@@ -11,18 +11,56 @@ private func formReadonlyRow(label: String, valueText: String) -> some View {
     }
 }
 
+// MARK: - Meal type defaults
+
+/// Note types and the rules that pre-select one from the entry itself.
+enum MealTypeDefaults {
+    static let categories = ["Breakfast", "Lunch", "Dinner", "Pre-bolus", "Correction", "Other"]
+
+    /// At or above this glucose an insulin-only entry is a correction, not a pre-bolus.
+    static let correctionGlucoseThresholdMmol = 10.0
+
+    /// Meal windows: Breakfast 05:00-11:00, Lunch 11:00-16:00, Dinner 16:00-05:00.
+    /// Dinner covers the night so every carb entry lands on a named meal.
+    static func byTime(_ date: Date) -> String {
+        switch Calendar.current.component(.hour, from: date) {
+        case 5..<11:  return "Breakfast"
+        case 11..<16: return "Lunch"
+        default:      return "Dinner"
+        }
+    }
+
+    /// Insulin with no carbs is a pre-bolus below the correction threshold and a
+    /// correction at or above it; anything else falls back to the time window.
+    static func suggested(carbs: Double, insulin: Double,
+                          glucoseMmol: Double?, at date: Date) -> String {
+        if carbs == 0 && insulin > 0 {
+            return (glucoseMmol ?? 0) >= correctionGlucoseThresholdMmol ? "Correction" : "Pre-bolus"
+        }
+        return byTime(date)
+    }
+
+    /// Picker options: the current set, plus the note's own type when it is a
+    /// retired category (e.g. "Snack") so editing an old note never retags it.
+    static func options(including current: String) -> [String] {
+        categories.contains(current) ? categories : categories + [current]
+    }
+}
+
 // MARK: - Notes List
 
 // MARK: - Sheet state
 
 private enum NoteSheet: Identifiable {
     case add
+    case activity
     case edit(BackendAPI.GlucoseNote)
     case foodScan
 
     var id: String {
         switch self {
         case .add: return "add"
+        case .activity: return "activity"
         case .edit(let n): return n.id
         case .foodScan: return "foodScan"
         }
@@ -69,6 +107,7 @@ struct NotesView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 4) {
+                        activityButton
                         scanFoodButton
                         addNoteButton
                     }
@@ -82,6 +121,9 @@ struct NotesView: View {
                         selectedTab = 0
                     }
                     .environmentObject(appState)
+                case .activity:
+                    ActivityNoteSheet()
+                        .environmentObject(appState)
                 case .edit(let note):
                     EditNoteSheet(note: note) { body in
                         await appState.updateNote(id: note.id, body: body)
@@ -111,6 +153,16 @@ struct NotesView: View {
             Image(systemName: "plus")
         }
         .disabled(!appState.isAuthenticated)
+    }
+
+    private var activityButton: some View {
+        Button {
+            activeSheet = .activity
+        } label: {
+            Image(systemName: "figure.run")
+        }
+        .disabled(!appState.isAuthenticated)
+        .accessibilityLabel("Log activity")
     }
 
     private var scanFoodButton: some View {
@@ -143,7 +195,7 @@ struct NotesView: View {
                 .foregroundColor(.secondary)
             Text("No notes yet")
                 .font(.title2.bold())
-            Text("Tap + to log a meal or insulin dose.")
+            Text("Tap + to log a meal or insulin, or the run icon for activity.")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -160,7 +212,7 @@ struct NoteRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(note.meal.isEmpty ? "Note" : note.meal)
+                Text(activityRowTitle(note))
                     .font(.headline)
                 if note.isLongActing {
                     Text("Long-acting")
@@ -169,6 +221,15 @@ struct NoteRowView: View {
                         .padding(.vertical, 2)
                         .background(Color.indigo.opacity(0.15))
                         .foregroundColor(.indigo)
+                        .clipShape(Capsule())
+                }
+                if note.isActivity {
+                    Text("Activity")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.15))
+                        .foregroundColor(.green)
                         .clipShape(Capsule())
                 }
                 Spacer()
@@ -180,20 +241,34 @@ struct NoteRowView: View {
             }
 
             HStack(spacing: 12) {
-                if note.carbs > 0 {
-                    Label(String(format: "%.0f g carbs", note.carbs), systemImage: "fork.knife")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                if note.insulin > 0 {
-                    Label(String(format: "%.1f u", note.insulin), systemImage: "cross.vial")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                if let gv = appState.glucoseMmolForNoteRowDisplay(note) {
-                    Label(String(format: "%.1f", gv), systemImage: "drop.fill")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                if note.isActivity {
+                    if let minutes = note.durationMin, minutes > 0 {
+                        Label("\(minutes) min", systemImage: "timer")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    if let intensity = note.intensity,
+                       let level = BackendAPI.ActivityIntensityLevel(rawValue: intensity) {
+                        Label(level.title, systemImage: "flame")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else {
+                    if note.carbs > 0 {
+                        Label(String(format: "%.0f g carbs", note.carbs), systemImage: "fork.knife")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    if note.insulin > 0 {
+                        Label(String(format: "%.1f u", note.insulin), systemImage: "cross.vial")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    if let gv = appState.glucoseMmolForNoteRowDisplay(note) {
+                        Label(String(format: "%.1f", gv), systemImage: "drop.fill")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
 
@@ -205,6 +280,15 @@ struct NoteRowView: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private func activityRowTitle(_ note: BackendAPI.GlucoseNote) -> String {
+        if note.isActivity,
+           let raw = note.activityType,
+           let kind = BackendAPI.ActivityKind(rawValue: raw) {
+            return kind.title
+        }
+        return note.meal.isEmpty ? "Note" : note.meal
     }
 }
 
@@ -317,7 +401,8 @@ struct NoteEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var noteDate = Date()
-    @State private var meal = "Lunch"
+    @State private var meal = MealTypeDefaults.byTime(Date())
+    @State private var manualMealSelection = false
     @State private var carbs: Int = 0
     @State private var protein: Int = 0
     @State private var fat: Int = 0
@@ -328,14 +413,13 @@ struct NoteEditorSheet: View {
     @State private var prospectiveCalc: BackendAPI.GlucoseCalculationsResponse? = nil
     @State private var isFetchingProspective = false
 
-    private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
     private static let glucoseOptions: [Double] = [0.0] + stride(from: 1.0, through: 25.0, by: 0.1)
                                                        .map { ($0 * 10).rounded() / 10 }
 
     var body: some View {
         NavigationStack {
             List {
-                // ── Image (food scan photo or AR frame) ─────────────────────
+                // -- Image (food scan photo or AR frame) ---------------------
                 if let img = image {
                     Section {
                         Image(uiImage: img)
@@ -346,7 +430,7 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── AR volume scan card ──────────────────────────────────────
+                // -- AR volume scan card --------------------------------------
                 if let summary = arVolumeReport {
                     Section {
                         NutrientScanCard(summary: summary)
@@ -355,12 +439,12 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── Pre-bolus advice ─────────────────────────────────────────
+                // -- Pre-bolus advice -----------------------------------------
                 if let pause = snapshot?.preBolusPauseMinutes {
                     Section { preBolusBanner(pause: pause) }
                 }
 
-                // ── Detected foods ───────────────────────────────────────────
+                // -- Detected foods -------------------------------------------
                 // Prefer the per-food mass breakdown so each segment shows its
                 // total weight in grams; fall back to the name-only list.
                 if let breakdown = snapshot?.foodMassBreakdown, !breakdown.isEmpty {
@@ -381,7 +465,7 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // ── Nutrition summary (read-only) ────────────────────────────
+                // -- Nutrition summary (read-only) ----------------------------
                 if let snap = snapshot {
                     Section("Nutrition") {
                         nutritionRow("Carbs",          value: snap.totalCarbs,   unit: "g")
@@ -418,8 +502,11 @@ struct NoteEditorSheet: View {
                                displayedComponents: [.date, .hourAndMinute])
                 }
                 Section("Meal") {
-                    Picker("Type", selection: $meal) {
-                        ForEach(meals, id: \.self) { Text($0) }
+                    Picker("Type", selection: Binding(
+                        get: { meal },
+                        set: { manualMealSelection = true; meal = $0 }
+                    )) {
+                        ForEach(MealTypeDefaults.options(including: meal), id: \.self) { Text($0) }
                     }
                 }
                 Section("Amounts") {
@@ -464,13 +551,31 @@ struct NoteEditorSheet: View {
                 await appState.refreshGlucoseOnly()
                 prefillFromSnapshot()
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
+                refreshSuggestedMeal()
                 if snapshot != nil { await fetchProspectivePrediction() }
             }
             .onChange(of: noteDate) { _ in
                 glucoseWheelValue = 0.0
                 prefillGlucoseIfEmpty(appState.glucoseMmolForNewNote(at: noteDate))
+                refreshSuggestedMeal()
             }
+            .onChange(of: carbs) { _ in refreshSuggestedMeal() }
+            .onChange(of: insulin) { _ in refreshSuggestedMeal() }
+            .onChange(of: glucoseWheelValue) { _ in refreshSuggestedMeal() }
         }
+    }
+
+    // MARK: Meal type
+
+    /// Re-derive the pre-selected type from the current entry, until the user
+    /// picks a type by hand.
+    private func refreshSuggestedMeal() {
+        guard !manualMealSelection else { return }
+        let glucose = glucoseWheelValue > 0
+            ? glucoseWheelValue
+            : appState.glucoseMmolForNewNote(at: noteDate)
+        meal = MealTypeDefaults.suggested(carbs: Double(carbs), insulin: insulin,
+                                          glucoseMmol: glucose, at: noteDate)
     }
 
     // MARK: Prefill
@@ -521,7 +626,7 @@ struct NoteEditorSheet: View {
             if isFetchingProspective {
                 HStack(spacing: 6) {
                     ProgressView().scaleEffect(0.7)
-                    Text("Calculating meal impact…").font(.caption2).foregroundStyle(.secondary)
+                    Text("Calculating meal impact...").font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
@@ -538,7 +643,7 @@ struct NoteEditorSheet: View {
             if let v = value {
                 Text(String(format: "%.1f", v)).font(.title3.bold()).foregroundStyle(glucoseColor(v))
             } else {
-                Text("—").font(.title3.bold()).foregroundStyle(.secondary)
+                Text("-").font(.title3.bold()).foregroundStyle(.secondary)
             }
         }
         .frame(maxWidth: .infinity)
@@ -559,7 +664,7 @@ struct NoteEditorSheet: View {
                 Text(unit.isEmpty ? String(format: "%.0f", v)
                                   : String(format: "%.1f %@", v, unit))
                     .foregroundColor(.secondary)
-            } else { Text("—").foregroundColor(.secondary) }
+            } else { Text("-").foregroundColor(.secondary) }
         }
     }
 
@@ -571,7 +676,7 @@ struct NoteEditorSheet: View {
             VStack(alignment: .leading, spacing: 2) {
                 if pause == 0 {
                     Text("Bolus at meal start").font(.headline)
-                    Text("Split or post-meal bolus — inject when you begin eating")
+                    Text("Split or post-meal bolus - inject when you begin eating")
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
                     Text("Inject \(pause) min before eating").font(.headline)
@@ -584,10 +689,10 @@ struct NoteEditorSheet: View {
 
     private func preBolusPauseReason(pause: Int) -> String {
         switch pause {
-        case 20...: return "High-GI food — early injection prevents post-meal spike"
-        case 15..<20: return "Medium-GI food — pre-bolus improves peak control"
-        case 10..<15: return "Low-medium GI — short head-start recommended"
-        default:     return "Low-GI / high-fiber — minimal pre-bolus needed"
+        case 20...: return "High-GI food - early injection prevents post-meal spike"
+        case 15..<20: return "Medium-GI food - pre-bolus improves peak control"
+        case 10..<15: return "Low-medium GI - short head-start recommended"
+        default:     return "Low-GI / high-fiber - minimal pre-bolus needed"
         }
     }
 
@@ -653,18 +758,19 @@ struct EditNoteSheet: View {
     @State private var fiber: Int           // steps of 1 g
     @State private var insulin: Double      // steps of 0.5 u (iOS-3 fix)
     @State private var glucoseWheelValue: Double
+    @State private var activityKind: BackendAPI.ActivityKind
+    @State private var activityIntensity: BackendAPI.ActivityIntensityLevel
+    @State private var durationMin: Int
     @State private var isSaving = false
-
-    private let meals = ["Breakfast", "Lunch", "Dinner", "Snack", "Pre-bolus", "Correction", "Other"]
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
         _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
-        // iOS-3 fix: snap to 5g steps instead of 10g (35g → 35, not 40g)
+        // iOS-3 fix: snap to 5g steps instead of 10g (35g -> 35, not 40g)
         let roundedCarbs = min(100, max(0, Int((note.carbs / 5).rounded()) * 5))
-        // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u → 2.5, not 3u)
+        // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u -> 2.5, not 3u)
         let roundedInsulin = min(10.0, max(0.0, (note.insulin * 2).rounded() / 2))
         _carbs = State(initialValue: roundedCarbs)
         // Populate protein/fat/fiber from the stored nutrition profile (snap to the same step
@@ -676,55 +782,23 @@ struct EditNoteSheet: View {
         _insulin = State(initialValue: roundedInsulin)
         let snapped = note.glucoseValue.map { (($0 * 10).rounded() / 10) } ?? 0.0
         _glucoseWheelValue = State(initialValue: snapped)
+        let kind = note.activityType.flatMap { BackendAPI.ActivityKind(rawValue: $0) } ?? .walking
+        let intensity = note.intensity.flatMap { BackendAPI.ActivityIntensityLevel(rawValue: $0) } ?? .moderate
+        _activityKind = State(initialValue: kind)
+        _activityIntensity = State(initialValue: intensity)
+        _durationMin = State(initialValue: min(240, max(5, note.durationMin ?? 30)))
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
-                    Section("Photo") {
-                        NotePhotoThumbnail(urlString: photoUrl, width: nil, height: 220, contentMode: .fit)
-                            .frame(maxWidth: .infinity)
-                            .listRowInsets(EdgeInsets())
-                    }
-                }
-                Section("Insulin") {
-                    NoteDoubleStepSliderRow(
-                        title: "Units (u)", unit: "u",
-                        value: $insulin, range: 0...10, step: 0.5
-                    )
-                }
-                Section("Time") {
-                    DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                }
-                Section("Meal") {
-                    Picker("Type", selection: $meal) {
-                        ForEach(meals, id: \.self) { Text($0) }
-                    }
-                }
-                Section("Amounts") {
-                    NoteIntStepSliderRow(
-                        title: "Carbs (g)", unit: "g",
-                        value: $carbs, range: 0...100, step: 5
-                    )
-                    NoteIntStepSliderRow(
-                        title: "Protein (g)", unit: "g",
-                        value: $protein, range: 0...100, step: 5
-                    )
-                    NoteIntStepSliderRow(
-                        title: "Fat (g)", unit: "g",
-                        value: $fat, range: 0...100, step: 5
-                    )
-                    NoteIntStepSliderRow(
-                        title: "Fiber (g)", unit: "g",
-                        value: $fiber, range: 0...50, step: 1
-                    )
-                }
-                Section("Glucose") {
-                    NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
+                if note.isActivity {
+                    activityForm
+                } else {
+                    mealForm
                 }
             }
-            .navigationTitle("Edit Note")
+            .navigationTitle(note.isActivity ? "Edit activity" : "Edit Note")
             .task {
                 await appState.refreshGlucoseOnly()
             }
@@ -739,9 +813,78 @@ struct EditNoteSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: saveTapped)
-                        .disabled(isSaving)
+                        .disabled(isSaving || (note.isActivity && durationMin <= 0))
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var mealForm: some View {
+        if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
+            Section("Photo") {
+                NotePhotoThumbnail(urlString: photoUrl, width: nil, height: 220, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+                    .listRowInsets(EdgeInsets())
+            }
+        }
+        Section("Insulin") {
+            NoteDoubleStepSliderRow(
+                title: "Units (u)", unit: "u",
+                value: $insulin, range: 0...10, step: 0.5
+            )
+        }
+        Section("Time") {
+            DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+        }
+        Section("Meal") {
+            Picker("Type", selection: $meal) {
+                ForEach(MealTypeDefaults.options(including: meal), id: \.self) { Text($0) }
+            }
+        }
+        Section("Amounts") {
+            NoteIntStepSliderRow(
+                title: "Carbs (g)", unit: "g",
+                value: $carbs, range: 0...100, step: 5
+            )
+            NoteIntStepSliderRow(
+                title: "Protein (g)", unit: "g",
+                value: $protein, range: 0...100, step: 5
+            )
+            NoteIntStepSliderRow(
+                title: "Fat (g)", unit: "g",
+                value: $fat, range: 0...100, step: 5
+            )
+            NoteIntStepSliderRow(
+                title: "Fiber (g)", unit: "g",
+                value: $fiber, range: 0...50, step: 1
+            )
+        }
+        Section("Glucose") {
+            NoteGlucoseSliderRow(mmol: $glucoseWheelValue)
+        }
+    }
+
+    @ViewBuilder
+    private var activityForm: some View {
+        Section("Activity") {
+            Picker("Type", selection: $activityKind) {
+                ForEach(BackendAPI.ActivityKind.allCases) { kind in
+                    Label(kind.title, systemImage: kind.systemImage).tag(kind)
+                }
+            }
+            Picker("Intensity", selection: $activityIntensity) {
+                ForEach(BackendAPI.ActivityIntensityLevel.allCases) { level in
+                    Text(level.title).tag(level)
+                }
+            }
+            NoteIntStepSliderRow(
+                title: "Duration", unit: "min",
+                value: $durationMin, range: 5...240, step: 5
+            )
+        }
+        Section("Start time") {
+            DatePicker("Started", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
         }
     }
 
@@ -751,21 +894,36 @@ struct EditNoteSheet: View {
         Task {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
-            let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue : nil
-            let macroProfile: String? = (protein > 0 || fat > 0 || fiber > 0)
-                ? BackendAPI.macroNutritionProfileJson(
-                    carbs: Double(carbs), protein: Double(protein),
-                    fat: Double(fat), fiber: Double(fiber))
-                : nil
-            let body = BackendAPI.UpdateNoteBody(
-                timestamp: ts,
-                carbs: Double(carbs),
-                insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
-                meal: meal,
-                comment: nil,
-                glucoseValue: glucoseVal,
-                nutritionProfile: macroProfile
-            )
+            let body: BackendAPI.UpdateNoteBody
+            if note.isActivity {
+                body = BackendAPI.UpdateNoteBody(
+                    timestamp: ts,
+                    carbs: 0,
+                    insulin: 0,
+                    meal: activityKind.title,
+                    comment: note.comment,
+                    type: BackendAPI.NoteType.activity,
+                    activityType: activityKind.rawValue,
+                    intensity: activityIntensity.rawValue,
+                    durationMin: durationMin
+                )
+            } else {
+                let glucoseVal: Double? = glucoseWheelValue > 0 ? glucoseWheelValue : nil
+                let macroProfile: String? = (protein > 0 || fat > 0 || fiber > 0)
+                    ? BackendAPI.macroNutritionProfileJson(
+                        carbs: Double(carbs), protein: Double(protein),
+                        fat: Double(fat), fiber: Double(fiber))
+                    : nil
+                body = BackendAPI.UpdateNoteBody(
+                    timestamp: ts,
+                    carbs: Double(carbs),
+                    insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
+                    meal: meal,
+                    comment: nil,
+                    glucoseValue: glucoseVal,
+                    nutritionProfile: macroProfile
+                )
+            }
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)
             await MainActor.run {
@@ -805,7 +963,7 @@ struct CameraPickerView: UIViewControllerRepresentable {
                 parent.isPresented = false
                 return
             }
-            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum — silently saved every
+            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum - silently saved every
             // food/note photo to the user's Camera Roll without permission or consent.
             parent.isPresented = false
             parent.onCapture(image)
@@ -843,7 +1001,7 @@ struct FoodScanSheet: View {
                     Color.black.ignoresSafeArea()
                 } else if showARScanner {
                     // ARFoodScannerView runs the full pipeline internally
-                    // (segmentation → LiDAR volume → local nutrition lookup) and returns NutrientSummary.
+                    // (segmentation -> LiDAR volume -> local nutrition lookup) and returns NutrientSummary.
                     ARFoodScannerView(
                         onResult: { summary in
                             Task { @MainActor in
@@ -921,7 +1079,7 @@ struct FoodScanSheet: View {
                 Image(uiImage: img).resizable().scaledToFit()
                     .frame(maxHeight: 240).cornerRadius(12).padding(.horizontal)
             }
-            ProgressView("Recognizing nutrition…").font(.headline)
+            ProgressView("Recognizing nutrition...").font(.headline)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -947,7 +1105,7 @@ struct FoodScanSheet: View {
                 DispatchQueue.main.async { if granted { showCamera = true } else { dismiss() } }
             }
         default:
-            // Denied/restricted — open Settings so the user can re-enable
+            // Denied/restricted - open Settings so the user can re-enable
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
@@ -968,7 +1126,7 @@ struct FoodScanSheet: View {
         isAnalyzing = false
     }
 
-    // MARK: - NutrientSummary → NutritionSnapshot bridge
+    // MARK: - NutrientSummary -> NutritionSnapshot bridge
 
     /// Converts a NutrientSummary into the BackendAPI snapshot format needed by
     /// NoteEditorSheet for carb prefill and glucose forecasting.
@@ -1070,3 +1228,74 @@ struct LongActingInsulinSheet: View {
     }
 }
 
+// MARK: - Activity note
+
+/// Sheet for logging physical activity (type, intensity, duration, start time).
+struct ActivityNoteSheet: View {
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var kind: BackendAPI.ActivityKind = .walking
+    @State private var intensity: BackendAPI.ActivityIntensityLevel = .moderate
+    @State private var durationMin: Int = 30
+    @State private var startTime: Date = Date()
+    @State private var isSaving = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Activity") {
+                    Picker("Type", selection: $kind) {
+                        ForEach(BackendAPI.ActivityKind.allCases) { item in
+                            Label(item.title, systemImage: item.systemImage).tag(item)
+                        }
+                    }
+                    Picker("Intensity", selection: $intensity) {
+                        ForEach(BackendAPI.ActivityIntensityLevel.allCases) { level in
+                            Text(level.title).tag(level)
+                        }
+                    }
+                    NoteIntStepSliderRow(
+                        title: "Duration", unit: "min",
+                        value: $durationMin, range: 5...240, step: 5
+                    )
+                }
+                Section("Start time") {
+                    DatePicker(
+                        "Started",
+                        selection: $startTime,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                }
+                Section {
+                    Text("Logged activity feeds the glucose model during and after the session.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Log activity")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        isSaving = true
+                        Task {
+                            await appState.logActivity(
+                                kind: kind,
+                                intensity: intensity,
+                                durationMin: durationMin,
+                                at: startTime
+                            )
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving || durationMin <= 0)
+                }
+            }
+        }
+    }
+}

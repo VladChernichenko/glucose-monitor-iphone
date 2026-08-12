@@ -42,7 +42,7 @@ public final class NutritionAPIService {
     // swiftlint:disable opening_brace
     private static let table: [String: Entry] = [
 
-        // ── Sweets & desserts ──────────────────────────────────────────────────
+        // -- Sweets & desserts --------------------------------------------------
         "candy":               (400, 90.0,  0.0,  0.5, 70),
         "egg tart":            (280, 30.0,  7.0, 14.0, 55),
         "chocolate":           (546, 60.0,  5.0, 31.0, 40),
@@ -57,7 +57,7 @@ public final class NutritionAPIService {
         "tarts":               (280, 30.0,  7.0, 14.0, 55),
         "pineapple cake":      (320, 55.0,  4.0,  9.0, 65),
 
-        // ── Beverages ─────────────────────────────────────────────────────────
+        // -- Beverages ---------------------------------------------------------
         "wine":                ( 83,  2.6,  0.1,  0.0, nil),
         "milkshake":           (112, 18.0,  3.8,  3.0, 50),
         "coffee":              (  1,  0.0,  0.1,  0.0, nil),
@@ -65,7 +65,7 @@ public final class NutritionAPIService {
         "milk":                ( 61,  4.8,  3.2,  3.3, 31),
         "tea":                 (  1,  0.0,  0.0,  0.0, nil),
 
-        // ── Nuts & seeds ──────────────────────────────────────────────────────
+        // -- Nuts & seeds ------------------------------------------------------
         "almond":              (579, 22.0, 21.0, 50.0, 15),
         "red beans":           (127, 23.0,  8.0,  0.5, 24),
         "cashew":              (553, 33.0, 18.0, 44.0, 27),
@@ -75,12 +75,12 @@ public final class NutritionAPIService {
         "peanut":              (567, 16.0, 26.0, 49.0, 14),
         "chestnut":            (245, 53.0,  3.2,  1.3, 54),
 
-        // ── Eggs & dairy ──────────────────────────────────────────────────────
+        // -- Eggs & dairy ------------------------------------------------------
         "egg":                 (155,  1.1, 13.0, 11.0, nil),
         "cheese":              (402,  1.3, 25.0, 33.0, nil),
         "yogurt":              ( 59,  3.6,  3.5,  3.3, 36),
 
-        // ── Fruits ────────────────────────────────────────────────────────────
+        // -- Fruits ------------------------------------------------------------
         "apple":               ( 52, 14.0,  0.3,  0.2, 38),
         "date":                (277, 75.0,  1.8,  0.2, 42),
         "apricot":             ( 48, 11.0,  1.4,  0.4, 34),
@@ -103,7 +103,7 @@ public final class NutritionAPIService {
         "orange":              ( 47, 12.0,  0.9,  0.1, 40),
         "watermelon":          ( 30,  7.6,  0.6,  0.2, 72),
 
-        // ── Meats & seafood ───────────────────────────────────────────────────
+        // -- Meats & seafood ---------------------------------------------------
         "steak":               (271,  0.0, 26.0, 18.0, nil),
         "pork":                (242,  0.0, 27.0, 14.0, nil),
         "chicken duck":        (200,  0.0, 25.0, 10.0, nil),
@@ -118,16 +118,16 @@ public final class NutritionAPIService {
         "salmon":              (208,  0.0, 20.0, 13.0, nil),
         "beef":                (250,  0.0, 26.0, 15.0, nil),
 
-        // ── Condiments & sauces ───────────────────────────────────────────────
+        // -- Condiments & sauces -----------------------------------------------
         "sauce":               ( 80, 10.0,  1.0,  4.0, nil),
 
-        // ── Soups & stews ─────────────────────────────────────────────────────
+        // -- Soups & stews -----------------------------------------------------
         "soup":                ( 50,  6.0,  3.0,  1.5, 30),
         "stew":                (140, 10.0, 11.0,  5.0, 45),
         "curry":               (150, 12.0,  8.0,  8.0, 55),
         "porridge":            ( 71, 12.0,  2.5,  1.4, 55),
 
-        // ── Grains, breads & baked goods ──────────────────────────────────────
+        // -- Grains, breads & baked goods --------------------------------------
         "bread":               (265, 49.0,  9.0,  3.2, 75),
         "white bread":         (265, 49.0,  9.0,  3.2, 75),
         "wheat bread":         (247, 43.0, 11.0,  3.4, 69),
@@ -154,7 +154,7 @@ public final class NutritionAPIService {
         "french fries":        (312, 41.0,  3.4, 15.0, 63),
         "potato chips":        (536, 53.0,  7.0, 35.0, 56),
 
-        // ── Potato & root vegetables ──────────────────────────────────────────
+        // -- Potato & root vegetables ------------------------------------------
         "potato":              ( 77, 17.0,  2.0,  0.1, 78),
         "mashed potato":       ( 87, 18.0,  2.0,  1.0, 85),
         "sweet potato":        ( 86, 20.0,  1.6,  0.1, 61),
@@ -171,7 +171,7 @@ public final class NutritionAPIService {
         "garlic":              (149, 33.0,  6.4,  0.5, 30),
         "ginger":              ( 80, 18.0,  1.8,  0.8, 15),
 
-        // ── Other vegetables ──────────────────────────────────────────────────
+        // -- Other vegetables --------------------------------------------------
         "salad":               ( 20,  3.5,  1.5,  0.2, 15),
         "eggplant":            ( 25,  5.9,  1.0,  0.2, 15),
         "tomato":              ( 18,  3.9,  0.9,  0.2, 15),
@@ -198,7 +198,7 @@ public final class NutritionAPIService {
         "leek":                ( 61, 14.0,  1.5,  0.3, 15),
         "coriander":           ( 23,  3.7,  2.1,  0.5, nil),
 
-        // ── Herbs (fresh-weight values) ───────────────────────────────────────
+        // -- Herbs (fresh-weight values) ---------------------------------------
         "basil":               ( 23,  2.7,  3.2,  0.6, nil),
         "dill":                ( 43,  7.0,  3.5,  1.1, nil),
         "thyme":               (101, 24.0,  5.6,  1.7, nil),
@@ -213,7 +213,7 @@ public final class NutritionAPIService {
         "mint":                ( 70, 15.0,  3.8,  0.9, nil),
         "lemon grass":         ( 99, 25.0,  1.8,  0.5, nil),
 
-        // ── Mushrooms ─────────────────────────────────────────────────────────
+        // -- Mushrooms ---------------------------------------------------------
         "wood ear mushroom":    ( 25,  6.1,  0.5,  0.2, 15),
         "king oyster mushroom": ( 35,  6.3,  2.3,  0.4, 15),
         "shiitake":             ( 34,  6.8,  2.2,  0.5, 15),
@@ -223,7 +223,7 @@ public final class NutritionAPIService {
         "button mushroom":      ( 22,  3.3,  3.1,  0.3, 15),
         "truffle":              ( 52, 13.3,  3.3,  0.5, nil),
 
-        // ── Legumes & plant proteins ──────────────────────────────────────────
+        // -- Legumes & plant proteins ------------------------------------------
         "bean sprout":         ( 31,  5.9,  3.1,  0.2, 25),
         "mung bean":           (105, 19.0,  7.0,  0.4, 25),
         "lentil":              (116, 20.0,  9.0,  0.4, 29),
@@ -236,7 +236,7 @@ public final class NutritionAPIService {
         "seitan":              (370, 14.0, 75.0,  2.0, nil),
         "meat analogue":       (170, 10.0, 20.0,  5.0, nil),
 
-        // ── Generic fallback ──────────────────────────────────────────────────
+        // -- Generic fallback --------------------------------------------------
         "food":                (150, 20.0,  8.0,  5.0, 50),
     ]
     // swiftlint:enable opening_brace
@@ -252,7 +252,7 @@ public final class NutritionAPIService {
     /// - Parameters:
     ///   - label: Food label returned by the ML model (e.g. `"white rice"`).
     ///   - massG: Estimated cooked mass in grams (from LiDAR volume × density).
-    /// - Returns: Populated `NutrientData` — never nil.
+    /// - Returns: Populated `NutrientData` - never nil.
     public func fetchNutrition(label: String, massG: Double) -> NutrientData {
         let key = label.lowercased()
         let entry: Entry = Self.table[key]
@@ -271,5 +271,5 @@ public final class NutritionAPIService {
     }
 }
 
-// Spec alias — preserves backward compatibility with any code referencing NutritionService.
+// Spec alias - preserves backward compatibility with any code referencing NutritionService.
 public typealias NutritionService = NutritionAPIService

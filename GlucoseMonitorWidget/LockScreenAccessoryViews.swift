@@ -422,7 +422,7 @@ struct GlucoseLockWidgetEntryView: View {
         return ZStack {
             Color.black.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 0) {
-                // ── Top row ──────────────────────────────────────────────
+                // -- Top row ----------------------------------------------
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text("Glucose Monitor")
                         .font(.system(size: 11, weight: .semibold))
@@ -460,7 +460,7 @@ struct GlucoseLockWidgetEntryView: View {
                 .padding(.top, 8)
                 .padding(.bottom, 6)
 
-                // ── Chart ─────────────────────────────────────────────────
+                // -- Chart -------------------------------------------------
                 GlurooStyleChart(
                     points: snapshot.chartPointsMmol(),
                     chartHeight: 52,

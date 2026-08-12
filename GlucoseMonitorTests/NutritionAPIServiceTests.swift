@@ -2,7 +2,7 @@ import XCTest
 @testable import GlucoseMonitor
 
 /// Unit tests for NutrientData.glycemicLoad and NutritionAPIService.fetchNutrition.
-/// Pure business logic — no networking, no I/O.
+/// Pure business logic - no networking, no I/O.
 /// Pyramid layer: Unit (base).
 final class NutritionAPIServiceTests: XCTestCase {
 
@@ -32,20 +32,20 @@ final class NutritionAPIServiceTests: XCTestCase {
     }
 
     func testGlycemicLoad_zeroCarbs_yieldsZeroGL() {
-        // Even with a GI, zero carbs → GL = 0
+        // Even with a GI, zero carbs -> GL = 0
         let data = NutrientData(calories: 155, proteinG: 13, fatG: 11,
                                 carbsG: 0, glycemicIndex: 40)
         XCTAssertEqual(data.glycemicLoad!, 0.0, accuracy: 0.001)
     }
 
     func testGlycemicLoad_lowGI_lowCarbs() {
-        // GI=15 (almond), carbs=22g per 100g → GL = (15 × 22) / 100 = 3.3
+        // GI=15 (almond), carbs=22g per 100g -> GL = (15 × 22) / 100 = 3.3
         let data = NutrientData(calories: 579, proteinG: 21, fatG: 50,
                                 carbsG: 22, glycemicIndex: 15)
         XCTAssertEqual(data.glycemicLoad!, 3.3, accuracy: 0.01)
     }
 
-    // MARK: - NutritionAPIService.fetchNutrition — exact label match
+    // MARK: - NutritionAPIService.fetchNutrition - exact label match
 
     func testFetchNutrition_chocolate_exactMatch() {
         // Table entry: "chocolate": (546, 60.0, 5.0, 31.0, 40) per 100g
@@ -91,7 +91,7 @@ final class NutritionAPIServiceTests: XCTestCase {
         XCTAssertEqual(result.fatG,     0, accuracy: 0.001)
     }
 
-    // MARK: - Unknown label → generic fallback
+    // MARK: - Unknown label -> generic fallback
 
     func testFetchNutrition_unknownLabel_usesGenericFallback() {
         // Fallback: 150 kcal, 20g carbs, 8g protein, 5g fat, GI=50 per 100g
@@ -106,7 +106,7 @@ final class NutritionAPIServiceTests: XCTestCase {
     // MARK: - Substring match
 
     func testFetchNutrition_substringMatch_findsLongestKey() {
-        // "dark chocolate" contains "chocolate" → substring match returns chocolate entry
+        // "dark chocolate" contains "chocolate" -> substring match returns chocolate entry
         let darkChoc  = service.fetchNutrition(label: "dark chocolate",  massG: 100)
         let chocolate  = service.fetchNutrition(label: "chocolate",       massG: 100)
         // The matched entry should NOT be the generic fallback
@@ -116,7 +116,7 @@ final class NutritionAPIServiceTests: XCTestCase {
     }
 
     func testFetchNutrition_partialMatch_notEqualToFallback() {
-        // "almond cake" contains "almond" and "cake" — at least one key should match
+        // "almond cake" contains "almond" and "cake" - at least one key should match
         let result = service.fetchNutrition(label: "almond cake", massG: 100)
         XCTAssertNotEqual(result.calories, 150, accuracy: 1,
             "A label with known substrings must not fall through to the generic 150 kcal fallback")

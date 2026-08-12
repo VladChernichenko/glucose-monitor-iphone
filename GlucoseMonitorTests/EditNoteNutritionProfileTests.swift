@@ -2,7 +2,7 @@ import XCTest
 @testable import GlucoseMonitor
 
 /// Regression tests for editing an existing note: opening it for edit only populated the
-/// carbs slider — protein, fat and fiber were hardcoded to 0 instead of being read from
+/// carbs slider - protein, fat and fiber were hardcoded to 0 instead of being read from
 /// the note's stored `nutritionProfile`.
 /// CURRENT STATUS: FIXED via BackendAPI.initialMacroValues(from:), used by EditNoteSheet.init.
 /// These tests are REGRESSION GUARDS.
@@ -45,7 +45,7 @@ final class EditNoteNutritionProfileTests: XCTestCase {
 
     // MARK: - initialMacroValues (EditNoteSheet pre-population)
 
-    // BUG: opening an existing note for editing only showed carbs — protein/fat/fiber
+    // BUG: opening an existing note for editing only showed carbs - protein/fat/fiber
     // were hardcoded to 0 instead of being read from note.nutritionProfile.
     func testInitialMacroValues_populatesFromStoredNutritionProfile() {
         let note = makeNote(nutritionProfile:
@@ -118,7 +118,7 @@ final class EditNoteNutritionProfileTests: XCTestCase {
         XCTAssertEqual(macros.fiber, 6)
     }
 
-    // macroNutritionProfileJson omits zero macros entirely — reopening must show 0, not crash.
+    // macroNutritionProfileJson omits zero macros entirely - reopening must show 0, not crash.
     func testInitialMacroValues_roundTripsWithZeroMacros() {
         let json = BackendAPI.macroNutritionProfileJson(carbs: 35, protein: 0, fat: 0, fiber: 0)
         let note = makeNote(nutritionProfile: json)

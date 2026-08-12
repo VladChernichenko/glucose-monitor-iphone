@@ -15,7 +15,7 @@ struct VerificationDashboardView: View {
             } else if let summary = vm.summary {
                 summaryContent(summary)
             } else {
-                Text("No data yet — verification runs automatically as you log meals.")
+                Text("No data yet - verification runs automatically as you log meals.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -52,7 +52,7 @@ struct VerificationDashboardView: View {
             if s.suggestionReady {
                 suggestionCard(s)
             } else {
-                Text("Analysing your last \(s.nEvents) eligible meals…")
+                Text("Analysing your last \(s.nEvents) eligible meals...")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -74,7 +74,7 @@ struct VerificationDashboardView: View {
                     .font(.subheadline)
                 Group {
                     if let cur = currentCarbRatio {
-                        Text("Current: \(String(format: "%.2f", cur))  →  Suggested: \(String(format: "%.2f", cr))")
+                        Text("Current: \(String(format: "%.2f", cur))  ->  Suggested: \(String(format: "%.2f", cr))")
                             .font(.subheadline.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }

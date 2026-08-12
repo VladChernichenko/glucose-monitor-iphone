@@ -45,7 +45,7 @@ struct IsfMealWindowChart: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    Text("Observational estimate — refines daily.")
+                    Text("Observational estimate - refines daily.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -96,7 +96,7 @@ struct IsfMealWindowChart: View {
                                 .foregroundStyle(.primary)
                         }
                     } else {
-                        // Gap placeholder — a faint bar so the slot is visible
+                        // Gap placeholder - a faint bar so the slot is visible
                         BarMark(
                             x: .value("Meal", window.displayName),
                             y: .value("ISF", max(displayMax * 0.25, 0.5))
@@ -213,7 +213,7 @@ struct IsfMealWindowChart: View {
 struct BannerError: Identifiable {
     enum Kind {
         case load                      // failed to fetch / recompute the cached profile
-        case action(String)            // failed during a user action — verb (e.g. "start the ISF test")
+        case action(String)            // failed during a user action - verb (e.g. "start the ISF test")
     }
 
     let id = UUID()
@@ -230,7 +230,7 @@ struct BannerError: Identifiable {
 
     var icon: String {
         switch httpStatus {
-        case 409:           return "lock.shield"        // conflict — precondition not met
+        case 409:           return "lock.shield"        // conflict - precondition not met
         case .some(401),
              .some(403):    return "person.crop.circle.badge.exclamationmark"
         case .some(let s) where (500..<600).contains(s):
@@ -249,7 +249,7 @@ struct BannerError: Identifiable {
         return BannerError(kind: .action(verb), httpStatus: parsed.status, message: parsed.message)
     }
 
-    /// Best-effort parse of `APIError.httpStatus(code, body)` — extracts the Spring
+    /// Best-effort parse of `APIError.httpStatus(code, body)` - extracts the Spring
     /// envelope's {@code message} field, falling back to the body or the localised
     /// description.
     private static func parse(_ error: Error) -> (status: Int?, message: String) {
@@ -261,7 +261,7 @@ struct BannerError: Identifiable {
         return (nil, error.localizedDescription)
     }
 
-    /// Decodes Spring's `{ "status":…, "error":…, "message":…, "path":…, "timestamp":… }`
+    /// Decodes Spring's `{ "status":..., "error":..., "message":..., "path":..., "timestamp":... }`
     /// envelope and returns the `message`. Returns nil if the body isn't that shape.
     private static func extractMessage(from body: String?) -> String? {
         guard let body, let data = body.data(using: .utf8) else { return nil }

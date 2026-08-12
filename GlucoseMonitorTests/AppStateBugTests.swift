@@ -12,8 +12,8 @@ final class AppStateBugTests: XCTestCase {
 
     // MARK: - iOS-1: deleteNote must NOT remove from local array when the API call fails
 
-    // BUG: iOS-1 — deleteNote removes from local array even when API call fails
-    // Before fix: used try? — on error, note was removed from notes anyway
+    // BUG: iOS-1 - deleteNote removes from local array even when API call fails
+    // Before fix: used try? - on error, note was removed from notes anyway
     // After fix: only removes on success (uses try + catch)
     // CURRENT STATUS: FIXED in AppState.swift.  This test is a REGRESSION GUARD.
     func testDeleteNote_apiFailure_doesNotRemoveFromLocalArray() async {
@@ -42,7 +42,7 @@ final class AppStateBugTests: XCTestCase {
 
     // MARK: - iOS-2: createNote must surface errors, not silently swallow them
 
-    // BUG: iOS-2 — createNote/updateNote errors silently swallowed via try?
+    // BUG: iOS-2 - createNote/updateNote errors silently swallowed via try?
     // CURRENT STATUS: FIXED.  This test is a REGRESSION GUARD.
     func testCreateNote_apiFailure_setsErrorMessage() async {
         let appState = AppState()
@@ -63,7 +63,7 @@ final class AppStateBugTests: XCTestCase {
             + "If nil, the error is being swallowed (try? regression).")
     }
 
-    // BUG: iOS-2 — updateNote errors silently swallowed via try?
+    // BUG: iOS-2 - updateNote errors silently swallowed via try?
     // CURRENT STATUS: FIXED.  This test is a REGRESSION GUARD.
     func testUpdateNote_apiFailure_setsErrorMessage() async {
         let appState = AppState()
@@ -80,7 +80,7 @@ final class AppStateBugTests: XCTestCase {
 
     // MARK: - iOS-8: startAutoRefreshIfNeeded must call fetchNotes() periodically
 
-    // BUG: iOS-8 — startAutoRefreshIfNeeded loop never calls fetchNotes()
+    // BUG: iOS-8 - startAutoRefreshIfNeeded loop never calls fetchNotes()
     // After fix: fetchNotes is called on every second glucose cycle (cycle % 2 == 0).
     // CURRENT STATUS: FIXED.  This test is a REGRESSION GUARD.
     //
@@ -100,13 +100,13 @@ final class AppStateBugTests: XCTestCase {
         XCTAssert(
             true,
             "iOS-8: fetchNotes must be called inside the refresh loop on cycle%2==0. "
-            + "Verified by code inspection — see AppState.startAutoRefreshIfNeeded().")
+            + "Verified by code inspection - see AppState.startAutoRefreshIfNeeded().")
     }
 
     // MARK: - I4: uploadNotePhoto must surface errors, not silently swallow via try?
 
-    // BUG: I4 — AppState.uploadNotePhoto errors silently swallowed via try?
-    // CURRENT STATUS: NOT FIXED — uploadNotePhoto uses `if let updated = try? …`.
+    // BUG: I4 - AppState.uploadNotePhoto errors silently swallowed via try?
+    // CURRENT STATUS: NOT FIXED - uploadNotePhoto uses `if let updated = try? ...`.
     // This test CURRENTLY FAILS and should pass once the fix is applied.
     func testUploadNotePhoto_apiFailure_setsErrorMessage() async {
 #if canImport(UIKit)
@@ -117,8 +117,8 @@ final class AppStateBugTests: XCTestCase {
         let img = UIImage()
         await appState.uploadNotePhoto(noteId: "note-1", image: img)
 
-        // With try?, the error is swallowed silently → errorMessage stays nil (buggy).
-        // With try + catch, errorMessage is set → test passes (fixed).
+        // With try?, the error is swallowed silently -> errorMessage stays nil (buggy).
+        // With try + catch, errorMessage is set -> test passes (fixed).
         XCTAssertNotNil(
             appState.errorMessage,
             "I4: uploadNotePhoto must set errorMessage when the upload fails. "
@@ -222,7 +222,7 @@ final class AppStateBugTests: XCTestCase {
 
     // MARK: - I5: autoRefreshTask must be cancelled when AppState is deallocated
 
-    // BUG: I5 — autoRefreshTask not cancelled in deinit (no deinit on @MainActor final class)
+    // BUG: I5 - autoRefreshTask not cancelled in deinit (no deinit on @MainActor final class)
     // CURRENT STATUS: The fix requires adding a deinit to AppState.
     // Since AppState is @MainActor, deinit runs on the main actor executor.
     // This test documents the expected memory-management contract.
@@ -234,8 +234,8 @@ final class AppStateBugTests: XCTestCase {
         var appState: AppState? = AppState()
         appState?.startAutoRefreshIfNeeded()
 
-        // Release: on a properly implemented AppState, this triggers deinit →
-        // autoRefreshTask.cancel() → the loop terminates on next iteration.
+        // Release: on a properly implemented AppState, this triggers deinit ->
+        // autoRefreshTask.cancel() -> the loop terminates on next iteration.
         appState = nil
 
         // We cannot directly inspect Task cancellation from outside the class,

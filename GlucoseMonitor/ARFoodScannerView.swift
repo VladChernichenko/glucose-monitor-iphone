@@ -24,7 +24,7 @@ struct ARSceneViewWrapper: UIViewRepresentable {
 
 /// Full-screen AR view that:
 ///   1. Streams the live camera + LiDAR feed.
-///   2. On "Capture" tap: runs FoodSegModel → depth integration → local nutrition lookup.
+///   2. On "Capture" tap: runs FoodSegModel -> depth integration -> local nutrition lookup.
 ///   3. Calls `onResult` with the complete `NutrientSummary`.
 struct ARFoodScannerView: View {
     let onResult:  (NutrientSummary) -> Void
@@ -61,14 +61,14 @@ struct ARFoodScannerView: View {
             case .idle:
                 return ("camera", "Point at food to begin", .gray)
             case .capturing:
-                let note = sessionMgr.isLiDARAvailable ? "LiDAR active" : "No LiDAR — use flat surface"
-                return ("viewfinder", "Hold steady · \(note)", .green)
+                let note = sessionMgr.isLiDARAvailable ? "LiDAR active" : "No LiDAR - use flat surface"
+                return ("viewfinder", "Hold steady * \(note)", .green)
             case .processingVision:
-                return ("cpu", "Detecting food items…", .blue)
+                return ("cpu", "Detecting food items...", .blue)
             case .verifyingWithQwen:
-                return ("checkmark.shield", "Verifying with Qwen…", .indigo)
+                return ("checkmark.shield", "Verifying with Qwen...", .indigo)
             case .fetchingNutrition(let p, let t):
-                return ("network", "Nutrition \(p)/\(t)…", .blue)
+                return ("network", "Nutrition \(p)/\(t)...", .blue)
             case .done:
                 return ("checkmark.seal.fill", "Done!", .green)
             case .failed(let m):
@@ -132,11 +132,11 @@ struct ARFoodScannerView: View {
 
     private func captureAndProcess() {
         guard let frame = sessionMgr.captureCurrentFrame() else {
-            sessionMgr.scanState = .failed("No frame yet — point at food and retry.")
+            sessionMgr.scanState = .failed("No frame yet - point at food and retry.")
             return
         }
         isProcessing = true
-        processingMsg = "Running food segmentation…"
+        processingMsg = "Running food segmentation..."
         Task { await runPipeline(frame: frame) }
     }
 
@@ -148,12 +148,12 @@ struct ARFoodScannerView: View {
         let imgSize = CGSize(width:  CVPixelBufferGetWidth(frame.capturedImage),
                              height: CVPixelBufferGetHeight(frame.capturedImage))
 
-        // ── Step 1: Segmentation ──────────────────────────────────────────────
+        // -- Step 1: Segmentation ----------------------------------------------
         // Primary path: FoodSegModel CoreML (instance segmentation with pixel masks).
         // Fallback:     VNClassifyImageRequest (Apple built-in, no custom model needed).
-        //               Produces a whole-image mask per detected food label — volume
+        //               Produces a whole-image mask per detected food label - volume
         //               is integrated over the full plate region, still useful for
-        //               density → mass → local nutrition lookup.
+        //               density -> mass -> local nutrition lookup.
         let segments: [SegmentationResult]
         if let svc = recognizer {
             do {
@@ -163,7 +163,7 @@ struct ARFoodScannerView: View {
                 return
             }
         } else {
-            // FoodSegModel not bundled — fall back to Vision classifier.
+            // FoodSegModel not bundled - fall back to Vision classifier.
             segments = await classifyWithVision(pixelBuffer: frame.capturedImage, imageSize: imgSize)
         }
 
@@ -172,13 +172,13 @@ struct ARFoodScannerView: View {
             return
         }
 
-        // ── Step 1.5: Qwen double-check ───────────────────────────────────────
+        // -- Step 1.5: Qwen double-check ---------------------------------------
         // Send the captured frame to the backend (Qwen-VL) and reconcile labels.
         // On any failure we silently keep the raw YOLO results.
         let verifiedSegments: [SegmentationResult]
         if let uiImage = UIImage(cvPixelBuffer: frame.capturedImage) {
             sessionMgr.scanState = .verifyingWithQwen
-            processingMsg = "Verifying with Qwen…"
+            processingMsg = "Verifying with Qwen..."
             do {
                 let snap = try await BackendAPI.analyzePhotoNutrition(image: uiImage)
                 let qwenFoods = snap.normalizedFoods ?? []
@@ -186,14 +186,14 @@ struct ARFoodScannerView: View {
                     ? segments
                     : reconcileWithQwen(yolo: segments, qwenFoods: qwenFoods, imageSize: imgSize)
             } catch {
-                // Qwen unavailable or timed out — proceed with YOLO labels
+                // Qwen unavailable or timed out - proceed with YOLO labels
                 verifiedSegments = segments
             }
         } else {
             verifiedSegments = segments
         }
 
-        // ── Step 2: Volume → Mass → Nutrition per segment ─────────────────────
+        // -- Step 2: Volume -> Mass -> Nutrition per segment ---------------------
         let depthMap   = frame.sceneDepth?.depthMap
         let intrinsics = frame.camera.intrinsics
         var components: [FoodComponent] = []
@@ -250,7 +250,7 @@ struct ARFoodScannerView: View {
         sessionMgr.scanState = .fetchingNutrition(progress: 0, total: groupedVolume.count)
 
         for (idx, (label, totalVolume)) in groupedVolume.enumerated() {
-            processingMsg = "Fetching nutrition for \(label)…"
+            processingMsg = "Fetching nutrition for \(label)..."
             sessionMgr.scanState = .fetchingNutrition(progress: idx + 1,
                                                        total: groupedVolume.count)
 
@@ -276,7 +276,7 @@ struct ARFoodScannerView: View {
             return
         }
 
-        // ── Step 3: Build summary ─────────────────────────────────────────────
+        // -- Step 3: Build summary ---------------------------------------------
         guard let uiImage = UIImage(cvPixelBuffer: frame.capturedImage) else {
             sessionMgr.scanState = .failed("Failed to capture preview image.")
             return
@@ -357,7 +357,7 @@ struct ARFoodScannerView: View {
     //
     // Uses Apple's VNClassifyImageRequest (~1000 categories including most foods).
     // Returns up to 3 deduplicated food classifications, each backed by a whole-image
-    // mask. Labels are normalized (underscores → spaces) and grouped by their base food
+    // mask. Labels are normalized (underscores -> spaces) and grouped by their base food
     // word so that "food", "bread", and "white bread" don't all map to separate items.
     private func classifyWithVision(pixelBuffer: CVPixelBuffer,
                                     imageSize: CGSize) async -> [SegmentationResult] {
@@ -373,7 +373,7 @@ struct ARFoodScannerView: View {
                     .filter { $0.confidence > 0.20 }
                     .sorted { $0.confidence > $1.confidence }
 
-                // Normalize identifier: underscores → spaces, take first comma-segment.
+                // Normalize identifier: underscores -> spaces, take first comma-segment.
                 func normalize(_ id: String) -> String {
                     id.replacingOccurrences(of: "_", with: " ")
                       .components(separatedBy: ",").first?
@@ -382,7 +382,7 @@ struct ARFoodScannerView: View {
                 }
 
                 // Group by base food word; keep only the highest-confidence label per group.
-                // "white bread" and "bread" both map to group "bread" → one item retained.
+                // "white bread" and "bread" both map to group "bread" -> one item retained.
                 var grouped: [String: VNClassificationObservation] = [:]
                 for obs in candidates {
                     let label = normalize(obs.identifier)
@@ -503,14 +503,14 @@ struct NutrientScanCard: View {
                 .font(.headline).foregroundStyle(.blue)
 
             if summary.components.isEmpty {
-                Text("No food detected above the plate — try rescanning.")
+                Text("No food detected above the plate - try rescanning.")
                     .font(.callout).foregroundStyle(.secondary)
             } else {
                 ForEach(summary.components) { comp in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(comp.label.capitalized).font(.callout.bold())
-                            Text("\(Int(comp.massG.rounded()))g · \(Int(comp.volumeCm3.rounded())) cm³")
+                            Text("\(Int(comp.massG.rounded()))g * \(Int(comp.volumeCm3.rounded())) cm³")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -554,7 +554,7 @@ struct FoodComponentCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(component.label.capitalized).font(.callout.bold())
-                    Text("\(Int(component.massG.rounded()))g · \(Int(component.volumeCm3.rounded())) cm³")
+                    Text("\(Int(component.massG.rounded()))g * \(Int(component.volumeCm3.rounded())) cm³")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

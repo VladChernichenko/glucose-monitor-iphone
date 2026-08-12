@@ -21,13 +21,13 @@ final class ExperimentAlarmManager {
 
     /// Schedule alarms for an experiment starting now.
     ///
-    /// Per-checkpoint "record your glucose" reminders are omitted — readings are
+    /// Per-checkpoint "record your glucose" reminders are omitted - readings are
     /// auto-captured from the CGM. Drift safety alerts are fired dynamically by
     /// ExperimentRunView via fireSafetyNotification(_:title:body:).
     ///
     /// One alarm IS scheduled here: a single "you can finish now" notification at the
     /// final checkpoint. Without it a 4-hour silent Basal Check has zero signal that
-    /// it's ready — the user just leaves it running forever.
+    /// it's ready - the user just leaves it running forever.
     func scheduleAlarms(for type: ExperimentType, experimentId: UUID) async {
         await requestPermissionIfNeeded()
         await cancelAlarms(for: experimentId)
@@ -40,7 +40,7 @@ final class ExperimentAlarmManager {
         guard fireInMinutes > 0 else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "✅ \(type.title) — ready to finish"
+        content.title = "✅ \(type.title) - ready to finish"
         content.body  = "Your experiment has been running long enough. Open the app to see the result."
         content.sound = .default
         if #available(iOS 15, *) { content.interruptionLevel = .timeSensitive }
@@ -97,7 +97,7 @@ final class ExperimentAlarmManager {
 
         let content = UNMutableNotificationContent()
         content.title = "🧹 Background Clean"
-        content.body  = "Your IOB and COB are clear — you can start the \(experimentType.title) now."
+        content.body  = "Your IOB and COB are clear - you can start the \(experimentType.title) now."
         content.sound = .default
 
         let trigger = UNTimeIntervalNotificationTrigger(

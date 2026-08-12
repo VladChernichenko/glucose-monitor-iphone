@@ -120,7 +120,10 @@ struct DashboardView: View {
     @State private var showVersion = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
+    @State private var showActivity = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
+    @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
+    @State private var isfSuggestionBusy = false
 
     var body: some View {
         NavigationStack {
@@ -130,6 +133,9 @@ struct DashboardView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 16) {
+                            if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
+                                isfSuggestionBanner(suggestion)
+                            }
                             if experimentVM.hasActiveExperiment, let exp = experimentVM.activeExperiment {
                                 Button { showExperimentRun = true } label: {
                                     HStack(spacing: 10) {
@@ -238,6 +244,10 @@ struct DashboardView: View {
                 )
                 .environmentObject(appState)
             }
+            .sheet(isPresented: $showActivity) {
+                ActivityNoteSheet()
+                    .environmentObject(appState)
+            }
             .sheet(item: $noteToEdit) { note in
                 EditNoteSheet(note: note) { body in
                     await appState.updateNote(id: note.id, body: body)
@@ -255,7 +265,111 @@ struct DashboardView: View {
                     }
                     await appState.fetchNotes()
                 }
+                await loadIsfSuggestion()
             }
+        }
+    }
+
+    // MARK: - Morning ISF suggestion banner
+
+    /// Local morning window (05:00-11:00) - banner only surfaces then even if the server says show.
+    private var isLocalMorning: Bool {
+        let hour = Calendar.current.component(.hour, from: Date())
+        return (5 ..< 11).contains(hour)
+    }
+
+    private func shouldShowIsfBanner(_ suggestion: BackendAPI.IsfMealWindowSuggestion) -> Bool {
+        suggestion.show && isLocalMorning && !suggestion.proposalLines.isEmpty
+    }
+
+    @ViewBuilder
+    private func isfSuggestionBanner(_ suggestion: BackendAPI.IsfMealWindowSuggestion) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.purple)
+                Text("Updated ISF ready")
+                    .font(.subheadline.bold())
+                Spacer()
+            }
+            Text("Based on your recent data, we suggest refining meal-window ISF. Review and apply, or dismiss for a few days.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(suggestion.proposalLines) { w in
+                HStack {
+                    Text(w.displayName)
+                        .font(.caption.weight(.medium))
+                    Spacer()
+                    if let cur = w.currentIsf, let prop = w.proposedIsf {
+                        Text(String(format: "%.2f ? %.2f", cur, prop))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            HStack(spacing: 10) {
+                Button {
+                    Task { await dismissIsfSuggestion() }
+                } label: {
+                    Text("Not now")
+                        .font(.subheadline.weight(.medium))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isfSuggestionBusy)
+
+                Button {
+                    Task { await acceptIsfSuggestion() }
+                } label: {
+                    Text("Apply")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .disabled(isfSuggestionBusy)
+            }
+        }
+        .padding()
+        .background(Color.purple.opacity(0.10))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.purple.opacity(0.35), lineWidth: 1)
+        )
+    }
+
+    private func loadIsfSuggestion() async {
+        guard appState.isAuthenticated, isLocalMorning else {
+            isfSuggestion = nil
+            return
+        }
+        do {
+            isfSuggestion = try await BackendAPI.fetchIsfMealWindowSuggestion()
+        } catch {
+            isfSuggestion = nil
+        }
+    }
+
+    private func acceptIsfSuggestion() async {
+        isfSuggestionBusy = true
+        defer { isfSuggestionBusy = false }
+        do {
+            try await BackendAPI.acceptIsfMealWindowSuggestion()
+            isfSuggestion = nil
+        } catch {
+            appState.errorMessage = "Could not apply ISF suggestion."
+        }
+    }
+
+    private func dismissIsfSuggestion() async {
+        isfSuggestionBusy = true
+        defer { isfSuggestionBusy = false }
+        do {
+            try await BackendAPI.dismissIsfMealWindowSuggestion()
+            isfSuggestion = nil
+        } catch {
+            isfSuggestion = nil
         }
     }
 
@@ -606,7 +720,7 @@ struct DashboardView: View {
             if appState.isLoadingNotes && appState.notes.isEmpty {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("Loading notes…")
+                    Text("Loading notes???")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -696,6 +810,10 @@ struct DashboardView: View {
                 .font(.headline)
             VStack(spacing: 0) {
                 longActingActionRow
+                Divider()
+                Button { showActivity = true } label: {
+                    quickActionRow(title: "Log activity", systemImage: "figure.run")
+                }
                 Divider()
                 Button { showAI = true } label: {
                     quickActionRow(title: "AI insights", systemImage: "sparkles")

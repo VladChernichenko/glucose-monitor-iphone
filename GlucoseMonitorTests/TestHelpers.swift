@@ -16,7 +16,7 @@ final class FailingURLProtocol: URLProtocol {
 /// responses; successive requests to the same path consume the queue in order so a
 /// single test can model "first call fails, second call succeeds".
 ///
-/// Always call `StubURLProtocol.reset()` from your test's tearDown — the registry is
+/// Always call `StubURLProtocol.reset()` from your test's tearDown - the registry is
 /// process-global because URLProtocol registration is global.
 final class StubURLProtocol: URLProtocol {
 

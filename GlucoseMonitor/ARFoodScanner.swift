@@ -113,13 +113,13 @@ public typealias ARKitManager = ARSessionManager
 // dual-tensor output into per-instance binary segmentation masks.
 //
 // Tensor layout:
-//   "output0" → [1, N, 4 + C + K]
+//   "output0" -> [1, N, 4 + C + K]
 //       N = 8400 candidate boxes (YOLO grid)
 //       4 = (cx, cy, w, h)  normalised box
 //       C = 154             class scores (FoodSeg154)
 //       K = 32              mask prototype coefficients
 //
-//   "output1" → [1, K, H, W]
+//   "output1" -> [1, K, H, W]
 //       K = 32, H = W = 160  prototype mask bank
 //
 // Per-detection mask assembly (Accelerate-accelerated):
@@ -127,7 +127,7 @@ public typealias ARKitManager = ARSessionManager
 //   mask[i] = sigmoid(raw[i]) > 0.5
 //
 //   Using cblas_sgemv this collapses the K-dimension across all H×W pixels in a
-//   single BLAS call (~10–100× faster than nested Swift loops).
+//   single BLAS call (~10-100× faster than nested Swift loops).
 
 public final class FoodRecognitionService {
 
@@ -168,7 +168,7 @@ public final class FoodRecognitionService {
     //
     // CoreML export renames tensors; actual output names are var_1325 / var_1363.
     // Tensor layout from export: det = [1, F, N]  where F=190=(4+154+32), N=8400
-    // (PyTorch-style channel-first — transposed vs the original [1, N, F] assumption)
+    // (PyTorch-style channel-first - transposed vs the original [1, N, F] assumption)
 
     private static func decode(observations: [VNCoreMLFeatureValueObservation],
                                imageSize: CGSize) -> [SegmentationResult] {
@@ -212,7 +212,7 @@ public final class FoodRecognitionService {
             }
         }
 
-        // ── Copy proto tensor to a contiguous Float32 buffer [K × pPixels] ──────
+        // -- Copy proto tensor to a contiguous Float32 buffer [K × pPixels] ------
         let protoFlat: [Float] = (0..<K * pPixels).map { idx in
             let k = idx / pPixels
             let i = idx % pPixels
@@ -231,7 +231,7 @@ public final class FoodRecognitionService {
             }
             guard bestScore >= confThreshold else { continue }
 
-            // Decode bounding box — divide by imgsz to normalise to [0, 1].
+            // Decode bounding box - divide by imgsz to normalise to [0, 1].
             let cx = detVal(candidate: i, feature: 0) / imgsz
             let cy = detVal(candidate: i, feature: 1) / imgsz
             let bw = detVal(candidate: i, feature: 2) / imgsz
@@ -243,7 +243,7 @@ public final class FoodRecognitionService {
                 coeffs[k] = detVal(candidate: i, feature: 4 + C + k)
             }
 
-            // ── Accelerate: raw[j] = Σ_k coeffs[k] × protoFlat[k * pPixels + j] ──
+            // -- Accelerate: raw[j] = Σ_k coeffs[k] × protoFlat[k * pPixels + j] --
             var raw = [Float](repeating: 0, count: pPixels)
             cblas_sgemv(CblasRowMajor, CblasTrans,
                         Int32(K), Int32(pPixels),
@@ -271,7 +271,7 @@ public final class FoodRecognitionService {
         return nms(results, iouThreshold: 0.30)
     }
 
-    /// Non-Maximum Suppression — removes overlapping detections of the same class.
+    /// Non-Maximum Suppression - removes overlapping detections of the same class.
     private static func nms(_ results: [SegmentationResult],
                              iouThreshold: Float) -> [SegmentationResult] {
         let sorted = results.sorted { $0.confidence > $1.confidence }
@@ -311,7 +311,7 @@ public typealias VisionProcessor = FoodRecognitionService
 //   2. For each image pixel (u, v) inside the food mask:
 //        a. z_food = LiDAR depth at (u, v), in metres (Float32).
 //        b. Height above plate:  h = z_ref − z_food
-//           (food is closer to camera → smaller z → positive h).
+//           (food is closer to camera -> smaller z -> positive h).
 //        c. Physical footprint of one pixel at depth z_food (thin-lens geometry):
 //              Δx = z_food / fx   [m / px]
 //              Δy = z_food / fy   [m / px]
@@ -335,7 +335,7 @@ public struct VolumeCalculator {
         let dH = CVPixelBufferGetHeight(depthMap)
         let iW = Int(imageSize.width)
         let iH = Int(imageSize.height)
-        // Scale factors — depth map resolution may differ from RGB frame resolution.
+        // Scale factors - depth map resolution may differ from RGB frame resolution.
         let sx = Double(dW) / Double(iW)
         let sy = Double(dH) / Double(iH)
 
@@ -374,7 +374,7 @@ public struct VolumeCalculator {
         }
         let cm3 = totalM3 * m3ToCm3
         // Sanity cap: no single food item on a plate exceeds 3 litres (3000 cm³).
-        // Values above this indicate bad LiDAR data or intrinsics — clamp rather
+        // Values above this indicate bad LiDAR data or intrinsics - clamp rather
         // than return garbage that inflates calorie estimates by 6 orders of magnitude.
         return min(cm3, 3000.0)
     }

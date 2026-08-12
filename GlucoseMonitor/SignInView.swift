@@ -152,4 +152,3 @@ private struct SignInForm: View {
         }
     }
 }
-

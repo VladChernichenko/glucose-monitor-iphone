@@ -273,7 +273,7 @@ final class AppState: ObservableObject {
 
     /// IOB shown on the dashboard. Single source of truth: the backend's `activeInsulinOnBoard`
     /// from `/api/glucose-calculations/`. We deliberately do NOT fall back to a client-side
-    /// note estimate — that fallback made the dashboard disagree with the Experiments tab
+    /// note estimate - that fallback made the dashboard disagree with the Experiments tab
     /// (which reads the backend directly). Both screens now show the same backend value.
     var displayedIOB: Double? {
         calculations?.activeInsulinOnBoard
@@ -652,6 +652,37 @@ final class AppState: ObservableObject {
             notes.append(note)
         } catch {
             errorMessage = "Failed to log long-acting insulin: \(error.localizedDescription)"
+        }
+    }
+
+    /// Logs a physical-activity note that drives the model's activity signal.
+    func logActivity(
+        kind: BackendAPI.ActivityKind,
+        intensity: BackendAPI.ActivityIntensityLevel,
+        durationMin: Int,
+        at time: Date,
+        comment: String? = nil
+    ) async {
+        let input = BackendAPI.NoteInput(
+            timestamp: BackendAPI.formatNoteTimestampForRequest(time),
+            carbs: 0,
+            insulin: 0,
+            meal: kind.title,
+            comment: comment,
+            glucoseValue: nil,
+            absorptionMode: nil,
+            nutritionProfile: nil,
+            type: BackendAPI.NoteType.activity,
+            activityType: kind.rawValue,
+            intensity: intensity.rawValue,
+            durationMin: durationMin
+        )
+        do {
+            let note = try await BackendAPI.createNote(input)
+            notes.append(note)
+            await refreshCalculations()
+        } catch {
+            errorMessage = "Failed to log activity: \(error.localizedDescription)"
         }
     }
 

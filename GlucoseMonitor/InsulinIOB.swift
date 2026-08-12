@@ -4,9 +4,9 @@ import Foundation
 /// configured daily injection time. The action is enabled within a window around that time so
 /// the user logs their basal dose close to when they actually take it.
 enum LongActingSchedule {
-    /// Action becomes available this long before the configured time…
+    /// Action becomes available this long before the configured time...
     static let windowBefore: TimeInterval = 60 * 60          // 1 hour
-    /// …and stays available this long after it (to allow logging a little late).
+    /// ...and stays available this long after it (to allow logging a little late).
     static let windowAfter: TimeInterval = 4 * 60 * 60       // 4 hours
 
     struct Status {

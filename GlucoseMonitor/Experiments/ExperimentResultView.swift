@@ -126,14 +126,16 @@ struct ExperimentResultView: View {
     }
 
     private var headerTitle: String {
-        if result.isStable == true  { return "Basal Rate Stable ✓" }
-        if result.isStable == false { return "Basal Needs Attention" }
+        if result.isStable == true  { return "Basal Rate Stable" }
+        if result.isStable == false { return "Adjust Basal, Recheck Tomorrow" }
         return "Experiment Complete"
     }
 
     private var headerSubtitle: String {
         if result.isStable == true  { return "You can now run ISF and Carb tests." }
-        if result.isStable == false { return "Discuss basal adjustment with your care team first." }
+        if result.isStable == false {
+            return "Change long-acting by about 2 units as advised, then repeat this check tomorrow."
+        }
         return "Your personal setting has been calculated."
     }
 
@@ -150,7 +152,7 @@ struct ExperimentResultView: View {
             // Extract delta from resultNotes
             if let stable = result.isStable { return stable ? "Stable" : "Unstable" }
         }
-        return "—"
+        return "-"
     }
 
     private var primaryValueUnit: String {

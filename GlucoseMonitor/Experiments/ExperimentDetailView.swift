@@ -163,7 +163,7 @@ struct ExperimentDetailView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
-            Text("⚠️ Only inject insulin during stable hyperglycaemia (11–14 mmol/L). Stop and treat immediately if you feel hypoglycaemic.")
+            Text("⚠️ Only inject insulin during stable hyperglycaemia (11-14 mmol/L). Stop and treat immediately if you feel hypoglycaemic.")
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .padding(.top, 4)
@@ -244,7 +244,7 @@ struct ExperimentDetailView: View {
         case .basalCheck:
             return [
                 "Do not eat or take any rapid insulin for the duration",
-                "Leave the app — it runs silently in the background",
+                "Leave the app - it runs silently in the background",
                 "Glucose is auto-captured from your CGM at each checkpoint",
                 "Come back any time to finish or check progress",
                 "We check if glucose stayed within ±1.7 mmol/L",
@@ -252,16 +252,16 @@ struct ExperimentDetailView: View {
         case .carbFactor:
             return [
                 "Record your starting glucose",
-                "Eat exactly \(gramsInput)g of fast-acting carbs — no insulin",
+                "Eat exactly \(gramsInput)g of fast-acting carbs - no insulin",
                 "App alarms at 30 and 45 minutes",
                 "Record your glucose at each alarm",
                 "We calculate your Carb Factor from the peak rise",
             ]
         case .isfOneUnit:
             return [
-                "Record your starting glucose (should be 11–14 mmol/L)",
-                "Inject exactly \(unitsInput) unit(s) of rapid insulin — no food",
-                "App alarms every hour for 4–5 hours",
+                "Record your starting glucose (should be 11-14 mmol/L)",
+                "Inject exactly \(unitsInput) unit(s) of rapid insulin - no food",
+                "App alarms every hour for 4-5 hours",
                 "Record each glucose at the alarm",
                 "We calculate your ISF from the total drop",
             ]

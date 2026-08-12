@@ -39,12 +39,14 @@ struct ExperimentRunView: View {
         }
     }
 
-    /// CGM readings older than this are considered a dropout — readings are normally
+    /// CGM readings older than this are considered a dropout - readings are normally
     /// refreshed every few minutes, so a longer gap means the sensor/feed has stopped.
     private static let cgmStaleThresholdMinutes: Double = 20
 
+    /// Current CGM in mmol/L (Libre/Nightscout may deliver mg/dL; always normalize here).
     private var currentCGM: Double? {
-        appState.currentReading?.value
+        guard let reading = appState.currentReading, let value = reading.value else { return nil }
+        return GlucoseUnit.toMmol(value, unit: reading.unit)
     }
 
     /// True when the last CGM reading is recent enough to trust for auto-capture and safety checks.
@@ -172,7 +174,7 @@ struct ExperimentRunView: View {
     private var safetyNote: some View {
         Label(
             experimentType == .isfOneUnit
-            ? "Do not correct glucose during the test unless you drop below 3.9 mmol/L — then stop and treat."
+            ? "Do not correct glucose during the test unless you drop below 3.9 mmol/L - then stop and treat."
             : "Do not take any insulin or eat additional food during this test.",
             systemImage: "shield.lefthalf.filled"
         )
@@ -233,7 +235,7 @@ struct ExperimentRunView: View {
     }
 
     /// Always-visible elapsed-time + next-milestone banner. Replaces the timer card I
-    /// removed earlier — without some signal of progress, a silent multi-hour experiment
+    /// removed earlier - without some signal of progress, a silent multi-hour experiment
     /// feels broken ("never ends"). The `elapsedTick` state binding forces a re-render
     /// every minute so the numbers actually move.
     private var statusBanner: some View {
@@ -271,7 +273,7 @@ struct ExperimentRunView: View {
     private func elapsedDescription(elapsed: Int, minMinutes: Int, readyToFinish: Bool) -> String {
         let elapsedText = formatMinutes(elapsed)
         if readyToFinish {
-            return "Running for \(elapsedText) — tap Finish below to see your result."
+            return "Running for \(elapsedText) - tap Finish below to see your result."
         }
         let remaining = minMinutes - elapsed
         return "Running for \(elapsedText). \(formatMinutes(remaining)) until you can finish."
@@ -325,7 +327,7 @@ struct ExperimentRunView: View {
             triggerSafetyAlert(
                 id: "cgm-dropout",
                 title: "CGM Signal Lost",
-                message: "No recent glucose reading (last update over \(Int(Self.cgmStaleThresholdMinutes)) minutes ago, or none yet). Check your sensor connection — your experiment data may be incomplete."
+                message: "No recent glucose reading (last update over \(Int(Self.cgmStaleThresholdMinutes)) minutes ago, or none yet). Check your sensor connection - your experiment data may be incomplete."
             )
             return
         }
@@ -335,7 +337,7 @@ struct ExperimentRunView: View {
         if cgm < 3.9 {
             triggerSafetyAlert(
                 id: "hypo",
-                title: "Low Glucose — Stop Experiment",
+                title: "Low Glucose - Stop Experiment",
                 message: String(format: "Your glucose is %.1f mmol/L. Treat hypoglycaemia immediately and stop the experiment.", cgm)
             )
             return
@@ -343,7 +345,7 @@ struct ExperimentRunView: View {
 
         switch experimentType {
         case .basalCheck:
-            // Baseline experiment — runs silently. Glucose drift during the check is
+            // Baseline experiment - runs silently. Glucose drift during the check is
             // exactly what the experiment measures; surfacing it as an alert is noise.
             // The hypo guard above still fires because <3.9 mmol/L is a safety floor,
             // not a drift signal.
@@ -361,7 +363,7 @@ struct ExperimentRunView: View {
                 triggerSafetyAlert(
                     id: "isf-rapid-fall",
                     title: "Glucose Dropping Very Fast",
-                    message: String(format: "Your glucose is dropping rapidly (%.1f mmol/L, %@). Be ready to treat if you approach 4 mmol/L.", cgm, arrow ?? "↓↓")
+                    message: String(format: "Your glucose is dropping rapidly (%.1f mmol/L, %@). Be ready to treat if you approach 4 mmol/L.", cgm, arrow ?? "down fast")
                 )
             }
         }
