@@ -12,6 +12,13 @@ struct HypoPromptView: View {
     let onDismiss: () -> Void
 
     @State private var customGrams: String = ""
+    /// Set on the first tap of any preset or "Log", and never cleared while the sheet is up.
+    /// Closes the client-side half of the double-tap race: the backend's confirm endpoint is
+    /// idempotent and replays the first winner's note on a second call for the same event, so a
+    /// second, un-disabled tap would silently succeed while logging a different amount than the
+    /// one actually recorded. Disabling every submit control after the first tap means only one
+    /// `onConfirm` can ever fire per prompt.
+    @State private var isSubmitting = false
 
     private var displayedGlucose: String {
         let value = GlucoseUnit.fromMmol(event.triggerGlucoseMmol, displayUnit: displayUnit)
@@ -39,6 +46,7 @@ struct HypoPromptView: View {
             HStack(spacing: 12) {
                 ForEach(BackendAPI.RescueCarbPresets.options, id: \.self) { grams in
                     Button {
+                        isSubmitting = true
                         onConfirm(grams)
                     } label: {
                         VStack(spacing: 2) {
@@ -48,6 +56,8 @@ struct HypoPromptView: View {
                         .frame(maxWidth: .infinity, minHeight: 64)
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(isSubmitting)
+                    .opacity(isSubmitting ? 0.5 : 1.0)
                 }
             }
 
@@ -55,12 +65,15 @@ struct HypoPromptView: View {
                 TextField("Other amount", text: $customGrams)
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
+                    .disabled(isSubmitting)
                 Button("Log") {
                     if let grams = Double(customGrams), grams > 0, grams <= 100 {
+                        isSubmitting = true
                         onConfirm(grams)
                     }
                 }
-                .disabled(Double(customGrams).map { $0 <= 0 || $0 > 100 } ?? true)
+                .disabled(isSubmitting || Double(customGrams).map { $0 <= 0 || $0 > 100 } ?? true)
+                .opacity(isSubmitting ? 0.5 : 1.0)
             }
 
             Button("Not now", role: .cancel) { onDismiss() }

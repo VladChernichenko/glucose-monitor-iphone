@@ -636,19 +636,36 @@ final class AppState: ObservableObject {
         }
     }
 
+    /// True while a confirm request for the open hypo prompt is in flight. Guards against a
+    /// second tap (preset or custom) racing a first one to the server before the sheet has a
+    /// chance to dismiss - see `confirmHypo(grams:)`.
+    private var isConfirmingHypo = false
+
     /// Poll for an open hypo prompt. Failures are silent: a missing prompt must never
-    /// surface an error banner over the dashboard.
+    /// surface an error banner over the dashboard. Importantly, a failed fetch must never
+    /// clear an already-open prompt - only a successful fetch that reports no open event may
+    /// do that, otherwise a transient network blip yanks the sheet away from a patient mid-hypo.
     func refreshHypoEvents() async {
         do {
             openHypoEvent = try await BackendAPI.fetchOpenHypoEvents().first
         } catch {
-            openHypoEvent = nil
+            // Leave `openHypoEvent` exactly as it was - no-op on failure.
         }
     }
 
     /// Log a rescue carb against the open prompt, then refresh so COB reflects it.
+    ///
+    /// `isConfirmingHypo` closes a race where a patient taps two different presets (or a
+    /// preset then Custom) before the first request returns: the backend's confirm endpoint is
+    /// idempotent on an already-CONFIRMED event and replays the *first* winner's note without
+    /// re-reading grams, so a naive second call would silently succeed while logging the wrong
+    /// amount. Since `AppState` is `@MainActor`, the guard check-and-set below runs atomically
+    /// with respect to any other call to this method - the second call always loses the race
+    /// and returns immediately.
     func confirmHypo(grams: Double) async {
-        guard let event = openHypoEvent else { return }
+        guard let event = openHypoEvent, !isConfirmingHypo else { return }
+        isConfirmingHypo = true
+        defer { isConfirmingHypo = false }
         do {
             _ = try await BackendAPI.confirmHypoEvent(id: event.id, grams: grams)
             openHypoEvent = nil
