@@ -28,6 +28,8 @@ final class AppState: ObservableObject {
     @Published var sensorInfo: GlucoseMonitorAPI.LibreSensorInfo?
     /// Insulin preferences (long-acting name + optional daily injection time) for the long-acting logging action.
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
+    /// Open hypo prompt awaiting confirm/dismiss, if any. Drives `HypoPromptView` via `.sheet(item:)`.
+    @Published var openHypoEvent: BackendAPI.HypoEvent?
 
     private var autoRefreshTask: Task<Void, Never>?
     private(set) var lastGlucoseRefresh: Date?
@@ -339,7 +341,8 @@ final class AppState: ObservableObject {
             async let readingFetch: Void = refreshCurrentReading()
             async let sensorFetch: Void = refreshSensorData()
             async let prefsFetch: Void = refreshInsulinPrefs()
-            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch)
+            async let hypoFetch: Void = refreshHypoEvents()
+            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch, hypoFetch)
 
             await refreshCalculations()
             lastGlucoseRefresh = Date()
@@ -631,6 +634,87 @@ final class AppState: ObservableObject {
             guard generation == authGeneration else { return }
             insulinPrefs = prefs
         }
+    }
+
+    /// True while a confirm request for the open hypo prompt is in flight. Guards against a
+    /// second tap (preset or custom) racing a first one to the server before the sheet has a
+    /// chance to dismiss - see `confirmHypo(grams:)`.
+    private var isConfirmingHypo = false
+
+    /// Poll for an open hypo prompt. Failures are silent: a missing prompt must never
+    /// surface an error banner over the dashboard. Importantly, a failed fetch must never
+    /// clear an already-open prompt - only a successful fetch that reports no open event may
+    /// do that, otherwise a transient network blip yanks the sheet away from a patient mid-hypo.
+    ///
+    /// Stale events are filtered out - see `isFresh(_:)`.
+    func refreshHypoEvents() async {
+        do {
+            openHypoEvent = try await BackendAPI.fetchOpenHypoEvents().first(where: Self.isFresh)
+        } catch {
+            // Leave `openHypoEvent` exactly as it was - no-op on failure.
+        }
+    }
+
+    /// How old a hypo event may be and still be worth prompting about [min].
+    /// Mirrors the server's `HypoThresholds.MAX_OPEN_MINUTES`.
+    static let hypoPromptMaxAgeMinutes: Double = 60
+
+    /// Whether an event is recent enough to prompt about, as defence in depth behind the server's
+    /// own age-out.
+    ///
+    /// An OPEN event is closed server-side by a recovery reading, and the detector needs two CGM
+    /// readings in a 20-minute window to produce one - so a sensor change or an offline phone can
+    /// leave a row open. Showing it on next launch, possibly the next morning, would put a trigger
+    /// glucose from hours ago in front of the patient, and tapping 15 g would log a rescue carb at
+    /// *now* - phantom fast carbs in COB, the Hovorka curve and the twin fit for a hypo that is
+    /// over.
+    ///
+    /// An event with an absent or unparseable `detectedAt` is treated as fresh: the server has
+    /// already swept it, and silently dropping a prompt we cannot date is worse than showing one.
+    static func isFresh(_ event: BackendAPI.HypoEvent) -> Bool {
+        guard let raw = event.detectedAt,
+              let detectedAt = BackendAPI.parseBackendDate(raw) else { return true }
+        return Date().timeIntervalSince(detectedAt) < hypoPromptMaxAgeMinutes * 60
+    }
+
+    /// Log a rescue carb against the open prompt, then refresh so COB reflects it.
+    ///
+    /// `isConfirmingHypo` closes a race where a patient taps two different presets (or a
+    /// preset then Custom) before the first request returns: the backend's confirm endpoint is
+    /// idempotent on an already-CONFIRMED event and replays the *first* winner's note without
+    /// re-reading grams, so a naive second call would silently succeed while logging the wrong
+    /// amount. Since `AppState` is `@MainActor`, the guard check-and-set below runs atomically
+    /// with respect to any other call to this method - the second call always loses the race
+    /// and returns immediately.
+    ///
+    /// - Returns: `false` **only** when this attempt failed and retrying it makes sense. The view
+    ///   uses that to re-enable its controls, so a transient network error leaves the prompt usable
+    ///   instead of permanently inert. Every other outcome - success, no open event, or losing the
+    ///   in-flight race - returns `true`, meaning "there is nothing here for the patient to retry",
+    ///   and the controls stay disabled. Returning `false` for the race loser would re-enable them
+    ///   while the winner's request is still in flight, reopening the very race the guard closes.
+    @discardableResult
+    func confirmHypo(grams: Double) async -> Bool {
+        guard let event = openHypoEvent, !isConfirmingHypo else { return true }
+        isConfirmingHypo = true
+        defer { isConfirmingHypo = false }
+        do {
+            _ = try await BackendAPI.confirmHypoEvent(id: event.id, grams: grams)
+            openHypoEvent = nil
+            await refreshAll()
+            return true
+        } catch {
+            // `openHypoEvent` is deliberately left set: `.sheet(item:)` keeps the same view
+            // identity, so the prompt stays up with the patient's amount still one tap away.
+            errorMessage = "Could not log rescue carbs. Please try again."
+            return false
+        }
+    }
+
+    func dismissHypo() async {
+        guard let event = openHypoEvent else { return }
+        openHypoEvent = nil
+        _ = try? await BackendAPI.dismissHypoEvent(id: event.id)
     }
 
     /// Log a long-acting (basal) dose as a note with type "long_acting". Such notes are excluded from

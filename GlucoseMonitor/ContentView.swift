@@ -254,6 +254,14 @@ struct DashboardView: View {
                 }
                 .environmentObject(appState)
             }
+            .sheet(item: $appState.openHypoEvent) { event in
+                HypoPromptView(
+                    event: event,
+                    displayUnit: appState.preferredGlucoseUnit,
+                    onConfirm: { grams in await appState.confirmHypo(grams: grams) },
+                    onDismiss: { Task { await appState.dismissHypo() } }
+                )
+            }
             .task {
                 guard appState.isAuthenticated else { return }
                 if appState.currentReading == nil && appState.glucoseHistory.isEmpty {

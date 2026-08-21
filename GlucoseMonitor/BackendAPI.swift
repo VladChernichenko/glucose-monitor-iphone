@@ -11,6 +11,7 @@ enum BackendAPI {
         static let normal = "normal"
         static let longActing = "long_acting"
         static let activity = "activity"
+        static let hypoTreatment = "hypo_treatment"
     }
 
     /// Backend `ActivityType` values for activity notes.
@@ -123,6 +124,26 @@ enum BackendAPI {
         var activityType: String? = nil
         var intensity: String? = nil
         var durationMin: Int? = nil
+    }
+
+    /// A detected hypoglycaemia window prompting the user to log a fast-acting rescue carb.
+    /// `triggerGlucoseMmol` is always mmol/L; convert with `GlucoseUnit.fromMmol` for display.
+    struct HypoEvent: Decodable, Identifiable, Equatable {
+        let id: String
+        let triggerGlucoseMmol: Double
+        let state: String
+        let noteId: String?
+        let detectedAt: String?
+        let resolvedAt: String?
+    }
+
+    /// Preset rescue amounts offered on the hypo prompt [g].
+    enum RescueCarbPresets {
+        static let options: [Double] = [10, 15, 20]
+    }
+
+    private struct ConfirmHypoEventBody: Encodable {
+        let grams: Double
     }
 
     /// Matches Spring `@JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")` on note DTOs (naive local wall time).
@@ -666,6 +687,36 @@ enum BackendAPI {
             }
         }
         return image.jpegData(compressionQuality: 0.2)
+    }
+
+    // MARK: - Hypo events
+
+    static func fetchOpenHypoEvents() async throws -> [HypoEvent] {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/hypo-events?state=OPEN")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode([HypoEvent].self, from: data)
+        }
+    }
+
+    static func confirmHypoEvent(id: String, grams: Double) async throws -> HypoEvent {
+        try await performWithRefresh {
+            var req = try authorizedRequest(path: "/api/hypo-events/\(id)/confirm", method: "POST")
+            req.httpBody = try JSONEncoder().encode(ConfirmHypoEventBody(grams: grams))
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(HypoEvent.self, from: data)
+        }
+    }
+
+    static func dismissHypoEvent(id: String) async throws -> HypoEvent {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/hypo-events/\(id)/dismiss", method: "POST")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(HypoEvent.self, from: data)
+        }
     }
 
     // MARK: - ISF meal-window profile
