@@ -8,16 +8,31 @@ struct HypoPromptView: View {
 
     let event: BackendAPI.HypoEvent
     let displayUnit: String
-    let onConfirm: (Double) -> Void
+    /// Logs `grams` against this event. Returns `true` when the server accepted it.
+    ///
+    /// The result is load-bearing, not informational: the view holds every control disabled for
+    /// the duration of the call, and only a truthful failure signal can hand them back.
+    let onConfirm: (Double) async -> Bool
     let onDismiss: () -> Void
 
     @State private var customGrams: String = ""
-    /// Set on the first tap of any preset or "Log", and never cleared while the sheet is up.
-    /// Closes the client-side half of the double-tap race: the backend's confirm endpoint is
-    /// idempotent and replays the first winner's note on a second call for the same event, so a
-    /// second, un-disabled tap would silently succeed while logging a different amount than the
-    /// one actually recorded. Disabling every submit control after the first tap means only one
-    /// `onConfirm` can ever fire per prompt.
+    /// True for the duration of one in-flight confirm, and only that.
+    ///
+    /// Set before the request and cleared when it *fails*. Set, it closes the client-side half of
+    /// the double-tap race: the backend's confirm endpoint is idempotent and replays the first
+    /// winner's note on a second call for the same event, so a second, un-disabled tap would
+    /// silently succeed while logging a different amount than the one actually recorded.
+    ///
+    /// Cleared on failure, it keeps a transient network error from bricking the prompt. Left set -
+    /// as it was - every preset, the text field and "Log" stayed disabled forever while the banner
+    /// read "Please try again", because `AppState` deliberately keeps `openHypoEvent` set on error
+    /// so `.sheet(item:)` preserves view identity and this `@State` survives. The only live control
+    /// was "Not now", which dismisses server-side and then suppresses new prompts. A patient who ate
+    /// 15 g of dextrose would have had nothing recorded, COB and the prediction curve still showing
+    /// a low, and the recovery flagged as unlogged food.
+    ///
+    /// Not cleared on success: the sheet is on its way out, and re-enabling the controls in the
+    /// frames before it disappears would reopen the race it exists to close.
     @State private var isSubmitting = false
 
     private var displayedGlucose: String {
@@ -25,6 +40,23 @@ struct HypoPromptView: View {
         return GlucoseUnit.isMgdl(displayUnit)
             ? String(format: "%.0f", value)
             : String(format: "%.1f", value)
+    }
+
+    private var customGramsIsValid: Bool {
+        guard let grams = Double(customGrams) else { return false }
+        return grams > 0 && grams <= 100
+    }
+
+    /// Claim the in-flight slot synchronously, then await. The guard is set on the main actor
+    /// before the `Task` suspends, so a second tap in the same run loop already sees it.
+    private func submit(_ grams: Double) {
+        guard !isSubmitting else { return }
+        isSubmitting = true
+        Task {
+            if await onConfirm(grams) == false {
+                isSubmitting = false
+            }
+        }
     }
 
     var body: some View {
@@ -46,8 +78,7 @@ struct HypoPromptView: View {
             HStack(spacing: 12) {
                 ForEach(BackendAPI.RescueCarbPresets.options, id: \.self) { grams in
                     Button {
-                        isSubmitting = true
-                        onConfirm(grams)
+                        submit(grams)
                     } label: {
                         VStack(spacing: 2) {
                             Text("\(Int(grams))").font(.title3.weight(.bold))
@@ -66,18 +97,23 @@ struct HypoPromptView: View {
                     .keyboardType(.decimalPad)
                     .textFieldStyle(.roundedBorder)
                     .disabled(isSubmitting)
+                    .opacity(isSubmitting ? 0.5 : 1.0)
                 Button("Log") {
-                    if let grams = Double(customGrams), grams > 0, grams <= 100 {
-                        isSubmitting = true
-                        onConfirm(grams)
+                    if let grams = Double(customGrams), customGramsIsValid {
+                        submit(grams)
                     }
                 }
-                .disabled(isSubmitting || Double(customGrams).map { $0 <= 0 || $0 > 100 } ?? true)
+                .disabled(isSubmitting || !customGramsIsValid)
                 .opacity(isSubmitting ? 0.5 : 1.0)
             }
 
+            // Disabled while a confirm is in flight. `AppState.dismissHypo` clears `openHypoEvent`
+            // *before* awaiting, so a dismiss landing first would take the sheet away, leave the
+            // confirm to return 409, and lose the carbs with no retry path left anywhere.
             Button("Not now", role: .cancel) { onDismiss() }
                 .padding(.top, 4)
+                .disabled(isSubmitting)
+                .opacity(isSubmitting ? 0.5 : 1.0)
         }
         .padding(24)
         .presentationDetents([.medium])

@@ -258,7 +258,7 @@ struct DashboardView: View {
                 HypoPromptView(
                     event: event,
                     displayUnit: appState.preferredGlucoseUnit,
-                    onConfirm: { grams in Task { await appState.confirmHypo(grams: grams) } },
+                    onConfirm: { grams in await appState.confirmHypo(grams: grams) },
                     onDismiss: { Task { await appState.dismissHypo() } }
                 )
             }
