@@ -28,6 +28,8 @@ final class AppState: ObservableObject {
     @Published var sensorInfo: GlucoseMonitorAPI.LibreSensorInfo?
     /// Insulin preferences (long-acting name + optional daily injection time) for the long-acting logging action.
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
+    /// Open hypo prompt awaiting confirm/dismiss, if any. Drives `HypoPromptView` via `.sheet(item:)`.
+    @Published var openHypoEvent: BackendAPI.HypoEvent?
 
     private var autoRefreshTask: Task<Void, Never>?
     private(set) var lastGlucoseRefresh: Date?
@@ -339,7 +341,8 @@ final class AppState: ObservableObject {
             async let readingFetch: Void = refreshCurrentReading()
             async let sensorFetch: Void = refreshSensorData()
             async let prefsFetch: Void = refreshInsulinPrefs()
-            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch)
+            async let hypoFetch: Void = refreshHypoEvents()
+            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch, hypoFetch)
 
             await refreshCalculations()
             lastGlucoseRefresh = Date()
@@ -631,6 +634,34 @@ final class AppState: ObservableObject {
             guard generation == authGeneration else { return }
             insulinPrefs = prefs
         }
+    }
+
+    /// Poll for an open hypo prompt. Failures are silent: a missing prompt must never
+    /// surface an error banner over the dashboard.
+    func refreshHypoEvents() async {
+        do {
+            openHypoEvent = try await BackendAPI.fetchOpenHypoEvents().first
+        } catch {
+            openHypoEvent = nil
+        }
+    }
+
+    /// Log a rescue carb against the open prompt, then refresh so COB reflects it.
+    func confirmHypo(grams: Double) async {
+        guard let event = openHypoEvent else { return }
+        do {
+            _ = try await BackendAPI.confirmHypoEvent(id: event.id, grams: grams)
+            openHypoEvent = nil
+            await refreshAll()
+        } catch {
+            errorMessage = "Could not log rescue carbs. Please try again."
+        }
+    }
+
+    func dismissHypo() async {
+        guard let event = openHypoEvent else { return }
+        openHypoEvent = nil
+        _ = try? await BackendAPI.dismissHypoEvent(id: event.id)
     }
 
     /// Log a long-acting (basal) dose as a note with type "long_acting". Such notes are excluded from

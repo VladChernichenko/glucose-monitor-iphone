@@ -42,6 +42,8 @@
 		700000000000000000000041 /* AppStateBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000042 /* AppStateBugTests.swift */; };
 		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
 		700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000092 /* HypoEventDecodingTests.swift */; };
+		700000000000000000000093 /* HypoPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000093 /* HypoPromptView.swift */; };
+		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
 		70000000000000000000004D /* RefreshFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004E /* RefreshFlowTests.swift */; };
 		70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004F /* EditNoteNutritionProfileTests.swift */; };
 		700000000000000000000043 /* FoodModelsBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000044 /* FoodModelsBugTests.swift */; };
@@ -162,6 +164,8 @@
 		600000000000000000000042 /* AppStateBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStateBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000092 /* HypoEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoEventDecodingTests.swift; sourceTree = "<group>"; };
+		600000000000000000000093 /* HypoPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptView.swift; sourceTree = "<group>"; };
+		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004E /* RefreshFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshFlowTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004F /* EditNoteNutritionProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditNoteNutritionProfileTests.swift; sourceTree = "<group>"; };
 		600000000000000000000044 /* FoodModelsBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsBugTests.swift; sourceTree = "<group>"; };
@@ -255,6 +259,7 @@
 				600000000000000000000050 /* GlucoseUnit.swift */,
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
+				600000000000000000000093 /* HypoPromptView.swift */,
 				60000000000000000000000C /* NotesView.swift */,
 				60000000000000000000000D /* SettingsView.swift */,
 				60000000000000000000000F /* InsulinIOB.swift */,
@@ -345,6 +350,7 @@
 				60000000000000000000004E /* RefreshFlowTests.swift */,
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
 				600000000000000000000092 /* HypoEventDecodingTests.swift */,
+				600000000000000000000094 /* HypoPromptTests.swift */,
 			);
 			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
@@ -535,6 +541,7 @@
 				700000000000000000000050 /* GlucoseUnit.swift in Sources */,
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
+				700000000000000000000093 /* HypoPromptView.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
 				F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */,
@@ -587,6 +594,7 @@
 				70000000000000000000004D /* RefreshFlowTests.swift in Sources */,
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
 				700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */,
+				700000000000000000000094 /* HypoPromptTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
