@@ -182,7 +182,7 @@ enum BackendAPI {
         var isf: Double
         var carbHalfLife: Double
         var maxCOBDuration: Double
-        var bodyWeightKg: Double?
+        var bodyWeightKg: Double? = nil
         /// Manual ISF override for 05:00-11:00 (mmol/L per unit). Nil = use autotuned `isf`.
         var isfBreakfast: Double? = nil
         /// Manual ISF override for 11:00-16:00 (mmol/L per unit). Nil = use autotuned `isf`.

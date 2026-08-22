@@ -44,7 +44,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
         let data = cobSettingsJSON(bodyWeightKg: 82.5)
         let settings = try decoder.decode(BackendAPI.COBSettings.self, from: data)
 
-        XCTAssertEqual(settings.bodyWeightKg, 82.5, accuracy: 0.001,
+        XCTAssertEqual(settings.bodyWeightKg ?? 0, 82.5, accuracy: 0.001,
             "bodyWeightKg must decode from JSON when the server returns it")
     }
 
@@ -95,9 +95,9 @@ final class BackendAPIHovorkaTests: XCTestCase {
         // Must not throw, and other fields must still be present
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
-        XCTAssertEqual(json["carbRatio"] as? Double, 2.0, accuracy: 0.001,
+        XCTAssertEqual((json["carbRatio"] as? Double) ?? 0, 2.0, accuracy: 0.001,
             "carbRatio must still be present when bodyWeightKg is nil")
-        XCTAssertEqual(json["isf"] as? Double, 2.2, accuracy: 0.001,
+        XCTAssertEqual((json["isf"] as? Double) ?? 0, 2.2, accuracy: 0.001,
             "isf must still be present when bodyWeightKg is nil")
     }
 
@@ -381,7 +381,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
         )
         bodyWeightSet(65.0, into: &settings)
 
-        XCTAssertEqual(settings.bodyWeightKg, 65.0, accuracy: 0.001,
+        XCTAssertEqual(settings.bodyWeightKg ?? 0, 65.0, accuracy: 0.001,
             "Setting a positive weight must store it in bodyWeightKg")
     }
 
@@ -418,7 +418,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
         )
         bodyWeightSet(80.5, into: &settings)
 
-        XCTAssertEqual(settings.bodyWeightKg, 80.5, accuracy: 0.001,
+        XCTAssertEqual(settings.bodyWeightKg ?? 0, 80.5, accuracy: 0.001,
             "Setting a new positive value must overwrite the previous bodyWeightKg")
     }
 
