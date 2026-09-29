@@ -1272,20 +1272,6 @@ enum BackendAPI {
         }
     }
 
-    static func analyzeNutrition(ingredientsText: String, fallbackCarbs: Double?) async throws -> NutritionSnapshot {
-        try await performWithRefresh {
-            var req = try authorizedRequest(path: "/api/nutrition/analyze", method: "POST")
-            struct Body: Encodable {
-                let ingredientsText: String
-                let fallbackCarbs: Double?
-            }
-            req.httpBody = try JSONEncoder().encode(Body(ingredientsText: ingredientsText, fallbackCarbs: fallbackCarbs))
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            try checkStatus(resp, data: data)
-            return try GlucoseMonitorAPI.jsonDecoder().decode(NutritionSnapshot.self, from: data)
-        }
-    }
-
     // MARK: - Version
 
     static func fetchBackendVersion() async throws -> BackendVersionPayload {

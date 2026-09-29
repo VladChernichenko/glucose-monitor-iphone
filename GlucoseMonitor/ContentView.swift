@@ -116,7 +116,6 @@ struct DashboardView: View {
     @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
     @State private var showAI = false
-    @State private var showNutrition = false
     @State private var showVersion = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
@@ -233,7 +232,6 @@ struct DashboardView: View {
                 .environmentObject(appState)
             }
             .sheet(isPresented: $showAI) { AIInsightsSheet() }
-            .sheet(isPresented: $showNutrition) { NutritionAnalyzerSheet() }
             .fullScreenCover(isPresented: $showBedsideMode) {
                 BedsideModeView().environmentObject(appState)
             }
@@ -825,10 +823,6 @@ struct DashboardView: View {
                 Divider()
                 Button { showAI = true } label: {
                     quickActionRow(title: "AI insights", systemImage: "sparkles")
-                }
-                Divider()
-                Button { showNutrition = true } label: {
-                    quickActionRow(title: "Nutrition GI/GL", systemImage: "leaf")
                 }
                 Divider()
                 Button { showVersion = true } label: {
