@@ -346,14 +346,13 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
                         CarbGroupLabel(carbs: totalCarbs, x: centerX, y: plotFrame.minY + 18)
                     }
 
-                    // -- Insulin bars: grouped & summed ------------------------
-                    let insulinItems = positioned.filter { $0.note.insulin > 0 }
-                    let insulinGroups = Self.groupByProximity(insulinItems,
-                                                             threshold: Self.groupingThreshold)
-                    ForEach(Array(insulinGroups.enumerated()), id: \.offset) { _, group in
-                        let totalInsulin = group.map(\.note.insulin).reduce(0, +)
-                        let centerX      = group.map(\.x).reduce(0, +) / CGFloat(group.count)
-                        InsulinBarLabel(insulin: totalInsulin, x: centerX, y: plotFrame.maxY - 18)
+                    // -- Insulin bars: grouped per insulin type ----------------
+                    let insulinMarkers = InsulinMarkerLayout.markers(
+                        positioned.map { (isLongActing: $0.note.isLongActing, units: $0.note.insulin, x: $0.x) })
+                    ForEach(Array(insulinMarkers.enumerated()), id: \.offset) { _, marker in
+                        InsulinBarLabel(insulin: marker.units,
+                                        color: marker.kind == .longActing ? .purple : .blue,
+                                        x: marker.x, y: plotFrame.maxY - 18)
                     }
                 }
             }
@@ -381,6 +380,65 @@ private struct ChartNoteMarkersOverlay: ViewModifier {
         }
         groups.append(current)
         return groups
+    }
+}
+
+/// Insulin bars for the chart. Rapid and long-acting doses are grouped separately - summing across
+/// types would misstate the bolus (18 u basal + 2 u correction is not a 20 u dose) - and when a
+/// rapid bar and a long-acting bar collide they are drawn side by side, rapid on the left.
+enum InsulinMarkerLayout {
+    enum Kind: Equatable { case rapid, longActing }
+
+    struct Marker: Equatable {
+        let kind: Kind
+        let units: Double
+        let x: CGFloat
+    }
+
+    /// Max pixel gap between two same-type doses before they are drawn as separate bars.
+    static let groupingThreshold: CGFloat = 32
+    /// Horizontal shift applied to each bar of a colliding rapid/long-acting pair.
+    static let sideBySideOffset: CGFloat = 12
+
+    static func markers(_ items: [(isLongActing: Bool, units: Double, x: CGFloat)]) -> [Marker] {
+        let doses = items.filter { $0.units > 0 }
+        var rapid = grouped(doses.filter { !$0.isLongActing }, kind: .rapid)
+        var long = grouped(doses.filter { $0.isLongActing }, kind: .longActing)
+
+        // Pair each long-acting bar with the nearest unpaired rapid bar it collides with.
+        var pairedRapid = Set<Int>()
+        for li in long.indices {
+            let candidates = rapid.indices.filter {
+                !pairedRapid.contains($0) && abs(rapid[$0].x - long[li].x) <= groupingThreshold
+            }
+            guard let ri = candidates.min(by: { abs(rapid[$0].x - long[li].x) < abs(rapid[$1].x - long[li].x) })
+            else { continue }
+            pairedRapid.insert(ri)
+            let mid = (rapid[ri].x + long[li].x) / 2
+            rapid[ri] = Marker(kind: .rapid, units: rapid[ri].units, x: mid - sideBySideOffset)
+            long[li] = Marker(kind: .longActing, units: long[li].units, x: mid + sideBySideOffset)
+        }
+        return rapid + long
+    }
+
+    /// Greedy left-to-right grouping of one insulin type; each group becomes one summed bar.
+    private static func grouped(_ items: [(isLongActing: Bool, units: Double, x: CGFloat)],
+                                kind: Kind) -> [Marker] {
+        var markers: [Marker] = []
+        var current: [(units: Double, x: CGFloat)] = []
+        func flush() {
+            guard !current.isEmpty else { return }
+            markers.append(Marker(kind: kind,
+                                  units: current.map(\.units).reduce(0, +),
+                                  x: current.map(\.x).reduce(0, +) / CGFloat(current.count)))
+            current = []
+        }
+        for item in items.sorted(by: { $0.x < $1.x }) {
+            if let last = current.last, item.x - last.x > groupingThreshold { flush() }
+            current.append((item.units, item.x))
+        }
+        flush()
+        return markers
     }
 }
 
@@ -419,6 +477,7 @@ private struct CarbGroupLabel: View {
 // Insulin bar shown once per proximity group, displaying the summed value.
 private struct InsulinBarLabel: View {
     let insulin: Double
+    let color: Color
     let x: CGFloat
     let y: CGFloat
 
@@ -434,7 +493,7 @@ private struct InsulinBarLabel: View {
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.primary)
             RoundedRectangle(cornerRadius: 2)
-                .fill(Color.blue.opacity(0.4))
+                .fill(color.opacity(0.4))
                 .frame(width: 7, height: 16)
         }
         .position(x: x, y: y)
