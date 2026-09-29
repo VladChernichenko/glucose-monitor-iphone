@@ -13,8 +13,6 @@ final class ExperimentViewModel: ObservableObject {
     @Published var lastResult: ExperimentResult?
 
     @Published var isLoadingAvailable = false
-    @Published var isLoadingBackground = false
-    @Published var isRecordingReading  = false
     @Published var isCompleting        = false
     @Published var error: String?
 
@@ -41,8 +39,6 @@ final class ExperimentViewModel: ObservableObject {
     // MARK: - Background check
 
     func checkBackground() async {
-        isLoadingBackground = true
-        defer { isLoadingBackground = false }
         do {
             backgroundStatus = try await ExperimentService.checkBackground()
         } catch {
@@ -66,8 +62,6 @@ final class ExperimentViewModel: ObservableObject {
 
     func recordReading(glucoseMmol: Double, minutesElapsed: Int, label: String? = nil) async {
         guard let expId = activeExperiment?.id else { return }
-        isRecordingReading = true
-        defer { isRecordingReading = false }
         do {
             let req = RecordReadingRequest(glucoseMmol: glucoseMmol, minutesElapsed: minutesElapsed, label: label)
             activeExperiment = try await ExperimentService.recordReading(experimentId: expId, reading: req)
