@@ -549,41 +549,6 @@ public enum GlucoseMonitorAPI {
         ud.synchronize()
     }
 
-    /// Current Libre reading; auto-refreshes JWT once on 401.
-    public static func fetchCurrentGlucose() async throws -> LibreGlucoseCurrent {
-        do {
-            return try await _fetchCurrentGlucose()
-        } catch APIError.httpStatus(401, _) {
-            try await refreshToken()
-            return try await _fetchCurrentGlucose()
-        }
-    }
-
-    private static func _fetchCurrentGlucose() async throws -> LibreGlucoseCurrent {
-        let ud = sharedDefaults()
-        let base = effectiveBackendBaseURL()
-        guard let pid = ud.string(forKey: StorageKey.patientId)?.trimmingCharacters(in: .whitespacesAndNewlines), !pid.isEmpty else {
-            throw APIError.missingPatientId
-        }
-        guard let token = storedAccessToken(), !token.isEmpty else { throw APIError.missingToken }
-
-        guard let url = URL(string: base + "/api/libre/connections/\(pid)/current") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url)
-        req.httpMethod = "GET"
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let (data, resp) = try await URLSession.shared.data(for: req)
-        guard let http = resp as? HTTPURLResponse else { throw APIError.httpStatus(-1, nil) }
-        guard (200 ..< 300).contains(http.statusCode) else {
-            throw APIError.httpStatus(http.statusCode, String(data: data, encoding: .utf8))
-        }
-        do {
-            return try jsonDecoder().decode(LibreGlucoseCurrent.self, from: data)
-        } catch {
-            throw APIError.decoding(error)
-        }
-    }
-
     /// Posted after local session tokens are wiped (e.g. refresh failure). UI should treat the user as logged out.
     public static let sessionClearedNotification = Notification.Name("gm.sessionCleared")
 

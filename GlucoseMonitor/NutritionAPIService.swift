@@ -270,6 +270,3 @@ public final class NutritionAPIService {
         )
     }
 }
-
-// Spec alias - preserves backward compatibility with any code referencing NutritionService.
-public typealias NutritionService = NutritionAPIService

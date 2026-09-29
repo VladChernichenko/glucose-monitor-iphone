@@ -31,7 +31,6 @@
 		700000000000000000000017 /* ClientVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000E /* ClientVersion.swift */; };
 		700000000000000000000018 /* LockScreenWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000011 /* LockScreenWidgetSnapshot.swift */; };
 		700000000000000000000020 /* ARFoodScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000020 /* ARFoodScanner.swift */; };
-		700000000000000000000021 /* FoodDensityDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000021 /* FoodDensityDatabase.swift */; };
 		700000000000000000000022 /* ARFoodScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000022 /* ARFoodScannerView.swift */; };
 		700000000000000000000023 /* ARKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000023 /* ARKit.framework */; };
 		700000000000000000000024 /* SceneKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000024 /* SceneKit.framework */; };
@@ -153,7 +152,6 @@
 		600000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		600000000000000000000016 /* GlucoseMonitorWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlucoseMonitorWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		600000000000000000000020 /* ARFoodScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScanner.swift; sourceTree = "<group>"; };
-		600000000000000000000021 /* FoodDensityDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodDensityDatabase.swift; sourceTree = "<group>"; };
 		600000000000000000000022 /* ARFoodScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScannerView.swift; sourceTree = "<group>"; };
 		600000000000000000000023 /* ARKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ARKit.framework; path = System/Library/Frameworks/ARKit.framework; sourceTree = SDKROOT; };
 		600000000000000000000024 /* SceneKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SceneKit.framework; path = System/Library/Frameworks/SceneKit.framework; sourceTree = SDKROOT; };
@@ -267,7 +265,6 @@
 				60000000000000000000000F /* InsulinIOB.swift */,
 				600000000000000000000010 /* DashboardExtras.swift */,
 				600000000000000000000020 /* ARFoodScanner.swift */,
-				600000000000000000000021 /* FoodDensityDatabase.swift */,
 				600000000000000000000022 /* ARFoodScannerView.swift */,
 				600000000000000000000025 /* NutritionAPIService.swift */,
 				600000000000000000000026 /* FoodModels.swift */,
@@ -556,7 +553,6 @@
 				70000000000000000000000F /* InsulinIOB.swift in Sources */,
 				700000000000000000000010 /* DashboardExtras.swift in Sources */,
 				700000000000000000000020 /* ARFoodScanner.swift in Sources */,
-				700000000000000000000021 /* FoodDensityDatabase.swift in Sources */,
 				F5A240912FD1F09E0030E031 /* ExperimentModels.swift in Sources */,
 				F5A240922FD1F09E0030E031 /* ExperimentViewModel.swift in Sources */,
 				F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */,

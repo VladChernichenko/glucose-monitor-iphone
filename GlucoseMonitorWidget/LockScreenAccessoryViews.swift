@@ -87,8 +87,6 @@ private func chartAxisLabelsGluroo(_ points: [LockScreenWidgetSnapshot.ChartPoin
 
 // MARK: - Simple sparkline (non-rectangular families)
 
-private let sparklineGreen = Color(red: 0.2, green: 0.85, blue: 0.35)
-
 private struct GlucoseSparkline: View {
     let points: [LockScreenWidgetSnapshot.ChartPoint]
 

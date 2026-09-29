@@ -123,10 +123,6 @@ final class ExperimentAlarmManager {
 
     // MARK: - Helpers
 
-    private func notificationId(experimentId: UUID, minutes: Int) -> String {
-        "exp-\(experimentId.uuidString)-\(minutes)min"
-    }
-
     private func readyToFinishNotificationId(experimentId: UUID) -> String {
         "exp-\(experimentId.uuidString)-ready-to-finish"
     }

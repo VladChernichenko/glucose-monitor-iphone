@@ -420,21 +420,6 @@ enum BackendAPI {
         var token: String?
     }
 
-    struct AiRecommendation: Decodable {
-        let code: String?
-        let text: String?
-        let priority: String?
-    }
-
-    struct AiAnalysisResult: Decodable {
-        let summary: String?
-        let recommendations: [AiRecommendation]?
-        let disclaimer: String?
-        let confidence: Double?
-        let modelId: String?
-        let latencyMs: Int64?
-    }
-
     struct NutritionSnapshot: Decodable {
         let absorptionMode: String?
         let source: String?
@@ -1215,18 +1200,6 @@ enum BackendAPI {
     }
 
     // MARK: - AI insights
-
-    static func fetchAiRetrospective(windowHours: Int = 12) async throws -> AiAnalysisResult {
-        try await performWithRefresh {
-            var req = try authorizedRequest(path: "/api/ai-insights/retrospective", method: "POST")
-            struct Body: Encodable { let windowHours: Int }
-            req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours))
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            try checkStatus(resp, data: data)
-            let decoder = GlucoseMonitorAPI.jsonDecoder()
-            return try decoder.decode(AiAnalysisResult.self, from: data)
-        }
-    }
 
     /// Streams markdown tokens from the backend NDJSON endpoint.
     /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.

@@ -242,20 +242,6 @@ final class AppState: ObservableObject {
         return best.mmol
     }
 
-    /// Read-only label for note forms: stored value, else chart near `target`, else current reading.
-    func formattedGlucoseAtNoteTime(_ target: Date, storedOnNote: Double?) -> String {
-        if let s = storedOnNote {
-            return String(format: "%.1f mmol/L", s)
-        }
-        if let g = glucoseMmolFromChartNearest(to: target) {
-            return String(format: "%.1f mmol/L", g)
-        }
-        if let cur = currentGlucoseMmolForAPI() {
-            return String(format: "%.1f mmol/L", cur)
-        }
-        return "--"
-    }
-
     /// Value to send when creating a note: chart at `target`, else current reading.
     func glucoseMmolForNewNote(at target: Date) -> Double? {
         glucoseMmolFromChartNearest(to: target) ?? currentGlucoseMmolForAPI()

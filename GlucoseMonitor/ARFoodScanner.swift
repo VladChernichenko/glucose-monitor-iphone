@@ -104,9 +104,6 @@ extension ARSessionManager: ARSessionDelegate {
     }
 }
 
-// Spec alias
-public typealias ARKitManager = ARSessionManager
-
 // MARK: - VisionProcessor (CoreML + YOLOv11-seg)
 //
 // Runs FoodSegModel inference via VNCoreMLRequest and decodes the YOLOv11-seg
@@ -297,9 +294,6 @@ public final class FoodRecognitionService {
         return unionArea > 0 ? interArea / unionArea : 0
     }
 }
-
-// Spec alias
-public typealias VisionProcessor = FoodRecognitionService
 
 // MARK: - VolumeCalculator (LiDAR depth integration)
 //

@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ExperimentsListView: View {
     @EnvironmentObject private var vm: ExperimentViewModel
-    @State private var selectedExperiment: AvailableExperiment?
     @State private var showBackgroundBlock: (BackgroundStatus, ExperimentType)?
     @State private var showDetail: AvailableExperiment?
     @State private var showRun = false

@@ -1,16 +1,6 @@
 import SwiftUI
 import AVFoundation
 
-private func formReadonlyRow(label: String, valueText: String) -> some View {
-    HStack {
-        Text(label)
-        Spacer()
-        Text(valueText)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.trailing)
-    }
-}
-
 // MARK: - Meal type defaults
 
 /// Note types and the rules that pre-select one from the entry itself.
