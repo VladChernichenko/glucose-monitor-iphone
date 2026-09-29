@@ -475,23 +475,6 @@ enum BackendAPI {
         }
     }
 
-    struct BackendVersionPayload: Decodable {
-        let version: String?
-        let apiVersion: String?
-        let environment: String?
-        let minIosVersion: String?
-        let compatibleIosVersions: [String]?
-        let status: String?
-    }
-
-    struct CompatibilityPayload: Decodable {
-        let compatible: Bool?
-        let meetsMinimumVersion: Bool?
-        let recommendation: String?
-        let backendVersion: String?
-        let clientVersion: String?
-    }
-
     private struct UserDataSourceNightscoutResponse: Decodable {
         let nightscoutUrl: String?
         let nightscoutApiSecret: String?
@@ -1269,32 +1252,6 @@ enum BackendAPI {
             let (data, resp) = try await photoAnalysisSession.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode(NutritionSnapshot.self, from: data)
-        }
-    }
-
-    // MARK: - Version
-
-    static func fetchBackendVersion() async throws -> BackendVersionPayload {
-        try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/version/")
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            try checkStatus(resp, data: data)
-            return try GlucoseMonitorAPI.jsonDecoder().decode(BackendVersionPayload.self, from: data)
-        }
-    }
-
-    static func checkCompatibility() async throws -> CompatibilityPayload {
-        try await performWithRefresh {
-            var req = try authorizedRequest(path: "/api/version/check-compatibility", method: "POST")
-            struct Body: Encodable {
-                let clientType: String
-                let clientVersion: String
-            }
-            let body = Body(clientType: ClientVersion.clientPlatform, clientVersion: ClientVersion.resolvedSemanticVersion())
-            req.httpBody = try JSONEncoder().encode(body)
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            try checkStatus(resp, data: data)
-            return try GlucoseMonitorAPI.jsonDecoder().decode(CompatibilityPayload.self, from: data)
         }
     }
 

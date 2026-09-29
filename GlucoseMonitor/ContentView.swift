@@ -116,7 +116,6 @@ struct DashboardView: View {
     @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
     @State private var showAI = false
-    @State private var showVersion = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
@@ -235,7 +234,6 @@ struct DashboardView: View {
             .fullScreenCover(isPresented: $showBedsideMode) {
                 BedsideModeView().environmentObject(appState)
             }
-            .sheet(isPresented: $showVersion) { VersionInfoSheet() }
             .sheet(isPresented: $showLongActing) {
                 LongActingInsulinSheet(
                     insulinName: appState.insulinPrefs?.longActingInsulin.displayName ?? "Long-acting insulin"
@@ -828,14 +826,6 @@ struct DashboardView: View {
                 Divider()
                 Button { showAI = true } label: {
                     quickActionRow(title: "AI insights", systemImage: "sparkles")
-                }
-                Divider()
-                Button { showVersion = true } label: {
-                    quickActionRow(title: "Version & compatibility", systemImage: "info.circle")
-                }
-                Divider()
-                NavigationLink(destination: SettingsView()) {
-                    quickActionRow(title: "Data source & account", systemImage: "gearshape")
                 }
             }
         }
