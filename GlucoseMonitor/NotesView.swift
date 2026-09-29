@@ -114,6 +114,9 @@ struct NotesView: View {
                 case .activity:
                     ActivityNoteSheet()
                         .environmentObject(appState)
+                case .edit(let note) where note.isLongActing:
+                    LongActingInsulinSheet(insulinName: note.meal, editing: note)
+                        .environmentObject(appState)
                 case .edit(let note):
                     EditNoteSheet(note: note) { body in
                         await appState.updateNote(id: note.id, body: body)
@@ -1153,6 +1156,8 @@ struct LongActingInsulinSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     let insulinName: String
+    /// When set, the sheet edits this existing long-acting note instead of logging a new one.
+    var editing: BackendAPI.GlucoseNote? = nil
 
     @State private var dose: Double = 10
     @State private var time: Date = Date()
@@ -1181,7 +1186,7 @@ struct LongActingInsulinSheet: View {
                     DatePicker("Time", selection: $time, displayedComponents: [.hourAndMinute])
                 }
             }
-            .navigationTitle("Log long-acting")
+            .navigationTitle(editing == nil ? "Log long-acting" : "Edit long-acting")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1192,15 +1197,35 @@ struct LongActingInsulinSheet: View {
                         isSaving = true
                         UserDefaults.standard.set(dose, forKey: Self.lastDoseKey)
                         Task {
-                            await appState.logLongActingInsulin(dose: dose, name: insulinName, at: time)
+                            if let note = editing {
+                                await appState.updateNote(id: note.id, body: Self.editBody(dose: dose, at: time))
+                            } else {
+                                await appState.logLongActingInsulin(dose: dose, name: insulinName, at: time)
+                            }
                             dismiss()
                         }
                     }
                     .disabled(isSaving || dose <= 0)
                 }
             }
-            .onAppear { dose = previousDose }
+            .onAppear {
+                if let note = editing {
+                    dose = note.insulin
+                    time = note.timestamp ?? Date()
+                } else {
+                    dose = previousDose
+                }
+            }
         }
+    }
+
+    /// Update sent when editing: only dose and time change. The stored insulin name and the
+    /// long_acting type are left untouched.
+    static func editBody(dose: Double, at time: Date) -> BackendAPI.UpdateNoteBody {
+        BackendAPI.UpdateNoteBody(
+            timestamp: BackendAPI.formatNoteTimestampForRequest(time),
+            insulin: dose
+        )
     }
 
     /// Returns the last-used long-acting dose, preferring a recent note in appState

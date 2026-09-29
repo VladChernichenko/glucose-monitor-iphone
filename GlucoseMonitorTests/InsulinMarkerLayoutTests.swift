@@ -49,3 +49,19 @@ final class InsulinMarkerLayoutTests: XCTestCase {
         XCTAssertTrue(InsulinMarkerLayout.markers([(isLongActing: false, units: 0, x: 100)]).isEmpty)
     }
 }
+
+/// Editing a long-acting note goes through LongActingInsulinSheet, which must change only the
+/// dose and time - never the stored insulin name or the long_acting type.
+final class LongActingEditBodyTests: XCTestCase {
+
+    func testEditBody_carriesDoseAndTimeOnly() {
+        let at = Date(timeIntervalSince1970: 1_790_712_600)
+        let body = LongActingInsulinSheet.editBody(dose: 18, at: at)
+
+        XCTAssertEqual(body.insulin, 18)
+        XCTAssertEqual(body.timestamp, BackendAPI.formatNoteTimestampForRequest(at))
+        XCTAssertNil(body.meal, "the original insulin name must be preserved")
+        XCTAssertNil(body.type, "the note must stay long_acting")
+        XCTAssertNil(body.carbs)
+    }
+}

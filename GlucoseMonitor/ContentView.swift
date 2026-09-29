@@ -247,10 +247,15 @@ struct DashboardView: View {
                     .environmentObject(appState)
             }
             .sheet(item: $noteToEdit) { note in
-                EditNoteSheet(note: note) { body in
-                    await appState.updateNote(id: note.id, body: body)
+                if note.isLongActing {
+                    LongActingInsulinSheet(insulinName: note.meal, editing: note)
+                        .environmentObject(appState)
+                } else {
+                    EditNoteSheet(note: note) { body in
+                        await appState.updateNote(id: note.id, body: body)
+                    }
+                    .environmentObject(appState)
                 }
-                .environmentObject(appState)
             }
             .sheet(item: $appState.openHypoEvent) { event in
                 HypoPromptView(
