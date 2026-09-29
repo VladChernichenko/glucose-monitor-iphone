@@ -1214,6 +1214,7 @@ enum BackendAPI {
         struct StreamEvent: Decodable {
             let type: String
             let token: String?
+            let message: String?
         }
 
         var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
@@ -1229,6 +1230,12 @@ enum BackendAPI {
             else { continue }
 
             if event.type == "done" { break }
+            if event.type == "error" {
+                // The backend reports failures in-stream after a 200; without this the sheet stays blank.
+                throw NSError(domain: "BackendAPI", code: 0, userInfo: [
+                    NSLocalizedDescriptionKey: "AI analysis failed: \(event.message ?? "unknown error"). Please try again."
+                ])
+            }
             if event.type == "token", let tok = event.token {
                 await onToken(tok)
             }
