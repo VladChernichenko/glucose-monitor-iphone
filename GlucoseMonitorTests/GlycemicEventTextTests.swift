@@ -36,4 +36,33 @@ final class GlycemicEventTextTests: XCTestCase {
         XCTAssertNil(GlycemicAmount.parse("-3"))
         XCTAssertNil(GlycemicAmount.parse("abc"))
     }
+
+    func testPeakHour() {
+        var h = Array(repeating: 0, count: 24)
+        XCTAssertNil(GlycemicInsightsText.peakHour(h))
+        h[10] = 3; h[16] = 1
+        XCTAssertEqual(GlycemicInsightsText.peakHour(h), 10)
+    }
+
+    func testNoEffectLineOnlyWhenThereAreCases() {
+        XCTAssertNil(GlycemicInsightsText.noEffectLine(0))
+        XCTAssertEqual(GlycemicInsightsText.noEffectLine(4),
+                       "4 insulin doses in the last 14 days showed no measurable effect. Consider checking your injection sites.")
+    }
+
+    func testByDayGroupsNewestFirstAndSkipsChildren() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let day1 = Date(timeIntervalSince1970: 1_790_000_000)          // some day, 10:13 UTC
+        let day2 = day1.addingTimeInterval(86_400)
+        func ev(_ id: String, _ at: Date, parent: String? = nil) -> BackendAPI.GlycemicEvent {
+            BackendAPI.GlycemicEvent(id: id, category: "STRESS", detectorCategory: nil, userLabel: nil,
+                                     displayLabel: "x", direction: "RISE", phase: "FINAL", state: "OPEN",
+                                     onsetAt: at, windowStart: at, windowEnd: at.addingTimeInterval(600),
+                                     resolvesAt: nil, confidence: 0.6, suppressed: false, linkedEventId: parent,
+                                     meanResidualMmol: 2, promptOptions: [])
+        }
+        let groups = GlycemicInsightsText.byDay([ev("a", day1), ev("b", day2), ev("c", day2, parent: "b")], calendar: cal)
+        XCTAssertEqual(groups.map { $0.events.map(\.id) }, [["b"], ["a"]])
+    }
 }
