@@ -9,7 +9,7 @@ enum GlycemicInsightsText {
 
     static func noEffectLine(_ count: Int) -> String? {
         guard count > 0 else { return nil }
-        return "\(count) insulin doses in the last 14 days showed no measurable effect. Consider checking your injection sites."
+        return "\(count) possible injection-site issue\(count == 1 ? "" : "s") in the last 14 days. Consider checking your injection sites."
     }
 
     /// Top-level events grouped by calendar day, newest day first, newest event first within a day.

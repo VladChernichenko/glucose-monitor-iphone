@@ -46,8 +46,10 @@ final class GlycemicEventTextTests: XCTestCase {
 
     func testNoEffectLineOnlyWhenThereAreCases() {
         XCTAssertNil(GlycemicInsightsText.noEffectLine(0))
+        XCTAssertEqual(GlycemicInsightsText.noEffectLine(1),
+                       "1 possible injection-site issue in the last 14 days. Consider checking your injection sites.")
         XCTAssertEqual(GlycemicInsightsText.noEffectLine(4),
-                       "4 insulin doses in the last 14 days showed no measurable effect. Consider checking your injection sites.")
+                       "4 possible injection-site issues in the last 14 days. Consider checking your injection sites.")
     }
 
     func testByDayGroupsNewestFirstAndSkipsChildren() {
