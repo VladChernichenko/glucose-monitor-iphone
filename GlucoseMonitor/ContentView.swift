@@ -167,6 +167,17 @@ struct DashboardView: View {
                                 compactGlucoseCard(at: context.date)
                             }
                             extendedChartSection
+                            if let prompt = appState.visibleGlycemicPrompt {
+                                GlycemicEventPromptCard(
+                                    event: prompt,
+                                    displayUnit: appState.preferredGlucoseUnit,
+                                    isBusy: appState.isAnsweringGlycemicPrompt,
+                                    onAnswer: { category, carbs, insulin in
+                                        Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
+                                    },
+                                    onNotSure: { appState.snoozeGlycemicPrompt() },
+                                    onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
+                            }
                             recentNotesSection
                             if appState.dataSource == "libre" {
                                 sensorAlarmsBar
@@ -255,6 +266,10 @@ struct DashboardView: View {
                     }
                     .environmentObject(appState)
                 }
+            }
+            .sheet(item: $selectedGlycemicEvent) { event in
+                GlycemicEventDetailSheet(event: event)
+                    .environmentObject(appState)
             }
             .sheet(item: $appState.openHypoEvent) { event in
                 HypoPromptView(

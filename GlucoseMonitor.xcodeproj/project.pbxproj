@@ -42,10 +42,13 @@
 		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
 		700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000092 /* HypoEventDecodingTests.swift */; };
 		700000000000000000000093 /* HypoPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000093 /* HypoPromptView.swift */; };
+		700000000000000000000A04 /* GlycemicEventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A04 /* GlycemicEventDetailSheet.swift */; };
+		700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A03 /* GlycemicEventPromptCard.swift */; };
 		700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A02 /* GlycemicEventMarkers.swift */; };
 		700000000000000000000A0A /* AppState+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A0A /* AppState+Glycemic.swift */; };
 		700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A01 /* BackendAPI+Glycemic.swift */; };
 		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
+		700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A09 /* GlycemicEventTextTests.swift */; };
 		700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */; };
 		700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A07 /* GlycemicEventAppStateTests.swift */; };
 		700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A06 /* GlycemicEventDecodingTests.swift */; };
@@ -171,10 +174,13 @@
 		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000092 /* HypoEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000093 /* HypoPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptView.swift; sourceTree = "<group>"; };
+		600000000000000000000A04 /* GlycemicEventDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDetailSheet.swift; sourceTree = "<group>"; };
+		600000000000000000000A03 /* GlycemicEventPromptCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventPromptCard.swift; sourceTree = "<group>"; };
 		600000000000000000000A02 /* GlycemicEventMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkers.swift; sourceTree = "<group>"; };
 		600000000000000000000A0A /* AppState+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000A01 /* BackendAPI+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
+		600000000000000000000A09 /* GlycemicEventTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventTextTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkerLayoutTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A07 /* GlycemicEventAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A06 /* GlycemicEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDecodingTests.swift; sourceTree = "<group>"; };
@@ -274,6 +280,8 @@
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
 				600000000000000000000093 /* HypoPromptView.swift */,
+				600000000000000000000A04 /* GlycemicEventDetailSheet.swift */,
+				600000000000000000000A03 /* GlycemicEventPromptCard.swift */,
 				600000000000000000000A02 /* GlycemicEventMarkers.swift */,
 				600000000000000000000A0A /* AppState+Glycemic.swift */,
 				600000000000000000000A01 /* BackendAPI+Glycemic.swift */,
@@ -368,6 +376,7 @@
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
 				600000000000000000000092 /* HypoEventDecodingTests.swift */,
 				600000000000000000000094 /* HypoPromptTests.swift */,
+				600000000000000000000A09 /* GlycemicEventTextTests.swift */,
 				600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */,
 				600000000000000000000A07 /* GlycemicEventAppStateTests.swift */,
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
@@ -563,6 +572,8 @@
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
 				700000000000000000000093 /* HypoPromptView.swift in Sources */,
+				700000000000000000000A04 /* GlycemicEventDetailSheet.swift in Sources */,
+				700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */,
 				700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */,
 				700000000000000000000A0A /* AppState+Glycemic.swift in Sources */,
 				700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */,
@@ -619,6 +630,7 @@
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
 				700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */,
 				700000000000000000000094 /* HypoPromptTests.swift in Sources */,
+				700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */,
 				700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */,
 				700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */,
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
