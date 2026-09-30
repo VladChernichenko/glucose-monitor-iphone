@@ -30,6 +30,12 @@ final class AppState: ObservableObject {
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
     /// Open hypo prompt awaiting confirm/dismiss, if any. Drives `HypoPromptView` via `.sheet(item:)`.
     @Published var openHypoEvent: BackendAPI.HypoEvent?
+    /// Glycemic events for the chart's recent range (see `AppState+Glycemic.swift`).
+    @Published var glycemicEvents: [BackendAPI.GlycemicEvent] = []
+    /// The one event the server wants to ask about now.
+    @Published var glycemicPrompt: BackendAPI.GlycemicEvent?
+    /// True for the duration of one in-flight answer, and only that (the hypo-prompt lesson).
+    @Published var isAnsweringGlycemicPrompt = false
 
     private var autoRefreshTask: Task<Void, Never>?
     private(set) var lastGlucoseRefresh: Date?
@@ -328,7 +334,10 @@ final class AppState: ObservableObject {
             async let sensorFetch: Void = refreshSensorData()
             async let prefsFetch: Void = refreshInsulinPrefs()
             async let hypoFetch: Void = refreshHypoEvents()
-            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch, hypoFetch)
+            async let glycemicFetch: Void = refreshGlycemicEvents()
+            async let glycemicPromptFetch: Void = refreshGlycemicPrompt()
+            _ = await (notesFetch, historyFetch, readingFetch, sensorFetch, prefsFetch, hypoFetch,
+                       glycemicFetch, glycemicPromptFetch)
 
             await refreshCalculations()
             lastGlucoseRefresh = Date()
@@ -365,6 +374,8 @@ final class AppState: ObservableObject {
             await loadGlucoseHistory(forceServerSync: forceServerSync ?? !silent)
             await refreshCurrentReading()
             await refreshCalculations()
+            await refreshGlycemicEvents()
+            await refreshGlycemicPrompt()
             lastGlucoseRefresh = Date()
             persistDashboardCache()
         }

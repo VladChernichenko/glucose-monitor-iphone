@@ -42,8 +42,10 @@
 		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
 		700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000092 /* HypoEventDecodingTests.swift */; };
 		700000000000000000000093 /* HypoPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000093 /* HypoPromptView.swift */; };
+		700000000000000000000A0A /* AppState+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A0A /* AppState+Glycemic.swift */; };
 		700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A01 /* BackendAPI+Glycemic.swift */; };
 		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
+		700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A07 /* GlycemicEventAppStateTests.swift */; };
 		700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A06 /* GlycemicEventDecodingTests.swift */; };
 		700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000095 /* BackendAPIHovorkaTests.swift */; };
 		70000000000000000000004D /* RefreshFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004E /* RefreshFlowTests.swift */; };
@@ -167,8 +169,10 @@
 		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000092 /* HypoEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000093 /* HypoPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptView.swift; sourceTree = "<group>"; };
+		600000000000000000000A0A /* AppState+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000A01 /* BackendAPI+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
+		600000000000000000000A07 /* GlycemicEventAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A06 /* GlycemicEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000095 /* BackendAPIHovorkaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIHovorkaTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004E /* RefreshFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshFlowTests.swift; sourceTree = "<group>"; };
@@ -266,6 +270,7 @@
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
 				600000000000000000000093 /* HypoPromptView.swift */,
+				600000000000000000000A0A /* AppState+Glycemic.swift */,
 				600000000000000000000A01 /* BackendAPI+Glycemic.swift */,
 				60000000000000000000000C /* NotesView.swift */,
 				60000000000000000000000D /* SettingsView.swift */,
@@ -358,6 +363,7 @@
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
 				600000000000000000000092 /* HypoEventDecodingTests.swift */,
 				600000000000000000000094 /* HypoPromptTests.swift */,
+				600000000000000000000A07 /* GlycemicEventAppStateTests.swift */,
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
 			);
@@ -551,6 +557,7 @@
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
 				700000000000000000000093 /* HypoPromptView.swift in Sources */,
+				700000000000000000000A0A /* AppState+Glycemic.swift in Sources */,
 				700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
@@ -605,6 +612,7 @@
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
 				700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */,
 				700000000000000000000094 /* HypoPromptTests.swift in Sources */,
+				700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */,
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
 			);
