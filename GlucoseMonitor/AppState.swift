@@ -178,6 +178,7 @@ final class AppState: ObservableObject {
         glucoseHistory = []
         errorMessage = nil
         sensorInfo = nil
+        clearEventPromptState()
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
         DashboardCache.clear()
         WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)

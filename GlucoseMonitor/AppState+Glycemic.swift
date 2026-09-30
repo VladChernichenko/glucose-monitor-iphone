@@ -77,6 +77,15 @@ extension AppState {
         }
     }
 
+    /// Logout: the previous user's markers, questions and device-local snoozes must not carry over.
+    func clearEventPromptState() {
+        glycemicEvents = []
+        glycemicPrompt = nil
+        isAnsweringGlycemicPrompt = false
+        openHypoEvent = nil
+        UserDefaults.standard.removeObject(forKey: Self.glycemicSnoozeKey)
+    }
+
     /// "Not sure": hide this event's question on this device only. It stays OPEN server-side and can be
     /// answered later from the event list.
     func snoozeGlycemicPrompt() {

@@ -42,6 +42,22 @@ final class GlycemicEventAppStateTests: XCTestCase {
         XCTAssertNil(s.visibleGlycemicPrompt, "a hypo always wins over an event question")
     }
 
+    func testLogoutClearsThePreviousUsersEventsPromptsAndSnoozes() async {
+        let s = AppState()
+        s.glycemicEvents = [event("g1")]
+        s.glycemicPrompt = event("g2")
+        s.snoozeGlycemicPrompt()
+        s.isAnsweringGlycemicPrompt = true
+        s.openHypoEvent = BackendAPI.HypoEvent(id: "h1", triggerGlucoseMmol: 3.2, state: "OPEN",
+                                               noteId: nil, detectedAt: nil, resolvedAt: nil)
+        await s.logout()
+        XCTAssertTrue(s.glycemicEvents.isEmpty)
+        XCTAssertNil(s.glycemicPrompt)
+        XCTAssertFalse(s.isAnsweringGlycemicPrompt)
+        XCTAssertNil(s.openHypoEvent)
+        XCTAssertNil(UserDefaults.standard.stringArray(forKey: AppState.glycemicSnoozeKey))
+    }
+
     func testSnoozeHidesOnlyThisEventOnThisDevice() {
         let s = AppState()
         s.glycemicPrompt = event("g1")
