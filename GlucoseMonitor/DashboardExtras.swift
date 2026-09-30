@@ -123,6 +123,15 @@ struct GlucoseHistoryChart: View {
     /// Actual current sensor reading (raw, not smoothed). Used to anchor the prediction line so
     /// it starts from the same value the backend used, eliminating the step at "now".
     var currentGlucose: Double? = nil
+    /// Detected glycemic events to mark on the chart (bands + onset rules + pills).
+    var events: [BackendAPI.GlycemicEvent] = []
+    /// Called when the user taps an event's band or pill.
+    var onSelectEvent: ((BackendAPI.GlycemicEvent) -> Void)? = nil
+
+    private var eventsOnChart: [BackendAPI.GlycemicEvent] {
+        guard let domain = xDomain else { return [] }
+        return GlycemicEventMarkerLayout.visible(events, in: domain)
+    }
 
     /// mmol/L band matching common target range (shown like Libre-style charts).
     private static let targetLowMmol: Double = 4
@@ -227,6 +236,8 @@ struct GlucoseHistoryChart: View {
                         AxisMarks(position: .leading)
                     }
                     .modifier(ChartNoteMarkersOverlay(notes: notesOnChart))
+                    .modifier(GlycemicEventPillsOverlay(events: eventsOnChart, domain: xDomain,
+                                                        onSelect: { onSelectEvent?($0) }))
                 }
                 .frame(height: 220)
             }
@@ -285,6 +296,19 @@ struct GlucoseHistoryChart: View {
                     RuleMark(x: .value("noteTime", t))
                         .foregroundStyle(Color.green.opacity(0.95))
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
+                }
+            }
+
+            // Glycemic events: a band over the unexplained move and a rule at its onset (dashed while provisional).
+            ForEach(eventsOnChart) { e in
+                if let domain = xDomain, let span = GlycemicEventMarkerLayout.clampedSpan(e, domain: domain) {
+                    RectangleMark(xStart: .value("eventStart", span.lowerBound), xEnd: .value("eventEnd", span.upperBound))
+                        .foregroundStyle(GlycemicEventStyle.color(for: e).opacity(e.suppressed ? 0.05 : 0.14))
+                    if !e.isChild {
+                        RuleMark(x: .value("eventOnset", span.lowerBound))
+                            .foregroundStyle(GlycemicEventStyle.color(for: e).opacity(e.suppressed ? 0.3 : 0.9))
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: e.isProvisional ? [4, 3] : []))
+                    }
                 }
             }
 

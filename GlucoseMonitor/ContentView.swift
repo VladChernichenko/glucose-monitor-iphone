@@ -112,6 +112,7 @@ struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
+    @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
     @State private var showFoodScan = false
     @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
@@ -689,7 +690,9 @@ struct DashboardView: View {
                 prediction: appState.predictionChartPoints(),
                 notes: appState.notes,
                 window: window,
-                currentGlucose: appState.currentGlucoseMmolForAPI()
+                currentGlucose: appState.currentGlucoseMmolForAPI(),
+                events: appState.glycemicEvents,
+                onSelectEvent: { selectedGlycemicEvent = $0 }
             )
         }
         .padding()
