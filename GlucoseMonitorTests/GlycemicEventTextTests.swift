@@ -37,6 +37,21 @@ final class GlycemicEventTextTests: XCTestCase {
         XCTAssertNil(GlycemicAmount.parse("abc"))
     }
 
+    func testButtonTitlesReportWhatHappenedAndNeverReadAsDosingInstructions() {
+        XCTAssertEqual(GlycemicCategory.buttonTitle("UNDER_ESTIMATED_INSULIN"), "Took more than logged")
+        XCTAssertEqual(GlycemicCategory.buttonTitle("UNDER_ESTIMATED_FOOD"), "Ate more than logged")
+        XCTAssertEqual(GlycemicCategory.buttonTitle("UNLOGGED_INSULIN"), "Took unlogged insulin")
+        let all = ["UNLOGGED_FOOD", "UNDER_ESTIMATED_FOOD", "STRESS", "ABSORPTION_DELAY", "LIPODYSTROPHY",
+                   "DAWN_PHENOMENON", "ANAEROBIC_ACTIVITY", "UNLOGGED_INSULIN", "UNDER_ESTIMATED_INSULIN", "AEROBIC_ACTIVITY"]
+        for raw in all {
+            let title = GlycemicCategory.buttonTitle(raw).lowercased()
+            XCTAssertFalse(title.contains("dose"), raw)
+            XCTAssertFalse(title.hasPrefix("take "), raw)
+            XCTAssertFalse(title.hasPrefix("more insulin"), raw)
+            XCTAssertFalse(title.hasPrefix("ate more") && !title.contains("than logged"), raw)
+        }
+    }
+
     func testPeakHour() {
         var h = Array(repeating: 0, count: 24)
         XCTAssertNil(GlycemicInsightsText.peakHour(h))

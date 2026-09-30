@@ -119,14 +119,14 @@ extension BackendAPI {
 enum GlycemicCategory {
     private static let titles: [String: String] = [
         "UNLOGGED_FOOD": "I ate",
-        "UNDER_ESTIMATED_FOOD": "Ate more",
+        "UNDER_ESTIMATED_FOOD": "Ate more than logged",
         "STRESS": "Stress",
         "ABSORPTION_DELAY": "Late insulin",
         "LIPODYSTROPHY": "Injection site",
         "DAWN_PHENOMENON": "Dawn",
         "ANAEROBIC_ACTIVITY": "Strength workout",
-        "UNLOGGED_INSULIN": "Took insulin",
-        "UNDER_ESTIMATED_INSULIN": "More insulin",
+        "UNLOGGED_INSULIN": "Took unlogged insulin",
+        "UNDER_ESTIMATED_INSULIN": "Took more than logged",
         "AEROBIC_ACTIVITY": "Cardio",
     ]
 
