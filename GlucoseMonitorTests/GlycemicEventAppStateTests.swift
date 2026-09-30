@@ -102,4 +102,25 @@ final class GlycemicEventAppStateTests: XCTestCase {
         XCTAssertEqual(StubURLProtocol.hits(for: "/api/glycemic-events/g1/confirm"), 1)
         XCTAssertNil(s.glycemicPrompt)
     }
+
+    func testConflictMeansAlreadyAnsweredElsewhere() async {
+        GlucoseMonitorAPI.storeSessionTokens(accessToken: "test-token", refreshToken: nil)
+        StubURLProtocol.reset()
+        URLProtocol.registerClass(StubURLProtocol.self)
+        StubURLProtocol.enqueue(path: "/api/glycemic-events/g1/confirm", .jsonError(status: 409, message: "Event already resolved"))
+        StubURLProtocol.enqueue(path: "/api/glycemic-events/g2/dismiss", .jsonError(status: 409, message: "Event already resolved"))
+        let s = AppState()
+        s.glycemicPrompt = event("g1")
+        let confirmed = await s.answerGlycemicPrompt(category: "STRESS")
+        XCTAssertTrue(confirmed, "a 409 means the event was already answered - not an error")
+        XCTAssertNil(s.glycemicPrompt)
+        XCTAssertNil(s.errorMessage)
+
+        s.glycemicPrompt = event("g2")
+        let dismissed = await s.dismissGlycemicPrompt()
+        XCTAssertTrue(dismissed)
+        XCTAssertNil(s.glycemicPrompt)
+        XCTAssertNil(s.errorMessage)
+        XCTAssertFalse(s.isAnsweringGlycemicPrompt)
+    }
 }

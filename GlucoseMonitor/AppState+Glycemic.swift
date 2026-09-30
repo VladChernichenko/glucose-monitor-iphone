@@ -48,13 +48,15 @@ extension AppState {
         defer { isAnsweringGlycemicPrompt = false }
         do {
             _ = try await BackendAPI.confirmGlycemicEvent(id: event.id, category: category, carbs: carbs, insulin: insulin)
-            if glycemicPrompt?.id == event.id { glycemicPrompt = nil }
-            await refreshGlycemicEvents()
-            return true
+        } catch GlucoseMonitorAPI.APIError.httpStatus(409, _) {
+            // Already answered (another device, or a race with the server's scan): nothing left to do.
         } catch {
             errorMessage = "Couldn't save your answer. Try again."
             return false
         }
+        if glycemicPrompt?.id == event.id { glycemicPrompt = nil }
+        await refreshGlycemicEvents()
+        return true
     }
 
     func dismissGlycemicPrompt() async -> Bool {
@@ -68,13 +70,15 @@ extension AppState {
         defer { isAnsweringGlycemicPrompt = false }
         do {
             _ = try await BackendAPI.dismissGlycemicEvent(id: event.id)
-            if glycemicPrompt?.id == event.id { glycemicPrompt = nil }
-            await refreshGlycemicEvents()
-            return true
+        } catch GlucoseMonitorAPI.APIError.httpStatus(409, _) {
+            // Already answered (another device, or a race with the server's scan): nothing left to do.
         } catch {
             errorMessage = "Couldn't save your answer. Try again."
             return false
         }
+        if glycemicPrompt?.id == event.id { glycemicPrompt = nil }
+        await refreshGlycemicEvents()
+        return true
     }
 
     /// Logout: the previous user's markers, questions and device-local snoozes must not carry over.
