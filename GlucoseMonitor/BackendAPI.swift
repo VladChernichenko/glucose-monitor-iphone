@@ -498,7 +498,7 @@ enum BackendAPI {
         return URLSession(configuration: c)
     }()
 
-    private static func authorizedRequest(path: String, method: String = "GET") throws -> URLRequest {
+    static func authorizedRequest(path: String, method: String = "GET") throws -> URLRequest {
         let ud = GlucoseMonitorAPI.sharedDefaults()
         let base = GlucoseMonitorAPI.effectiveBackendBaseURL()
 
@@ -519,7 +519,7 @@ enum BackendAPI {
         return req
     }
 
-    private static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
+    static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
         do {
             return try await work()
         } catch let err as GlucoseMonitorAPI.APIError {
@@ -539,7 +539,7 @@ enum BackendAPI {
         }
     }
 
-    private static func checkStatus(_ response: URLResponse, data: Data) throws {
+    static func checkStatus(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else {
             throw GlucoseMonitorAPI.APIError.httpStatus(-1, nil)
         }

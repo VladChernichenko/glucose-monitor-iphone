@@ -96,14 +96,3 @@ enum ExperimentService {
         return try decoder.decode(T.self, from: data)
     }
 }
-
-// Expose BackendAPI.checkStatus (it is internal in BackendAPI.swift)
-private extension BackendAPI {
-    static func checkStatus(_ response: URLResponse, data: Data) throws {
-        guard let http = response as? HTTPURLResponse else { return }
-        guard (200..<300).contains(http.statusCode) else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            throw GlucoseMonitorAPI.APIError.httpStatus(http.statusCode, body)
-        }
-    }
-}
