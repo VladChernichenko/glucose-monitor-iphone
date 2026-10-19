@@ -45,6 +45,8 @@
 		700000000000000000000A05 /* GlycemicEventsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A05 /* GlycemicEventsView.swift */; };
 		700000000000000000000C01 /* BackendAPI+InjectionSites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C01 /* BackendAPI+InjectionSites.swift */; };
 		700000000000000000000C02 /* InjectionSitePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C02 /* InjectionSitePicker.swift */; };
+		700000000000000000000B01 /* BackendAPI+TwinForecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000B01 /* BackendAPI+TwinForecast.swift */; };
+		700000000000000000000B02 /* TwinForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000B02 /* TwinForecastView.swift */; };
 		700000000000000000000A04 /* GlycemicEventDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A04 /* GlycemicEventDetailSheet.swift */; };
 		700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A03 /* GlycemicEventPromptCard.swift */; };
 		700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A02 /* GlycemicEventMarkers.swift */; };
@@ -181,6 +183,8 @@
 		600000000000000000000A05 /* GlycemicEventsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventsView.swift; sourceTree = "<group>"; };
 		600000000000000000000C01 /* BackendAPI+InjectionSites.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+InjectionSites.swift"; sourceTree = "<group>"; };
 		600000000000000000000C02 /* InjectionSitePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InjectionSitePicker.swift"; sourceTree = "<group>"; };
+		600000000000000000000B01 /* BackendAPI+TwinForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+TwinForecast.swift"; sourceTree = "<group>"; };
+		600000000000000000000B02 /* TwinForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TwinForecastView.swift"; sourceTree = "<group>"; };
 		600000000000000000000A04 /* GlycemicEventDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDetailSheet.swift; sourceTree = "<group>"; };
 		600000000000000000000A03 /* GlycemicEventPromptCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventPromptCard.swift; sourceTree = "<group>"; };
 		600000000000000000000A02 /* GlycemicEventMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkers.swift; sourceTree = "<group>"; };
@@ -291,6 +295,8 @@
 				600000000000000000000A05 /* GlycemicEventsView.swift */,
 				600000000000000000000C01 /* BackendAPI+InjectionSites.swift */,
 				600000000000000000000C02 /* InjectionSitePicker.swift */,
+				600000000000000000000B01 /* BackendAPI+TwinForecast.swift */,
+				600000000000000000000B02 /* TwinForecastView.swift */,
 				600000000000000000000A04 /* GlycemicEventDetailSheet.swift */,
 				600000000000000000000A03 /* GlycemicEventPromptCard.swift */,
 				600000000000000000000A02 /* GlycemicEventMarkers.swift */,
@@ -587,6 +593,8 @@
 				700000000000000000000A05 /* GlycemicEventsView.swift in Sources */,
 				700000000000000000000C01 /* BackendAPI+InjectionSites.swift in Sources */,
 				700000000000000000000C02 /* InjectionSitePicker.swift in Sources */,
+				700000000000000000000B01 /* BackendAPI+TwinForecast.swift in Sources */,
+				700000000000000000000B02 /* TwinForecastView.swift in Sources */,
 				700000000000000000000A04 /* GlycemicEventDetailSheet.swift in Sources */,
 				700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */,
 				700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */,
