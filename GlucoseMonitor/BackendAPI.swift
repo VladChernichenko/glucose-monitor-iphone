@@ -84,6 +84,8 @@ enum BackendAPI {
         var intensity: String? = nil
         /// Duration in minutes when `type == activity`.
         var durationMin: Int? = nil
+        /// Injection site code (`InjectionZone.code`, or "unknown") for an insulin note; nil when not asked.
+        var siteZone: String? = nil
 
         /// True when this note records a long-acting (basal) dose - not a rapid-acting bolus.
         var isLongActing: Bool { type == NoteType.longActing }
@@ -124,6 +126,8 @@ enum BackendAPI {
         var activityType: String? = nil
         var intensity: String? = nil
         var durationMin: Int? = nil
+        /// Injection site code; nil leaves the stored site unchanged.
+        var siteZone: String? = nil
     }
 
     /// A detected hypoglycaemia window prompting the user to log a fast-acting rescue carb.

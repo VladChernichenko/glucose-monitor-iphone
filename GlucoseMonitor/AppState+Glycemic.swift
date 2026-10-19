@@ -87,6 +87,7 @@ extension AppState {
         glycemicPrompt = nil
         isAnsweringGlycemicPrompt = false
         openHypoEvent = nil
+        pendingSiteNote = nil
         UserDefaults.standard.removeObject(forKey: Self.glycemicSnoozeKey)
     }
 

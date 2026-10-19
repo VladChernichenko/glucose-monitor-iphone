@@ -8,6 +8,8 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Int = 0
     @StateObject private var experimentVM = ExperimentViewModel()
+    /// The dose whose injection site is being asked about (mirrors `appState.pendingSiteNote`, delayed).
+    @State private var siteNote: BackendAPI.GlucoseNote?
 
     private static let dashboardTab = 0
 
@@ -35,6 +37,21 @@ struct ContentView: View {
             // coalesces with any in-flight refresh, and the token refresh has its own 45-min throttle.
             guard newTab == Self.dashboardTab, appState.isAuthenticated else { return }
             Task { await appState.refreshGlucoseOnly(silent: true, forceServerSync: true) }
+        }
+        // "Where did you inject?" after a dose. The dose is saved while its logging sheet is still up,
+        // and only one sheet can be presented at a time, so wait for that sheet to finish closing.
+        .onChange(of: appState.pendingSiteNote) { note in
+            guard let note else { return }
+            Task {
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                siteNote = note
+                appState.pendingSiteNote = nil
+            }
+        }
+        .sheet(item: $siteNote) { note in
+            InjectionSitePickerSheet(note: note)
+                .environmentObject(appState)
+                .presentationDetents([.large])
         }
         .onAppear {
             appState.checkAuthentication()

@@ -30,6 +30,8 @@ final class AppState: ObservableObject {
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
     /// Open hypo prompt awaiting confirm/dismiss, if any. Drives `HypoPromptView` via `.sheet(item:)`.
     @Published var openHypoEvent: BackendAPI.HypoEvent?
+    /// A just-logged insulin dose whose injection site to ask about (spec F7); drives the site picker.
+    @Published var pendingSiteNote: BackendAPI.GlucoseNote?
     /// Glycemic events for the chart's recent range (see `AppState+Glycemic.swift`).
     @Published var glycemicEvents: [BackendAPI.GlycemicEvent] = []
     /// The one event the server wants to ask about now.
@@ -732,8 +734,26 @@ final class AppState: ObservableObject {
         do {
             let note = try await BackendAPI.createNote(input)
             notes.append(note)
+            askForInjectionSite(note)
         } catch {
             errorMessage = "Failed to log long-acting insulin: \(error.localizedDescription)"
+        }
+    }
+
+    /// Queue the "Where did you inject?" question for a newly logged dose.
+    private func askForInjectionSite(_ note: BackendAPI.GlucoseNote) {
+        guard note.insulin > 0, !note.isActivity, note.siteZone == nil else { return }
+        pendingSiteNote = note
+    }
+
+    /// Store where a dose was injected (a zone code, or "unknown"). Returns false if saving failed.
+    func recordInjectionSite(noteId: String, zone: String) async -> Bool {
+        do {
+            let updated = try await BackendAPI.updateNote(id: noteId, body: BackendAPI.UpdateNoteBody(siteZone: zone))
+            if let idx = notes.firstIndex(where: { $0.id == noteId }) { notes[idx] = updated }
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -810,6 +830,7 @@ final class AppState: ObservableObject {
                 note = try await BackendAPI.uploadNotePhoto(noteId: note.id, image: photo)
             }
             notes.append(note)
+            askForInjectionSite(note)
             await refreshCalculations()
         } catch {
             errorMessage = "Failed to save note: \(error.localizedDescription)"
