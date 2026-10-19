@@ -129,6 +129,12 @@ private struct SignInForm: View {
             #endif
             username = GlucoseMonitorAPI.storedAppUsername()
             password = GlucoseMonitorAPI.storedAppPassword()
+            // Say why the app signed itself out (e.g. the backend couldn't be reached), once.
+            let defaults = GlucoseMonitorAPI.sharedDefaults()
+            if let reason = defaults.string(forKey: BackendAPI.signOutReasonKey) {
+                status = "Error: \(reason)"
+                defaults.removeObject(forKey: BackendAPI.signOutReasonKey)
+            }
         }
     }
 

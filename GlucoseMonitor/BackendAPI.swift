@@ -523,24 +523,54 @@ enum BackendAPI {
         return req
     }
 
+    /// Runs a backend call with one 401-refresh retry. If the backend can't be reached at all, the user
+    /// is signed out (by product decision: any failed connection, not only sustained outages).
     static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
         do {
-            return try await work()
-        } catch let err as GlucoseMonitorAPI.APIError {
-            if case .httpStatus(401, _) = err {
-                do {
-                    try await GlucoseMonitorAPI.refreshToken()
-                } catch {
-                    // refresh failed - the refresh token itself is expired/revoked.
-                    // Keeping the dead tokens in the Keychain just repeats this dance
-                    // forever; clear them so the UI can prompt re-login.
-                    GlucoseMonitorAPI.clearSession()
-                    throw err
-                }
+            do {
                 return try await work()
+            } catch let err as GlucoseMonitorAPI.APIError {
+                if case .httpStatus(401, _) = err {
+                    do {
+                        try await GlucoseMonitorAPI.refreshToken()
+                    } catch {
+                        // refresh failed - the refresh token itself is expired/revoked.
+                        // Keeping the dead tokens in the Keychain just repeats this dance
+                        // forever; clear them so the UI can prompt re-login.
+                        GlucoseMonitorAPI.clearSession()
+                        throw err
+                    }
+                    return try await work()
+                }
+                throw err
             }
-            throw err
+        } catch {
+            signOutIfBackendUnreachable(error)
+            throw error
         }
+    }
+
+    /// Defaults key holding why the app last signed itself out; shown once on the sign-in screen.
+    static let signOutReasonKey = "gm_sign_out_reason"
+    static let backendUnreachableReason = "Signed out because the server couldn't be reached. Sign in again when it's back."
+
+    /// True for transport errors meaning the backend was never reached (as opposed to an HTTP error it returned).
+    static func isBackendUnreachable(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .timedOut, .networkConnectionLost,
+             .notConnectedToInternet, .cannotLoadFromNetwork, .internationalRoamingOff, .dataNotAllowed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Clear the session (AppState observes this and shows sign-in) when `error` means the backend is unreachable.
+    static func signOutIfBackendUnreachable(_ error: Error) {
+        guard isBackendUnreachable(error) else { return }
+        GlucoseMonitorAPI.sharedDefaults().set(backendUnreachableReason, forKey: signOutReasonKey)
+        GlucoseMonitorAPI.clearSession()
     }
 
     static func checkStatus(_ response: URLResponse, data: Data) throws {

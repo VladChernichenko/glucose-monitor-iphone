@@ -55,6 +55,7 @@
 		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
 		700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A09 /* GlycemicEventTextTests.swift */; };
 		700000000000000000000C03 /* InjectionSiteRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C03 /* InjectionSiteRulesTests.swift */; };
+		700000000000000000000C04 /* BackendUnreachableSignOutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C04 /* BackendUnreachableSignOutTests.swift */; };
 		700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */; };
 		700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A07 /* GlycemicEventAppStateTests.swift */; };
 		700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A06 /* GlycemicEventDecodingTests.swift */; };
@@ -193,6 +194,7 @@
 		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A09 /* GlycemicEventTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventTextTests.swift; sourceTree = "<group>"; };
 		600000000000000000000C03 /* InjectionSiteRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InjectionSiteRulesTests.swift"; sourceTree = "<group>"; };
+		600000000000000000000C04 /* BackendUnreachableSignOutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendUnreachableSignOutTests.swift"; sourceTree = "<group>"; };
 		600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkerLayoutTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A07 /* GlycemicEventAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A06 /* GlycemicEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDecodingTests.swift; sourceTree = "<group>"; };
@@ -395,6 +397,7 @@
 				600000000000000000000094 /* HypoPromptTests.swift */,
 				600000000000000000000A09 /* GlycemicEventTextTests.swift */,
 				600000000000000000000C03 /* InjectionSiteRulesTests.swift */,
+				600000000000000000000C04 /* BackendUnreachableSignOutTests.swift */,
 				600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */,
 				600000000000000000000A07 /* GlycemicEventAppStateTests.swift */,
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
@@ -655,6 +658,7 @@
 				700000000000000000000094 /* HypoPromptTests.swift in Sources */,
 				700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */,
 				700000000000000000000C03 /* InjectionSiteRulesTests.swift in Sources */,
+				700000000000000000000C04 /* BackendUnreachableSignOutTests.swift in Sources */,
 				700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */,
 				700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */,
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,

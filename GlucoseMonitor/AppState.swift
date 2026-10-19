@@ -597,6 +597,8 @@ final class AppState: ObservableObject {
                 }
             }
         } catch {
+            // fetchLibreGlucoseHistory bypasses BackendAPI.performWithRefresh, so apply its sign-out here too.
+            BackendAPI.signOutIfBackendUnreachable(error)
             guard generation == authGeneration else { return }
             if errorMessage == nil {
                 errorMessage = error.localizedDescription
