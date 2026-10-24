@@ -137,7 +137,6 @@ struct DashboardView: View {
     @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
-    @State private var showGlycemicEvents = false
     @State private var showTwinForecast = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
@@ -273,10 +272,6 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showActivity) {
                 ActivityNoteSheet()
-                    .environmentObject(appState)
-            }
-            .sheet(isPresented: $showGlycemicEvents) {
-                NavigationStack { GlycemicEventsView() }
                     .environmentObject(appState)
             }
             .sheet(isPresented: $showTwinForecast) {
@@ -867,10 +862,6 @@ struct DashboardView: View {
                 Divider()
                 Button { showActivity = true } label: {
                     quickActionRow(title: "Log activity", systemImage: "figure.run")
-                }
-                Divider()
-                Button { showGlycemicEvents = true } label: {
-                    quickActionRow(title: "Detected events", systemImage: "waveform.badge.magnifyingglass")
                 }
                 Divider()
                 Button { showTwinForecast = true } label: {

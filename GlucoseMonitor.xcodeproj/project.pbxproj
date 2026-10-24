@@ -42,7 +42,6 @@
 		700000000000000000000042 /* BackendAPIBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000043 /* BackendAPIBugTests.swift */; };
 		700000000000000000000092 /* HypoEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000092 /* HypoEventDecodingTests.swift */; };
 		700000000000000000000093 /* HypoPromptView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000093 /* HypoPromptView.swift */; };
-		700000000000000000000A05 /* GlycemicEventsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A05 /* GlycemicEventsView.swift */; };
 		700000000000000000000C01 /* BackendAPI+InjectionSites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C01 /* BackendAPI+InjectionSites.swift */; };
 		700000000000000000000C02 /* InjectionSitePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000C02 /* InjectionSitePicker.swift */; };
 		700000000000000000000B01 /* BackendAPI+TwinForecast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000B01 /* BackendAPI+TwinForecast.swift */; };
@@ -181,7 +180,6 @@
 		600000000000000000000043 /* BackendAPIBugTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIBugTests.swift; sourceTree = "<group>"; };
 		600000000000000000000092 /* HypoEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000093 /* HypoPromptView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptView.swift; sourceTree = "<group>"; };
-		600000000000000000000A05 /* GlycemicEventsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventsView.swift; sourceTree = "<group>"; };
 		600000000000000000000C01 /* BackendAPI+InjectionSites.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+InjectionSites.swift"; sourceTree = "<group>"; };
 		600000000000000000000C02 /* InjectionSitePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "InjectionSitePicker.swift"; sourceTree = "<group>"; };
 		600000000000000000000B01 /* BackendAPI+TwinForecast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+TwinForecast.swift"; sourceTree = "<group>"; };
@@ -294,7 +292,6 @@
 				60000000000000000000000B /* BackendAPI.swift */,
 				600000000000000000000002 /* ContentView.swift */,
 				600000000000000000000093 /* HypoPromptView.swift */,
-				600000000000000000000A05 /* GlycemicEventsView.swift */,
 				600000000000000000000C01 /* BackendAPI+InjectionSites.swift */,
 				600000000000000000000C02 /* InjectionSitePicker.swift */,
 				600000000000000000000B01 /* BackendAPI+TwinForecast.swift */,
@@ -593,7 +590,6 @@
 				70000000000000000000000B /* BackendAPI.swift in Sources */,
 				700000000000000000000002 /* ContentView.swift in Sources */,
 				700000000000000000000093 /* HypoPromptView.swift in Sources */,
-				700000000000000000000A05 /* GlycemicEventsView.swift in Sources */,
 				700000000000000000000C01 /* BackendAPI+InjectionSites.swift in Sources */,
 				700000000000000000000C02 /* InjectionSitePicker.swift in Sources */,
 				700000000000000000000B01 /* BackendAPI+TwinForecast.swift in Sources */,
