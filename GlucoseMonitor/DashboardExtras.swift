@@ -278,6 +278,7 @@ struct GlucoseHistoryChart: View {
                 )
                 .interpolationMethod(.linear)
                 .foregroundStyle(.blue)
+                .lineStyle(StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
             }
 
             ForEach(futurePrediction) { p in
