@@ -292,6 +292,20 @@ final class AppState: ObservableObject {
 
     // MARK: - Refresh
 
+    /// Readings older than this are fetched from LibreLinkUp now (forced server sync) instead of
+    /// waiting for the backend scheduler, which slows to 15 min after a sync with no new data.
+    static let readingMaxAge: TimeInterval = 5 * 60
+
+    /// Age of the newest reading on screen, or nil when there is none.
+    var latestReadingAge: TimeInterval? {
+        (currentReading?.timestamp ?? glucoseHistory.last?.time).map { Date().timeIntervalSince($0) }
+    }
+
+    /// True when the newest reading is older than `readingMaxAge` (or there is none yet).
+    var isReadingOutdated: Bool {
+        latestReadingAge.map { $0 > Self.readingMaxAge } ?? true
+    }
+
     func startAutoRefreshIfNeeded() {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task { [weak self] in
@@ -303,6 +317,12 @@ final class AppState: ObservableObject {
                 // even after a long background suspension (where Task.sleep effectively pauses).
                 try? await Task.sleep(nanoseconds: 60_000_000_000)
                 guard let self, self.isAuthenticated else { continue }
+                // Reading over 5 min old: fetch from LibreLinkUp now, at most once a minute (this loop).
+                if self.dataSource != "nightscout", self.isReadingOutdated {
+                    lastFireTime = Date()
+                    await self.refreshGlucoseOnly(silent: true, forceServerSync: true)
+                    continue
+                }
                 guard Date().timeIntervalSince(lastFireTime) >= 5 * 60 else { continue }
                 lastFireTime = Date()
                 await self.refreshGlucoseOnly(silent: true)

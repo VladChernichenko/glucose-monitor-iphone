@@ -83,7 +83,9 @@ struct ContentView: View {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
                     await MainActor.run { appState.checkAuthentication() }
                     let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
-                    guard elapsed > 45 else { return }
+                    // Opening the app always refreshes when the reading is over 5 min old; otherwise
+                    // skip only if we refreshed in the last 45 s (quick app switches).
+                    guard elapsed > 45 || appState.isReadingOutdated else { return }
                     if appState.currentReading == nil {
                         await appState.refreshAll()
                     } else {
