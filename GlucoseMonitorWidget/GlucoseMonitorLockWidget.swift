@@ -97,40 +97,40 @@ struct HighContrastGlucoseView: View {
 
     // MARK: Layouts
 
+    /// Value + trend large on the left, the 2h forecast under it, IOB/COB/age small on the right, and the
+    /// 4h history as a thick bright line underneath. No frosted backing: the Lock Screen renders accessory
+    /// widgets in one tint by brightness, so black reads as the (dark) wallpaper and the bright green line
+    /// as the brightest tint; full colour shows wherever the system allows it.
     private var rectangular: some View {
-        ZStack {
-            AccessoryWidgetBackground()
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            VStack(alignment: .leading, spacing: 0) {
-                if stale {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("--").font(.system(size: 34, weight: .heavy, design: .rounded))
-                        Text("No new data").font(.system(size: 15, weight: .bold, design: .rounded))
-                    }
-                } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(currentText).font(.system(size: 36, weight: .heavy, design: .rounded))
-                        Text(trendText).font(.system(size: 24, weight: .heavy))
-                        if let forecast = forecastText {
-                            Text(forecast).font(.system(size: 28, weight: .heavy, design: .rounded))
-                            Text("2h").font(.system(size: 12, weight: .heavy, design: .rounded))
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .top, spacing: 6) {
+                VStack(alignment: .leading, spacing: -2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(stale ? "--" : currentText).font(.system(size: 30, weight: .heavy, design: .rounded))
+                        if !stale {
+                            Text(trendText).font(.system(size: 18, weight: .heavy))
                         }
                     }
+                    Text(stale ? "No new data" : forecastText.map { "2h \($0)" } ?? " ")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
                 }
-                HStack(spacing: 8) {
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 0) {
                     Text("IOB \(iobText)")
                     Text("COB \(cobText)")
-                    Spacer(minLength: 0)
                     Text(ageText)
                 }
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(.system(size: 11, weight: .bold, design: .rounded))
             }
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .monospacedDigit()
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
+            HighContrastChartLine(points: snapshot.chartPointsMmol())
+                .frame(height: 16)
         }
+        .lineLimit(1)
+        .minimumScaleFactor(0.6)
+        .monospacedDigit()
+        .padding(.horizontal, 4)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Color.black)
     }
 
     private var circular: some View {
@@ -186,6 +186,30 @@ struct HighContrastGlucoseView: View {
         if minutes < 1 { return "now" }
         if minutes < 60 { return "\(minutes)m ago" }
         return "\(minutes / 60)h ago"
+    }
+}
+
+/// The last hours of readings as one thick, bright green line (no axes, no grid) scaled to its own range.
+private struct HighContrastChartLine: View {
+    let points: [LockScreenWidgetSnapshot.ChartPoint]
+    private static let green = Color(red: 0.2, green: 1, blue: 0.4)
+
+    var body: some View {
+        Canvas { ctx, size in
+            guard points.count >= 2, let t0 = points.first?.time, let t1 = points.last?.time else { return }
+            let span = max(t1.timeIntervalSince(t0), 1)
+            let values = points.map(\.mmol)
+            let low = (values.min() ?? 4) - 0.3
+            let range = max((values.max() ?? 10) + 0.3 - low, 1)
+            var line = Path()
+            for (i, p) in points.enumerated() {
+                let x = CGFloat(p.time.timeIntervalSince(t0) / span) * size.width
+                let y = size.height - CGFloat((p.mmol - low) / range) * size.height
+                i == 0 ? line.move(to: CGPoint(x: x, y: y)) : line.addLine(to: CGPoint(x: x, y: y))
+            }
+            ctx.stroke(line, with: .color(Self.green),
+                       style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
+        }
     }
 }
 
