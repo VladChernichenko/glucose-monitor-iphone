@@ -276,7 +276,7 @@ struct GlucoseHistoryChart: View {
                     y: .value("mmol/L", p.mmol),
                     series: .value("Series", "history")
                 )
-                .interpolationMethod(.monotone)
+                .interpolationMethod(.linear)
                 .foregroundStyle(.blue)
             }
 
