@@ -606,7 +606,9 @@ final class AppState: ObservableObject {
             // No sign-out here: the only call not already covered by BackendAPI.performWithRefresh is
             // fetchLibreGlucoseHistory, which waits on LibreLinkUp, so its timeouts mean LLU is down.
             guard generation == authGeneration else { return }
-            if errorMessage == nil {
+            // LibreLinkUp trouble is never shown as raw error text: the backend logs in again by itself,
+            // and a real outage shows as the stale-data banner (libreDataStale).
+            if source == "nightscout", errorMessage == nil {
                 errorMessage = error.localizedDescription
             }
         }
