@@ -4,9 +4,9 @@ import XCTest
 @MainActor
 final class GlycemicEventAppStateTests: XCTestCase {
 
-    private func event(_ id: String) -> BackendAPI.GlycemicEvent {
-        BackendAPI.GlycemicEvent(id: id, category: "UNLOGGED_FOOD", detectorCategory: "UNLOGGED_FOOD", userLabel: nil,
-                                 displayLabel: "Unaccounted carbs", direction: "RISE", phase: "FINAL", state: "OPEN",
+    private func event(_ id: String, category: String = "STRESS") -> BackendAPI.GlycemicEvent {
+        BackendAPI.GlycemicEvent(id: id, category: category, detectorCategory: category, userLabel: nil,
+                                 displayLabel: "Possible stress", direction: "RISE", phase: "FINAL", state: "OPEN",
                                  onsetAt: Date().addingTimeInterval(-3600), windowStart: Date().addingTimeInterval(-3300),
                                  windowEnd: Date().addingTimeInterval(-600), resolvesAt: nil, confidence: 0.6,
                                  suppressed: false, linkedEventId: nil, meanResidualMmol: 3.0,
@@ -56,6 +56,16 @@ final class GlycemicEventAppStateTests: XCTestCase {
         XCTAssertFalse(s.isAnsweringGlycemicPrompt)
         XCTAssertNil(s.openHypoEvent)
         XCTAssertNil(UserDefaults.standard.stringArray(forKey: AppState.glycemicSnoozeKey))
+    }
+
+    func testUnloggedFoodAndInsulinPromptsAreNotShown() {
+        let s = AppState()
+        s.glycemicPrompt = event("f", category: "UNLOGGED_FOOD")
+        XCTAssertNil(s.visibleGlycemicPrompt)
+        s.glycemicPrompt = event("u", category: "UNLOGGED_INSULIN")
+        XCTAssertNil(s.visibleGlycemicPrompt)
+        s.glycemicPrompt = event("s", category: "STRESS")
+        XCTAssertEqual(s.visibleGlycemicPrompt?.id, "s")
     }
 
     func testSnoozeHidesOnlyThisEventOnThisDevice() {
