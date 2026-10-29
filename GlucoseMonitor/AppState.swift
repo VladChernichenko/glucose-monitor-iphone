@@ -187,7 +187,7 @@ final class AppState: ObservableObject {
         clearEventPromptState()
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
         DashboardCache.clear()
-        WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
+        LockScreenWidgetSnapshot.allWidgetKinds.forEach { WidgetCenter.shared.reloadTimelines(ofKind: $0) }
     }
 
     /// Glucose value in mmol/L for `POST /api/glucose-calculations/` (web sends mmol).
@@ -467,7 +467,8 @@ final class AppState: ObservableObject {
             cobGrams: calculations?.activeCarbsOnBoard,
             iobUnits: displayedIOB,
             twoHourPredictionMmol: calculations?.twoHourPrediction,
-            chartPoints: Array(chart)
+            chartPoints: Array(chart),
+            dataStale: libreDataStale
         )
         snap.save()
         reloadWidgetTimelines()
@@ -475,7 +476,7 @@ final class AppState: ObservableObject {
 
     /// Push fresh snapshot to Home Screen / Lock Screen widgets (after foreground or background fetch).
     func reloadWidgetTimelines() {
-        WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
+        LockScreenWidgetSnapshot.allWidgetKinds.forEach { WidgetCenter.shared.reloadTimelines(ofKind: $0) }
     }
 
     private func refreshCurrentReading() async {
