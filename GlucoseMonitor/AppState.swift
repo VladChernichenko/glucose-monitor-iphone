@@ -22,6 +22,9 @@ final class AppState: ObservableObject {
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
     @Published var glucoseHistory: [GlucoseChartPoint] = []
+    /// True while the backend reports LibreLinkUp unavailable (its circuit breaker), after one reconnect
+    /// attempt: the readings are stale, so the dashboard hides the current value and the forecast.
+    @Published var libreDataStale = false
     @Published var errorMessage: String?
     @Published var preferredGlucoseUnit: String = "mmol/L"
     @Published var dataSource: String = "libre"
@@ -178,6 +181,7 @@ final class AppState: ObservableObject {
         isLoadingNotes = false
         notesLoadError = nil
         glucoseHistory = []
+        libreDataStale = false
         errorMessage = nil
         sensorInfo = nil
         clearEventPromptState()
@@ -547,6 +551,7 @@ final class AppState: ObservableObject {
         let generation = authGeneration
         do {
             if source == "nightscout" {
+                libreDataStale = false
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
                 guard generation == authGeneration else { return }
                 glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
@@ -556,6 +561,7 @@ final class AppState: ObservableObject {
                 if forceServerSync {
                     _ = try? await BackendAPI.syncLibreNow()
                 }
+                await refreshLibreUpstreamStatus(justSynced: forceServerSync)
                 guard generation == authGeneration else { return }
                 // LLU: read from the cached chart data written by the background scheduler
                 // (runs every 5 min). Pass the latest cached timestamp so the backend only
@@ -597,13 +603,28 @@ final class AppState: ObservableObject {
                 }
             }
         } catch {
-            // fetchLibreGlucoseHistory bypasses BackendAPI.performWithRefresh, so apply its sign-out here too.
-            BackendAPI.signOutIfBackendUnreachable(error)
+            // No sign-out here: the only call not already covered by BackendAPI.performWithRefresh is
+            // fetchLibreGlucoseHistory, which waits on LibreLinkUp, so its timeouts mean LLU is down.
             guard generation == authGeneration else { return }
             if errorMessage == nil {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    /// Reads LibreLinkUp availability from the backend's circuit breaker. When LLU is down, makes one
+    /// reconnect attempt (an on-demand sync, which becomes the breaker's trial call once its open window
+    /// has passed) before flagging the data stale. Skips that attempt when the caller has just synced.
+    /// If the status itself can't be read, the flag is left as it was.
+    private func refreshLibreUpstreamStatus(justSynced: Bool) async {
+        let generation = authGeneration
+        guard var status = try? await BackendAPI.fetchLibreUpstreamStatus() else { return }
+        if !status.available && !justSynced {
+            _ = try? await BackendAPI.syncLibreNow()
+            status = (try? await BackendAPI.fetchLibreUpstreamStatus()) ?? status
+        }
+        guard generation == authGeneration else { return }
+        libreDataStale = !status.available
     }
 
     private static func nightscoutEntriesToChartPoints(_ entries: [BackendAPI.NightscoutEntry]) -> [GlucoseChartPoint] {

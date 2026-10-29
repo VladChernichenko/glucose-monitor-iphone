@@ -141,6 +141,7 @@ struct DashboardView: View {
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -150,6 +151,9 @@ struct DashboardView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 16) {
+                            if appState.libreDataStale && scenePhase == .active {
+                                libreStaleBanner
+                            }
                             if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
                                 isfSuggestionBanner(suggestion)
                             }
@@ -426,6 +430,36 @@ struct DashboardView: View {
     private static let dashboardCobTint = Color(red: 0.92, green: 0.55, blue: 0.12)
     private static let dashboardIobTint = Color(red: 0.35, green: 0.45, blue: 0.95)
 
+    /// Shown while LibreLinkUp is unavailable: the readings are stale, so the card hides the current
+    /// value and the forecast until the backend reconnects.
+    private var libreStaleBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("LibreLinkUp isn't responding")
+                    .font(.subheadline.bold())
+                Group {
+                    if let ts = appState.currentReading?.timestamp {
+                        Text("Data is stale - last reading ") + Text(ts, style: .relative) + Text(" ago. Reconnecting...")
+                    } else {
+                        Text("Data is stale. Reconnecting...")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+        )
+    }
+
     private func compactGlucoseCard(at date: Date) -> some View {
         let calc = appState.calculations
         let pre = PreBolusTimer.state(notes: appState.notes, now: date)
@@ -443,7 +477,8 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
-                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, trendArrow: r.trendArrow, expanded: showExtendedForecast)
+                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, trendArrow: r.trendArrow, expanded: showExtendedForecast,
+                                                      hideValues: appState.libreDataStale)
                                 .minimumScaleFactor(0.55)
                                 .lineLimit(1)
                                 .animation(.easeInOut(duration: 0.2), value: showExtendedForecast)
@@ -453,7 +488,7 @@ struct DashboardView: View {
                                 }
 
                             HStack(alignment: .center, spacing: 10) {
-                                if let status = r.status {
+                                if let status = r.status, !appState.libreDataStale {
                                     statusBadge(status)
                                 }
                             }
@@ -578,10 +613,14 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, trendArrow: String? = nil, expanded: Bool = false) -> some View {
+    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, trendArrow: String? = nil, expanded: Bool = false,
+                                           hideValues: Bool = false) -> some View {
         let unitStr = unitLabel(unit)
         let fourHour = calc?.predictionPath?.last?.predictedGlucose
-        let trendArrowDisplay = (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
+        let trendArrowDisplay = hideValues ? "\u{2192}"
+            : (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
+        // Stale data (hideValues): show placeholders, never an old reading or a forecast built on it.
+        let currentText = hideValues ? "--" : formatGlucose(current, unit: unit)
 
         if let calc {
             // Tap switches the single forecast slot between 2h and 4h (same position),
@@ -601,12 +640,12 @@ struct DashboardView: View {
 
                 // Number row
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(formatGlucose(current, unit: unit))
+                    Text(currentText)
                         .frame(minWidth: 60, alignment: .leading)
                     Text(trendArrowDisplay)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
-                    Text(formatBackendGlucoseMmol(forecastValue, displayUnit: unit))
+                    Text(hideValues ? "--" : formatBackendGlucoseMmol(forecastValue, displayUnit: unit))
                     Text(unitStr)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -621,7 +660,7 @@ struct DashboardView: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(formatGlucose(current, unit: unit))
+                    Text(currentText)
                         .font(.system(size: 40, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Self.dashboardGlucoseOrange)
@@ -724,7 +763,8 @@ struct DashboardView: View {
                 .font(.headline)
             GlucoseHistoryChart(
                 history: appState.glucoseHistory,
-                prediction: appState.predictionChartPoints(),
+                // Stale LibreLinkUp data: no forecast curve built on an old reading.
+                prediction: appState.libreDataStale ? [] : appState.predictionChartPoints(),
                 notes: appState.notes,
                 window: window,
                 currentGlucose: appState.currentGlucoseMmolForAPI(),

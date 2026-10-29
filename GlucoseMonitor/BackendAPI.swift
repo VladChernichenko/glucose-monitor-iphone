@@ -525,7 +525,9 @@ enum BackendAPI {
 
     /// Runs a backend call with one 401-refresh retry. If the backend can't be reached at all, the user
     /// is signed out (by product decision: any failed connection, not only sustained outages).
-    static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
+    /// Pass `signOutIfUnreachable: false` for calls that wait on LibreLinkUp: a slow or down LLU makes
+    /// them time out though the backend is fine, and that must leave the user signed in.
+    static func performWithRefresh<T>(signOutIfUnreachable: Bool = true, _ work: () async throws -> T) async throws -> T {
         do {
             do {
                 return try await work()
@@ -545,7 +547,7 @@ enum BackendAPI {
                 throw err
             }
         } catch {
-            signOutIfBackendUnreachable(error)
+            if signOutIfUnreachable { signOutIfBackendUnreachable(error) }
             throw error
         }
     }
@@ -1099,12 +1101,33 @@ enum BackendAPI {
     /// server outcome string (e.g. "NEW_DATA", "NO_CHANGE", "IN_PROGRESS").
     @discardableResult
     static func syncLibreNow() async throws -> String {
-        try await performWithRefresh {
+        // The backend waits on LibreLinkUp here, so a timeout means LLU is slow, not that the backend is gone.
+        try await performWithRefresh(signOutIfUnreachable: false) {
             let req = try authorizedRequest(path: "/api/libre/sync-now", method: "POST")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             struct Resp: Decodable { let outcome: String }
             return (try? GlucoseMonitorAPI.jsonDecoder().decode(Resp.self, from: data))?.outcome ?? "OK"
+        }
+    }
+
+    /// LibreLinkUp availability from the backend's per-user circuit breaker (`GET /api/libre/status`).
+    /// `available == false` means the stored readings are stale.
+    struct LibreUpstreamStatus: Decodable, Equatable {
+        let available: Bool
+        /// Breaker state: CLOSED, OPEN or HALF_OPEN.
+        let state: String
+        /// Seconds until an open breaker allows the next reconnect attempt; nil unless OPEN.
+        let retryInSeconds: Int?
+    }
+
+    /// Cheap: the backend reads in-memory breaker state and never calls LibreLinkUp.
+    static func fetchLibreUpstreamStatus() async throws -> LibreUpstreamStatus {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/libre/status")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(LibreUpstreamStatus.self, from: data)
         }
     }
 
