@@ -8,8 +8,8 @@ final class GlycemicEventMarkerLayoutTests: XCTestCase {
 
     private func event(_ id: String, onset: TimeInterval, end: TimeInterval, phase: String = "FINAL",
                        state: String = "OPEN", parent: String? = nil, suppressed: Bool = false,
-                       label: String = "Unaccounted carbs") -> BackendAPI.GlycemicEvent {
-        BackendAPI.GlycemicEvent(id: id, category: "UNLOGGED_FOOD", detectorCategory: nil, userLabel: nil,
+                       label: String = "Unaccounted carbs", category: String = "UNLOGGED_FOOD") -> BackendAPI.GlycemicEvent {
+        BackendAPI.GlycemicEvent(id: id, category: category, detectorCategory: nil, userLabel: nil,
                                  displayLabel: label, direction: "RISE", phase: phase, state: state,
                                  onsetAt: t0.addingTimeInterval(onset), windowStart: t0.addingTimeInterval(onset),
                                  windowEnd: t0.addingTimeInterval(end), resolvesAt: nil, confidence: 0.6,
@@ -54,10 +54,18 @@ final class GlycemicEventMarkerLayoutTests: XCTestCase {
 
     func testEventsOutsideTheDomainOrDismissedAreHidden() {
         let domain = t0...t0.addingTimeInterval(3600)
-        let outside = event("o", onset: 7200, end: 9000)
-        let dismissed = event("d", onset: 600, end: 1200, state: "DISMISSED")
-        let inside = event("i", onset: 600, end: 1200)
+        let outside = event("o", onset: 7200, end: 9000, category: "STRESS")
+        let dismissed = event("d", onset: 600, end: 1200, state: "DISMISSED", category: "STRESS")
+        let inside = event("i", onset: 600, end: 1200, category: "STRESS")
         XCTAssertNil(GlycemicEventMarkerLayout.clampedSpan(outside, domain: domain))
         XCTAssertEqual(GlycemicEventMarkerLayout.visible([outside, dismissed, inside], in: domain).map(\.id), ["i"])
+    }
+
+    func testUnloggedEventsStayOffTheChart() {
+        let domain = t0...t0.addingTimeInterval(3600)
+        let food = event("f", onset: 600, end: 1200, category: "UNLOGGED_FOOD")
+        let insulin = event("u", onset: 600, end: 1200, category: "UNLOGGED_INSULIN")
+        let stress = event("s", onset: 600, end: 1200, category: "STRESS")
+        XCTAssertEqual(GlycemicEventMarkerLayout.visible([food, insulin, stress], in: domain).map(\.id), ["s"])
     }
 }

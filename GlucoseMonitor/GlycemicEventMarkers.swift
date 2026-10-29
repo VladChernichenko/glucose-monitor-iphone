@@ -33,9 +33,14 @@ enum GlycemicEventMarkerLayout {
         return lower <= upper ? lower...upper : nil
     }
 
-    /// Events to draw: not dismissed, and at least partly inside the domain.
+    /// Categories kept on the backend only (model input), never drawn on the dashboard chart.
+    static let hiddenCategories: Set<String> = ["UNLOGGED_FOOD", "UNLOGGED_INSULIN"]
+
+    /// Events to draw: not a hidden category, not dismissed, and at least partly inside the domain.
     static func visible(_ events: [BackendAPI.GlycemicEvent], in domain: ClosedRange<Date>) -> [BackendAPI.GlycemicEvent] {
-        events.filter { $0.state != "DISMISSED" && clampedSpan($0, domain: domain) != nil }
+        events.filter {
+            !hiddenCategories.contains($0.category) && $0.state != "DISMISSED" && clampedSpan($0, domain: domain) != nil
+        }
     }
 
     /// One pill per top-level, non-suppressed event at its (clipped) onset x; pills closer than the
