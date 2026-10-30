@@ -192,7 +192,7 @@ extension BackendAPI {
 
     static func streamAssistantMessage(text: String?, photoJPEG: Data?, clientTime: String, timezone: String,
                                        onEvent: @MainActor @escaping (AssistantEvent) -> Void) async throws {
-        try await performWithRefresh {
+        try await runAssistantStream(openLines: {
             var req = try authorizedRequest(path: "/api/assistant/messages", method: "POST")
             let boundary = "Boundary-\(UUID().uuidString)"
             req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -208,7 +208,20 @@ extension BackendAPI {
                 for try await b in bytes { data.append(b); if data.count > 16_384 { break } }
                 try checkStatus(resp, data: data)
             }
-            for try await line in bytes.lines {
+            return bytes.lines
+        }, onEvent: onEvent)
+    }
+
+    /// Opens the stream and forwards decoded events until `done` or `error` (a failed reply sends `error`
+    /// with no `done` after it). A 401 still refreshes and retries; transport errors mid-reply (a slow LLM
+    /// hitting the timeout, a mobile connection drop) reach the chat as an error but do NOT sign the user
+    /// out - the same rule as other slow-upstream calls (`performWithRefresh` doc).
+    static func runAssistantStream<Lines: AsyncSequence>(
+        openLines: () async throws -> Lines,
+        onEvent: @MainActor @escaping (AssistantEvent) -> Void
+    ) async throws where Lines.Element == String {
+        try await performWithRefresh(signOutIfUnreachable: false) {
+            for try await line in try await openLines() {
                 guard let event = decodeAssistantEvent(line: line) else { continue }
                 await onEvent(event)
                 if case .done = event { break }
@@ -218,7 +231,8 @@ extension BackendAPI {
     }
 
     static func fetchAssistantHistory(before: Date?, limit: Int) async throws -> [ChatMessageDTO] {
-        try await performWithRefresh {
+        // The chat loads history on its own; a flaky connection there must not sign the user out.
+        try await performWithRefresh(signOutIfUnreachable: false) {
             var path = "/api/assistant/messages?limit=\(limit)"
             if let before {
                 let f = ISO8601DateFormatter()

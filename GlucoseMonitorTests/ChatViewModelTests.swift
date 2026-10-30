@@ -201,6 +201,18 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.items.first?.isFailed, true)
     }
 
+    func testConnectionLostMidStreamEndsSendingKeepsPartialAndShowsErrorRow() async {
+        let fake = FakeAssistantService()
+        fake.scriptedEvents = [.token("Your glucose")]
+        fake.sendError = URLError(.networkConnectionLost)
+        let vm = makeVM(fake)
+        await vm.send(text: "why high?", photoJPEG: nil)
+        XCTAssertFalse(vm.isSending)
+        XCTAssertEqual(vm.items.count, 3)
+        XCTAssertEqual(vm.items[1].kind, .assistant(text: "Your glucose"))
+        guard case .error = vm.items[2].kind else { return XCTFail("expected error row") }
+    }
+
     func testTransportFailureShowsErrorRow() async {
         let fake = FakeAssistantService()
         fake.sendError = URLError(.badServerResponse)

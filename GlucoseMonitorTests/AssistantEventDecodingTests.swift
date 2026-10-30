@@ -105,6 +105,41 @@ final class AssistantEventDecodingTests: XCTestCase {
         XCTAssertFalse(s.contains("name=\"photo\""))
     }
 
+    @MainActor func testConnectionLostMidReplyKeepsTheUserSignedIn() async {
+        // A slow LLM or a mobile drop must not throw the user to sign-in mid-conversation.
+        let cleared = expectation(forNotification: GlucoseMonitorAPI.sessionClearedNotification, object: nil)
+        cleared.isInverted = true
+        defer { GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: BackendAPI.signOutReasonKey) }
+        let lines = AsyncThrowingStream<String, Error> { c in
+            c.yield(#"{"type":"token","text":"Your glucose"}"#)
+            c.finish(throwing: URLError(.networkConnectionLost))
+        }
+        var received: [BackendAPI.AssistantEvent] = []
+
+        do {
+            try await BackendAPI.runAssistantStream(openLines: { lines }) { received.append($0) }
+            XCTFail("the transport error must reach the chat")
+        } catch {
+            XCTAssertEqual((error as? URLError)?.code, .networkConnectionLost)
+        }
+
+        XCTAssertEqual(received, [.token("Your glucose")])
+        await fulfillment(of: [cleared], timeout: 0.3)
+        XCTAssertNil(GlucoseMonitorAPI.sharedDefaults().string(forKey: BackendAPI.signOutReasonKey))
+    }
+
+    @MainActor func testStreamStopsReadingAfterError() async throws {
+        let lines = AsyncThrowingStream<String, Error> { c in
+            c.yield(#"{"type":"token","text":"partial"}"#)
+            c.yield(#"{"type":"error","message":"Assistant reply failed"}"#)
+            c.yield(#"{"type":"token","text":"never"}"#)
+            c.finish()
+        }
+        var received: [BackendAPI.AssistantEvent] = []
+        try await BackendAPI.runAssistantStream(openLines: { lines }) { received.append($0) }
+        XCTAssertEqual(received, [.token("partial"), .error("Assistant reply failed")])
+    }
+
     func testClientTimeIsNaiveLocalWallTime() {
         let berlin = TimeZone(identifier: "Europe/Berlin")!
         // 2026-10-30T11:00:00Z is 12:00 in Berlin (CET, after the October switch).
