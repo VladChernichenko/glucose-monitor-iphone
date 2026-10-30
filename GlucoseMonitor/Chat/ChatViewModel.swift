@@ -16,6 +16,8 @@ struct ChatItem: Identifiable, Equatable {
         case assistant(text: String)
         case logged(ChatLoggedEntry)
         case error(String)
+        /// The glycemic event engine's pending question, pinned last; `text` is the preview line.
+        case glycemicPrompt(BackendAPI.GlycemicEvent, text: String)
     }
 
     let id: String
@@ -31,6 +33,7 @@ struct ChatItem: Identifiable, Equatable {
         case .assistant(let text): return text
         case .logged(let entry): return entry.summary
         case .error(let message): return message
+        case .glycemicPrompt(_, let text): return text
         }
     }
 }
@@ -62,8 +65,61 @@ final class ChatViewModel: ObservableObject {
         self.timeZone = timeZone
     }
 
+    /// The glycemic question awaiting an answer; rendered as the last bubble regardless of new messages.
+    @Published private(set) var pendingPrompt: BackendAPI.GlycemicEvent?
+    private var pendingPromptText = ""
+
+    /// Answers the prompt (AppState confirm); returns false when saving failed and the prompt must stay.
+    var onAnswerPrompt: ((_ event: BackendAPI.GlycemicEvent, _ category: String, _ carbs: Double?, _ insulin: Double?) async -> Bool)?
+    /// "Nothing": dismisses the event; returns false on failure.
+    var onDismissPrompt: ((_ event: BackendAPI.GlycemicEvent) async -> Bool)?
+    /// "Not sure": hides the question on this device only.
+    var onSnoozePrompt: (() -> Void)?
+
+    /// History plus the pinned prompt bubble, in display order.
+    var bubbles: [ChatItem] {
+        guard let event = pendingPrompt else { return items }
+        return items + [ChatItem(id: "prompt-\(event.id)", createdAt: event.windowEnd,
+                                 kind: .glycemicPrompt(event, text: pendingPromptText))]
+    }
+
     var lastMessageLine: String? {
-        items.last(where: { !$0.previewText.isEmpty })?.previewText
+        bubbles.last(where: { !$0.previewText.isEmpty })?.previewText
+    }
+
+    // MARK: Glycemic prompt
+
+    func setPendingPrompt(_ event: BackendAPI.GlycemicEvent?, displayUnit: String) {
+        pendingPrompt = event
+        pendingPromptText = event.map { ChatFormatting.promptText($0, unit: displayUnit) } ?? ""
+    }
+
+    func answerPrompt(category: String, carbs: Double?, insulin: Double?) async {
+        guard let event = pendingPrompt, let handler = onAnswerPrompt else { return }
+        guard await handler(event, category, carbs, insulin) else { return }
+        clearPrompt(event)
+        appendAssistant(ChatFormatting.promptConfirmation(category: category, carbs: carbs, insulin: insulin))
+    }
+
+    func dismissPrompt() async {
+        guard let event = pendingPrompt, let handler = onDismissPrompt else { return }
+        guard await handler(event) else { return }
+        clearPrompt(event)
+        appendAssistant("OK, nothing to log.")
+    }
+
+    func snoozePrompt() {
+        onSnoozePrompt?()
+        pendingPrompt = nil
+        pendingPromptText = ""
+    }
+
+    private func clearPrompt(_ event: BackendAPI.GlycemicEvent) {
+        if pendingPrompt?.id == event.id { pendingPrompt = nil; pendingPromptText = "" }
+    }
+
+    private func appendAssistant(_ text: String) {
+        items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(), kind: .assistant(text: text)))
     }
 
     // MARK: History
@@ -209,6 +265,18 @@ enum ChatFormatting {
         GlucoseUnit.isMgdl(unit)
             ? String(format: "%.0f", GlucoseUnit.mmolToMgdl(mmol))
             : String(format: "%.1f", mmol)
+    }
+
+    /// e.g. "Unexplained rise 14:10-14:55, +58 mg/dL above forecast. Anything to log?"
+    static func promptText(_ event: BackendAPI.GlycemicEvent, unit: String) -> String {
+        "\(event.displayLabel): \(GlycemicEventCopy.summary(for: event, displayUnit: unit)). \(GlycemicEventCopy.question(for: event))"
+    }
+
+    static func promptConfirmation(category: String, carbs: Double?, insulin: Double?) -> String {
+        var text = "Noted: \(GlycemicCategory.buttonTitle(category))"
+        if let carbs { text += ", \(backendNumber(carbs)) g" }
+        if let insulin { text += ", \(backendNumber(insulin)) U" }
+        return text + "."
     }
 
     static func iobCob(iob: Double?, cob: Double?) -> String {

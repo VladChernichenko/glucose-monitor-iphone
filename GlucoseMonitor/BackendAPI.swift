@@ -1239,49 +1239,6 @@ enum BackendAPI {
         }
     }
 
-    // MARK: - AI insights
-
-    /// Streams markdown tokens from the backend NDJSON endpoint.
-    /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.
-    /// Returns when the `{"type":"done"}` event is received or the stream ends.
-    /// - Parameter provider: `"auto"` (default), `"qwen"`, or `"ollama"`.
-    static func streamAiRetrospective(
-        windowHours: Int = 12,
-        provider: String = "auto",
-        onToken: @MainActor @escaping (String) -> Void
-    ) async throws {
-        struct Body: Encodable { let windowHours: Int; let provider: String }
-        struct StreamEvent: Decodable {
-            let type: String
-            let token: String?
-            let message: String?
-        }
-
-        var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours, provider: provider))
-
-        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-        try checkStatus(resp, data: Data())
-
-        for try await line in bytes.lines {
-            guard !line.isEmpty,
-                  let data = line.data(using: .utf8),
-                  let event = try? GlucoseMonitorAPI.jsonDecoder().decode(StreamEvent.self, from: data)
-            else { continue }
-
-            if event.type == "done" { break }
-            if event.type == "error" {
-                // The backend reports failures in-stream after a 200; without this the sheet stays blank.
-                throw NSError(domain: "BackendAPI", code: 0, userInfo: [
-                    NSLocalizedDescriptionKey: "AI analysis failed: \(event.message ?? "unknown error"). Please try again."
-                ])
-            }
-            if event.type == "token", let tok = event.token {
-                await onToken(tok)
-            }
-        }
-    }
-
     // MARK: - Nutrition
 
     /// Send a meal photo to the backend vision LLM and get a NutritionSnapshot back.

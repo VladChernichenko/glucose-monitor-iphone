@@ -124,7 +124,6 @@ struct DashboardView: View {
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
     @State private var showFoodScan = false
     @State private var showExtendedForecast = false
-    @State private var showAI = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
@@ -155,17 +154,6 @@ struct DashboardView: View {
                                     compactGlucoseCard(at: context.date)
                                 }
                                 extendedChartSection
-                                if let prompt = appState.visibleGlycemicPrompt {
-                                    GlycemicEventPromptCard(
-                                        event: prompt,
-                                        displayUnit: appState.preferredGlucoseUnit,
-                                        isBusy: appState.isAnsweringGlycemicPrompt,
-                                        onAnswer: { category, carbs, insulin in
-                                            Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
-                                        },
-                                        onNotSure: { appState.snoozeGlycemicPrompt() },
-                                        onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
-                                }
                                 recentNotesSection
                                 if appState.dataSource == "libre" {
                                     sensorAlarmsBar
@@ -228,7 +216,6 @@ struct DashboardView: View {
                 }
                 .environmentObject(appState)
             }
-            .sheet(isPresented: $showAI) { AIInsightsSheet() }
             .fullScreenCover(isPresented: $showBedsideMode) {
                 BedsideModeView().environmentObject(appState)
             }
@@ -870,10 +857,6 @@ struct DashboardView: View {
                 Divider()
                 Button { showTwinForecast = true } label: {
                     quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
-                }
-                Divider()
-                Button { showAI = true } label: {
-                    quickActionRow(title: "AI insights", systemImage: "sparkles")
                 }
             }
         }

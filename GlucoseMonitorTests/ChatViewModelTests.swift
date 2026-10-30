@@ -240,6 +240,60 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertTrue(hasPhoto)
     }
 
+    // MARK: - Glycemic prompt
+
+    private func promptEvent() -> BackendAPI.GlycemicEvent {
+        BackendAPI.GlycemicEvent(id: "g1", category: "UNLOGGED_FOOD", detectorCategory: "UNLOGGED_FOOD", userLabel: nil,
+                                 displayLabel: "Unexplained rise", direction: "RISE", phase: "PROVISIONAL", state: "OPEN",
+                                 onsetAt: fixedNow.addingTimeInterval(-3000), windowStart: fixedNow.addingTimeInterval(-3000),
+                                 windowEnd: fixedNow, resolvesAt: nil, confidence: nil, suppressed: false,
+                                 linkedEventId: nil, meanResidualMmol: 3.2, promptOptions: ["UNLOGGED_FOOD", "STRESS"])
+    }
+
+    func testPendingGlycemicPromptRenderedAsBubble() async {
+        let fake = FakeAssistantService()
+        fake.pages = [[row("m1", 100)]]
+        let vm = makeVM(fake)
+        await vm.loadInitial()
+        var answered: [(String, String?, Double?, Double?)] = []
+        vm.onAnswerPrompt = { event, category, carbs, insulin in
+            answered.append((event.id, category, carbs, insulin)); return true
+        }
+
+        vm.setPendingPrompt(promptEvent(), displayUnit: "mg/dL")
+
+        // Pinned as the last bubble, in the user's unit, and shown in the peek line.
+        guard case .glycemicPrompt(let event, let text) = vm.bubbles.last?.kind else { return XCTFail("expected prompt bubble") }
+        XCTAssertEqual(event.id, "g1")
+        XCTAssertTrue(text.contains("58 mg/dL"), text)
+        XCTAssertEqual(vm.lastMessageLine, text)
+
+        // A new user message does not push the prompt out of last place.
+        await vm.send(text: "hi", photoJPEG: nil)
+        guard case .glycemicPrompt = vm.bubbles.last?.kind else { return XCTFail("prompt must stay last") }
+
+        await vm.answerPrompt(category: "UNLOGGED_FOOD", carbs: 30, insulin: nil)
+        XCTAssertEqual(answered.count, 1)
+        XCTAssertEqual(answered.first?.0, "g1")
+        XCTAssertEqual(answered.first?.1, "UNLOGGED_FOOD")
+        XCTAssertEqual(answered.first?.2, 30)
+        XCTAssertNil(answered.first?.3)
+        XCTAssertNil(vm.pendingPrompt)
+        // Client-side confirmation bubble, nothing posted to the assistant.
+        guard case .assistant(let confirmation) = vm.bubbles.last?.kind else { return XCTFail("expected confirmation") }
+        XCTAssertTrue(confirmation.contains("I ate"), confirmation)
+        XCTAssertEqual(fake.sent.count, 1)
+    }
+
+    func testFailedPromptAnswerKeepsPrompt() async {
+        let vm = makeVM(FakeAssistantService())
+        vm.onAnswerPrompt = { _, _, _, _ in false }
+        vm.setPendingPrompt(promptEvent(), displayUnit: "mmol/L")
+        await vm.answerPrompt(category: "STRESS", carbs: nil, insulin: nil)
+        XCTAssertNotNil(vm.pendingPrompt)
+        XCTAssertTrue(vm.items.isEmpty)
+    }
+
     // MARK: - Units
 
     func testGlucoseShownInMgdlWhenUnitIsMgdl() {

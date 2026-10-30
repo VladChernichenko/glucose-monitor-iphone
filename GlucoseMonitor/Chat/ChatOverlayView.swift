@@ -44,8 +44,18 @@ struct ChatOverlayView: View {
             model.onNotesChanged = { [weak appState] in
                 Task { await appState?.refreshAfterChatNotesChanged() }
             }
+            model.onAnswerPrompt = { [weak appState] event, category, carbs, insulin in
+                await appState?.answerGlycemicEvent(event, category: category, carbs: carbs, insulin: insulin) ?? false
+            }
+            model.onDismissPrompt = { [weak appState] event in
+                await appState?.dismissGlycemicEvent(event) ?? false
+            }
+            model.onSnoozePrompt = { [weak appState] in appState?.snoozeGlycemicPrompt() }
+            syncPrompt()
             await model.loadInitial()
         }
+        .onChange(of: appState.visibleGlycemicPrompt) { _ in syncPrompt() }
+        .onChange(of: appState.preferredGlucoseUnit) { _ in syncPrompt() }
         .onChange(of: photoItem) { item in
             guard let item else { return }
             Task {
@@ -54,6 +64,20 @@ struct ChatOverlayView: View {
                 }
             }
         }
+    }
+
+    private func syncPrompt() {
+        model.setPendingPrompt(appState.visibleGlycemicPrompt, displayUnit: appState.preferredGlucoseUnit)
+    }
+
+    private var promptActions: GlycemicPromptActions {
+        GlycemicPromptActions(
+            isBusy: appState.isAnsweringGlycemicPrompt,
+            onAnswer: { category, carbs, insulin in
+                Task { await model.answerPrompt(category: category, carbs: carbs, insulin: insulin) }
+            },
+            onNotSure: { model.snoozePrompt() },
+            onNothing: { Task { await model.dismissPrompt() } })
     }
 
     // MARK: Handle and drag
@@ -142,13 +166,14 @@ struct ChatOverlayView: View {
                                 Task { await model.loadOlder() }
                             }
                     }
-                    ForEach(Array(model.items.enumerated()), id: \.element.id) { index, item in
-                        if index == 0 || !Calendar.current.isDate(item.createdAt, inSameDayAs: model.items[index - 1].createdAt) {
+                    let bubbles = model.bubbles
+                    ForEach(Array(bubbles.enumerated()), id: \.element.id) { index, item in
+                        if index == 0 || !Calendar.current.isDate(item.createdAt, inSameDayAs: bubbles[index - 1].createdAt) {
                             ChatDaySeparator(date: item.createdAt)
                         }
-                        ChatMessageRow(item: item, displayUnit: appState.preferredGlucoseUnit) {
-                            Task { await model.undo(itemId: item.id) }
-                        }
+                        ChatMessageRow(item: item, displayUnit: appState.preferredGlucoseUnit,
+                                       onUndo: { Task { await model.undo(itemId: item.id) } },
+                                       prompt: promptActions)
                         .id(item.id)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomId)
@@ -167,7 +192,7 @@ struct ChatOverlayView: View {
             .onChange(of: model.scrollAnchorId) { anchor in
                 if let anchor { proxy.scrollTo(anchor, anchor: .top) }
             }
-            .onChange(of: model.items.last) { _ in
+            .onChange(of: model.bubbles.last) { _ in
                 withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
             }
         }

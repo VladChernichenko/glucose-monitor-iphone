@@ -5,6 +5,7 @@ struct ChatMessageRow: View {
     let item: ChatItem
     let displayUnit: String
     let onUndo: () -> Void
+    var prompt: GlycemicPromptActions?
 
     var body: some View {
         switch item.kind {
@@ -41,11 +42,55 @@ struct ChatMessageRow: View {
             }
         case .logged(let entry):
             LoggedRow(entry: entry, displayUnit: displayUnit, onUndo: onUndo)
+        case .glycemicPrompt(let event, let text):
+            if let prompt {
+                GlycemicPromptBubble(event: event, text: text, actions: prompt)
+            }
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)
                 .foregroundStyle(.orange)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// What the pinned glycemic question can do; wired to AppState by the overlay.
+struct GlycemicPromptActions {
+    let isBusy: Bool
+    let onAnswer: (_ category: String, _ carbs: Double?, _ insulin: Double?) -> Void
+    let onNotSure: () -> Void
+    let onNothing: () -> Void
+}
+
+/// The glycemic event engine's question as an assistant bubble, with the same one-tap answers the
+/// dashboard card had (reuses `GlycemicAnswerButtons`).
+struct GlycemicPromptBubble: View {
+    let event: BackendAPI.GlycemicEvent
+    let text: String
+    let actions: GlycemicPromptActions
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 8) {
+                Label(event.displayLabel, systemImage: event.isRise ? "arrow.up.right" : "arrow.down.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(GlycemicEventStyle.color(for: event))
+                Text(text).textSelection(.enabled)
+                GlycemicAnswerButtons(options: event.promptOptions, isBusy: actions.isBusy, onAnswer: actions.onAnswer)
+                HStack {
+                    Button("Not sure", action: actions.onNotSure)
+                    Button("Nothing", action: actions.onNothing)
+                }
+                .font(.footnote)
+                .foregroundColor(.secondary)
+                .disabled(actions.isBusy)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(GlycemicEventStyle.color(for: event).opacity(0.4)))
+            Spacer(minLength: 24)
         }
     }
 }
