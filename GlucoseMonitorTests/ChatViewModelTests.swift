@@ -52,6 +52,15 @@ final class ChatViewModelTests: XCTestCase {
                       timeZone: TimeZone(identifier: "Europe/Berlin")!)
     }
 
+    // MARK: - Carb advice
+
+    func testTookFastCarbsSendsGramsFastThroughChatPath() async {
+        let fake = FakeAssistantService()
+        let vm = makeVM(fake)
+        await vm.sendFastCarbs(grams: 15)
+        XCTAssertEqual(fake.sent.map(\.text), ["15g fast"])
+    }
+
     // MARK: - Hit rate
 
     func testHitRateHiddenWhenNoChecks() async {

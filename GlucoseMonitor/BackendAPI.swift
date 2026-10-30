@@ -261,6 +261,8 @@ enum BackendAPI {
         let confidence: Double
         let factors: PredictionFactors?
         let predictionPath: [PredictionPathPoint]?
+        /// Pre-emptive fast-carbs advice; nil when absent or when the state is unknown to this app version.
+        let carbAdvice: CarbAdvice?
 
         struct Envelope: Decodable {
             let backendMode: Bool?
@@ -271,7 +273,7 @@ enum BackendAPI {
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
             case eightHourPrediction
-            case predictionTrend, confidence, factors, predictionPath
+            case predictionTrend, confidence, factors, predictionPath, carbAdvice
         }
 
         init(from decoder: Decoder) throws {
@@ -285,6 +287,7 @@ enum BackendAPI {
             confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
             factors = try? c.decode(PredictionFactors.self, forKey: .factors)
             predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
+            carbAdvice = try? c.decodeIfPresent(CarbAdvice.self, forKey: .carbAdvice)
         }
 
         private static func decodeFlexible(

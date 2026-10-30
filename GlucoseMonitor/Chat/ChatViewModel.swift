@@ -225,6 +225,12 @@ final class ChatViewModel: ObservableObject {
         await loadHitRate() // a quick log can add a frozen snapshot
     }
 
+    /// "Took N g" on the carb advice card: logs fast sugar through the normal chat send path,
+    /// where the backend quick-log parser attaches it to an open low.
+    func sendFastCarbs(grams: Int) async {
+        await send(text: "\(grams)g fast", photoJPEG: nil)
+    }
+
     private func apply(_ event: BackendAPI.AssistantEvent, to replyId: String) {
         guard let i = index(of: replyId) else { return }
         switch event {

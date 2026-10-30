@@ -23,6 +23,7 @@ struct ChatOverlayView: View {
             if isExpanded {
                 header
                 Divider()
+                carbAdviceCard
                 messageList
                     .frame(maxHeight: .infinity)
             } else {
@@ -126,9 +127,9 @@ struct ChatOverlayView: View {
             if model.isSending {
                 ProgressView().controlSize(.small)
             }
-            Text(model.lastMessageLine ?? "Ask about your glucose or log a dose, like \"5u 40g\"")
+            Text(peekText)
                 .font(.subheadline)
-                .foregroundStyle(model.lastMessageLine == nil ? .secondary : .primary)
+                .foregroundStyle(carbAdvice != nil ? Color.red : (model.lastMessageLine == nil ? .secondary : .primary))
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
             hitRatePill
@@ -138,6 +139,31 @@ struct ChatOverlayView: View {
         .contentShape(Rectangle())
         .onTapGesture { setExpanded(true) }
         .gesture(dragGesture)
+    }
+
+    // MARK: Carb advice
+
+    private var carbAdvice: BackendAPI.CarbAdvice? {
+        BackendAPI.CarbAdvice.visible(appState.calculations?.carbAdvice,
+                                      calculationsStale: appState.calculationsStale,
+                                      hypoPromptOpen: appState.openHypoEvent != nil)
+    }
+
+    /// The advice headline (red) takes over the peek line while advice is showing.
+    private var peekText: String {
+        if let advice = carbAdvice { return ChatFormatting.carbAdviceHeadline(advice, unit: appState.preferredGlucoseUnit) }
+        return model.lastMessageLine ?? "Ask about your glucose or log a dose, like \"5u 40g\""
+    }
+
+    @ViewBuilder
+    private var carbAdviceCard: some View {
+        if let advice = carbAdvice {
+            CarbAdviceCardView(advice: advice, unit: appState.preferredGlucoseUnit, isBusy: model.isSending) { grams in
+                Task { await model.sendFastCarbs(grams: grams) }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
     }
 
     // MARK: Expanded

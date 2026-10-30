@@ -84,6 +84,9 @@
 		700000000000000000000061 /* OnboardingRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000061 /* OnboardingRegisterView.swift */; };
 		700000000000000000000062 /* OnboardingDataSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000062 /* OnboardingDataSourceView.swift */; };
 		70000000000000000000004C /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004D /* OnboardingFlowTests.swift */; };
+		700000000000000000000D11 /* CarbAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D11 /* CarbAdvice.swift */; };
+		700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D12 /* CarbAdviceCardView.swift */; };
+		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -211,6 +214,9 @@
 		600000000000000000000061 /* OnboardingRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingRegisterView.swift; sourceTree = "<group>"; };
 		600000000000000000000062 /* OnboardingDataSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDataSourceView.swift; sourceTree = "<group>"; };
 		60000000000000000000004D /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D11 /* CarbAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdvice.swift; sourceTree = "<group>"; };
+		600000000000000000000D12 /* CarbAdviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -307,6 +313,8 @@
 				600000000000000000000D01 /* ChatOverlayView.swift */,
 				600000000000000000000D02 /* ChatViewModel.swift */,
 				600000000000000000000D03 /* ChatMessageViews.swift */,
+				600000000000000000000D12 /* CarbAdviceCardView.swift */,
+				600000000000000000000D11 /* CarbAdvice.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -389,6 +397,7 @@
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
 				600000000000000000000D05 /* AssistantEventDecodingTests.swift */,
 				600000000000000000000D06 /* ChatViewModelTests.swift */,
+				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
 			);
 			path = GlucoseMonitorTests;
@@ -572,6 +581,8 @@
 				700000000000000000000D01 /* ChatOverlayView.swift in Sources */,
 				700000000000000000000D02 /* ChatViewModel.swift in Sources */,
 				700000000000000000000D03 /* ChatMessageViews.swift in Sources */,
+				700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */,
+				700000000000000000000D11 /* CarbAdvice.swift in Sources */,
 				700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
@@ -618,6 +629,7 @@
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
 				700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */,
 				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
+				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
