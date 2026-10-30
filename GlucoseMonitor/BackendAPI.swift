@@ -673,7 +673,7 @@ enum BackendAPI {
         return image
     }
 
-    private static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+    static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
         let side = max(image.size.width, image.size.height)
         guard side > maxSide else { return image }
         let scale = maxSide / side
@@ -683,7 +683,7 @@ enum BackendAPI {
     }
 
     /// Tries decreasing JPEG quality until the data fits under 1 MB (LogMeal's hard limit).
-    private static func compressUnder1MB(_ image: UIImage) -> Data? {
+    static func compressUnder1MB(_ image: UIImage) -> Data? {
         let limit = 1_000_000
         for quality in [0.6, 0.5, 0.4, 0.3] {
             if let data = image.jpegData(compressionQuality: quality), data.count < limit {

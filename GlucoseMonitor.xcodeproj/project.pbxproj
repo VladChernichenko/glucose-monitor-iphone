@@ -50,6 +50,12 @@
 		700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A03 /* GlycemicEventPromptCard.swift */; };
 		700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A02 /* GlycemicEventMarkers.swift */; };
 		700000000000000000000A0A /* AppState+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A0A /* AppState+Glycemic.swift */; };
+		700000000000000000000D01 /* ChatOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D01 /* ChatOverlayView.swift */; };
+		700000000000000000000D02 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D02 /* ChatViewModel.swift */; };
+		700000000000000000000D03 /* ChatMessageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D03 /* ChatMessageViews.swift */; };
+		700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D04 /* BackendAPI+Assistant.swift */; };
+		700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D05 /* AssistantEventDecodingTests.swift */; };
+		700000000000000000000D06 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D06 /* ChatViewModelTests.swift */; };
 		700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A01 /* BackendAPI+Glycemic.swift */; };
 		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
 		700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A09 /* GlycemicEventTextTests.swift */; };
@@ -172,6 +178,12 @@
 		600000000000000000000A03 /* GlycemicEventPromptCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventPromptCard.swift; sourceTree = "<group>"; };
 		600000000000000000000A02 /* GlycemicEventMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkers.swift; sourceTree = "<group>"; };
 		600000000000000000000A0A /* AppState+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState+Glycemic.swift"; sourceTree = "<group>"; };
+		600000000000000000000D01 /* ChatOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayView.swift; sourceTree = "<group>"; };
+		600000000000000000000D02 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		600000000000000000000D03 /* ChatMessageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageViews.swift; sourceTree = "<group>"; };
+		600000000000000000000D04 /* BackendAPI+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Assistant.swift"; sourceTree = "<group>"; };
+		600000000000000000000D05 /* AssistantEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantEventDecodingTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D06 /* ChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A01 /* BackendAPI+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A09 /* GlycemicEventTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventTextTests.swift; sourceTree = "<group>"; };
@@ -267,6 +279,8 @@
 				600000000000000000000A03 /* GlycemicEventPromptCard.swift */,
 				600000000000000000000A02 /* GlycemicEventMarkers.swift */,
 				600000000000000000000A0A /* AppState+Glycemic.swift */,
+				800000000000000000000D00 /* Chat */,
+				600000000000000000000D04 /* BackendAPI+Assistant.swift */,
 				600000000000000000000A01 /* BackendAPI+Glycemic.swift */,
 				60000000000000000000000C /* NotesView.swift */,
 				60000000000000000000000D /* SettingsView.swift */,
@@ -285,6 +299,16 @@
 				600000000000000000000006 /* Assets.xcassets */,
 			);
 			path = GlucoseMonitor;
+			sourceTree = "<group>";
+		};
+		800000000000000000000D00 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				600000000000000000000D01 /* ChatOverlayView.swift */,
+				600000000000000000000D02 /* ChatViewModel.swift */,
+				600000000000000000000D03 /* ChatMessageViews.swift */,
+			);
+			path = Chat;
 			sourceTree = "<group>";
 		};
 		800000000000000000000003 /* Shared */ = {
@@ -363,6 +387,8 @@
 				600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */,
 				600000000000000000000A07 /* GlycemicEventAppStateTests.swift */,
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
+				600000000000000000000D05 /* AssistantEventDecodingTests.swift */,
+				600000000000000000000D06 /* ChatViewModelTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
 			);
 			path = GlucoseMonitorTests;
@@ -543,6 +569,10 @@
 				700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */,
 				700000000000000000000A0A /* AppState+Glycemic.swift in Sources */,
 				700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */,
+				700000000000000000000D01 /* ChatOverlayView.swift in Sources */,
+				700000000000000000000D02 /* ChatViewModel.swift in Sources */,
+				700000000000000000000D03 /* ChatMessageViews.swift in Sources */,
+				700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
 				F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */,
@@ -586,6 +616,8 @@
 				700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */,
 				700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */,
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
+				700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */,
+				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

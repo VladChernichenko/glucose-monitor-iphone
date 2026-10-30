@@ -132,6 +132,8 @@ struct DashboardView: View {
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
+    @State private var chatExpanded = false
+    private static let chatPeekClearance: CGFloat = 150
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -140,45 +142,52 @@ struct DashboardView: View {
                 if !appState.isAuthenticated {
                     notSignedInPlaceholder
                 } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            if appState.libreDataStale && scenePhase == .active {
-                                libreStaleBanner
+                    ZStack(alignment: .bottom) {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                if appState.libreDataStale && scenePhase == .active {
+                                    libreStaleBanner
+                                }
+                                if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
+                                    isfSuggestionBanner(suggestion)
+                                }
+                                TimelineView(.periodic(from: .now, by: 1)) { context in
+                                    compactGlucoseCard(at: context.date)
+                                }
+                                extendedChartSection
+                                if let prompt = appState.visibleGlycemicPrompt {
+                                    GlycemicEventPromptCard(
+                                        event: prompt,
+                                        displayUnit: appState.preferredGlucoseUnit,
+                                        isBusy: appState.isAnsweringGlycemicPrompt,
+                                        onAnswer: { category, carbs, insulin in
+                                            Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
+                                        },
+                                        onNotSure: { appState.snoozeGlycemicPrompt() },
+                                        onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
+                                }
+                                recentNotesSection
+                                if appState.dataSource == "libre" {
+                                    sensorAlarmsBar
+                                }
+                                quickActions
+                                if let msg = appState.errorMessage {
+                                    Text(msg)
+                                        .font(.footnote)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
                             }
-                            if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
-                                isfSuggestionBanner(suggestion)
-                            }
-                            TimelineView(.periodic(from: .now, by: 1)) { context in
-                                compactGlucoseCard(at: context.date)
-                            }
-                            extendedChartSection
-                            if let prompt = appState.visibleGlycemicPrompt {
-                                GlycemicEventPromptCard(
-                                    event: prompt,
-                                    displayUnit: appState.preferredGlucoseUnit,
-                                    isBusy: appState.isAnsweringGlycemicPrompt,
-                                    onAnswer: { category, carbs, insulin in
-                                        Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
-                                    },
-                                    onNotSure: { appState.snoozeGlycemicPrompt() },
-                                    onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
-                            }
-                            recentNotesSection
-                            if appState.dataSource == "libre" {
-                                sensorAlarmsBar
-                            }
-                            quickActions
-                            if let msg = appState.errorMessage {
-                                Text(msg)
-                                    .font(.footnote)
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                            }
+                            .padding()
+                            // Room for the chat peek so the last dashboard rows can scroll above it.
+                            .padding(.bottom, Self.chatPeekClearance)
                         }
-                        .padding()
+                        .refreshable { await appState.refreshAll() }
+
+                        // Bottom layer of the dashboard, not a sheet: the sheets below present above it.
+                        ChatOverlayView(isExpanded: $chatExpanded)
                     }
-                    .refreshable { await appState.refreshAll() }
                 }
             }
             .toolbar {

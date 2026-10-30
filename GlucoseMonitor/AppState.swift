@@ -510,6 +510,12 @@ final class AppState: ObservableObject {
             .1
     }
 
+    /// After the chat wrote or undid notes on the server: reload notes, then IOB/COB and the forecast.
+    func refreshAfterChatNotesChanged() async {
+        await fetchNotes()
+        await refreshCalculations()
+    }
+
     private func refreshCalculations() async {
         let generation = authGeneration
         // Use any available CGM reading regardless of age - the UI already shows "Updated X ago".
