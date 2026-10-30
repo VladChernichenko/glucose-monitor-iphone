@@ -72,10 +72,28 @@ final class CarbAdviceDecodingTests: XCTestCase {
 
     func testHiddenWhenStaleOrLowPromptShowing() throws {
         let a = try advice()
-        XCTAssertNotNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: false, hypoPromptOpen: false))
-        XCTAssertNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: true, hypoPromptOpen: false))
-        XCTAssertNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: false, hypoPromptOpen: true))
-        XCTAssertNil(BackendAPI.CarbAdvice.visible(nil, calculationsStale: false, hypoPromptOpen: false))
+        let now = a.recheckAt.addingTimeInterval(-60)
+        XCTAssertNotNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: false, hypoPromptOpen: false, now: now))
+        XCTAssertNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: true, hypoPromptOpen: false, now: now))
+        XCTAssertNil(BackendAPI.CarbAdvice.visible(a, calculationsStale: false, hypoPromptOpen: true, now: now))
+        XCTAssertNil(BackendAPI.CarbAdvice.visible(nil, calculationsStale: false, hypoPromptOpen: false, now: now))
+    }
+
+    func testVisibilityRules() throws {
+        let a = try advice()
+        let before = a.recheckAt.addingTimeInterval(-60)
+        func vis(cache: Bool = false, now: Date, took: String? = nil) -> BackendAPI.CarbAdvice? {
+            BackendAPI.CarbAdvice.visible(a, calculationsStale: false, calculationsFromCache: cache,
+                                          hypoPromptOpen: false, now: now, tookIdentity: took)
+        }
+        XCTAssertNotNil(vis(now: before), "fresh fetch shows")
+        XCTAssertNil(vis(cache: true, now: before), "cache-restored calculations hide")
+        XCTAssertNotNil(vis(now: a.recheckAt.addingTimeInterval(4 * 60)))
+        XCTAssertNil(vis(now: a.recheckAt.addingTimeInterval(6 * 60)), "expired by recheckAt + 5 min")
+        XCTAssertNil(vis(now: before, took: a.identity), "acted-on advice hidden")
+        XCTAssertNotNil(vis(now: before, took: "other"), "a different advice shows again")
+        let landing = try advice("STILL_LANDING")
+        XCTAssertNotEqual(landing.identity, a.identity)
     }
 
     func testHeadlineAndUnits() throws {

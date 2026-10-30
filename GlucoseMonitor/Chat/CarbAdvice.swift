@@ -46,9 +46,21 @@ extension BackendAPI {
 
         /// The advice to show, or nil: hidden when absent, when the calculation is stale/cached,
         /// and while a low prompt is open (the hypo flow owns the screen then).
-        static func visible(_ advice: CarbAdvice?, calculationsStale: Bool, hypoPromptOpen: Bool) -> CarbAdvice? {
-            guard !calculationsStale, !hypoPromptOpen else { return nil }
+        static func visible(_ advice: CarbAdvice?, calculationsStale: Bool, calculationsFromCache: Bool = false,
+                            hypoPromptOpen: Bool, now: Date = Date(),
+                            tookIdentity: String? = nil) -> CarbAdvice? {
+            guard let advice, !calculationsStale, !calculationsFromCache, !hypoPromptOpen else { return nil }
+            guard now <= advice.recheckAt.addingTimeInterval(expiryGrace) else { return nil }
+            if let tookIdentity, tookIdentity == advice.identity { return nil }
             return advice
+        }
+
+        /// Advice older than its recheck time plus this is never shown, even if no refresh arrived.
+        static let expiryGrace: TimeInterval = 5 * 60
+
+        /// Identifies one piece of advice, so "Took N g" hides it until a different one arrives.
+        var identity: String {
+            "\(state.rawValue)|\(Int(recheckAt.timeIntervalSince1970))|\(Int(minWithoutAt.timeIntervalSince1970))"
         }
     }
 }

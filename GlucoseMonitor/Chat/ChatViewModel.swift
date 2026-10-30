@@ -199,9 +199,11 @@ final class ChatViewModel: ObservableObject {
         await send(text: text, photoJPEG: photo.flatMap(BackendAPI.assistantPhotoJPEG))
     }
 
-    func send(text: String, photoJPEG: Data?) async {
+    @discardableResult
+    func send(text: String, photoJPEG: Data?) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !isSending, !trimmed.isEmpty || photoJPEG != nil else { return }
+        guard !isSending, !trimmed.isEmpty || photoJPEG != nil else { return false }
+        sendFailed = false
         isSending = true
         defer { isSending = false }
 
@@ -223,11 +225,16 @@ final class ChatViewModel: ObservableObject {
         // A reply that never got text (e.g. the stream ended early) leaves no empty bubble behind.
         if let i = index(of: replyId), items[i].kind == .assistant(text: "") { items.remove(at: i) }
         await loadHitRate() // a quick log can add a frozen snapshot
+        return !sendFailed
     }
+
+    private var sendFailed = false
 
     /// "Took N g" on the carb advice card: logs fast sugar through the normal chat send path,
     /// where the backend quick-log parser attaches it to an open low.
-    func sendFastCarbs(grams: Int) async {
+    /// Returns true when the message was delivered without an error.
+    @discardableResult
+    func sendFastCarbs(grams: Int) async -> Bool {
         await send(text: "\(grams)g fast", photoJPEG: nil)
     }
 
@@ -254,6 +261,7 @@ final class ChatViewModel: ObservableObject {
 
     /// Turns an empty reply placeholder into the error row, or appends one after partial text.
     private func appendError(_ message: String, replacing replyId: String) {
+        sendFailed = true
         if let i = index(of: replyId), items[i].kind == .assistant(text: "") {
             items[i].kind = .error(message)
         } else {

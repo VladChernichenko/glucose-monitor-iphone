@@ -146,7 +146,9 @@ struct ChatOverlayView: View {
     private var carbAdvice: BackendAPI.CarbAdvice? {
         BackendAPI.CarbAdvice.visible(appState.calculations?.carbAdvice,
                                       calculationsStale: appState.calculationsStale,
-                                      hypoPromptOpen: appState.openHypoEvent != nil)
+                                      calculationsFromCache: appState.calculationsFromCache,
+                                      hypoPromptOpen: appState.openHypoEvent != nil,
+                                      tookIdentity: appState.tookCarbAdviceIdentity)
     }
 
     /// The advice headline (red) takes over the peek line while advice is showing.
@@ -159,7 +161,12 @@ struct ChatOverlayView: View {
     private var carbAdviceCard: some View {
         if let advice = carbAdvice {
             CarbAdviceCardView(advice: advice, unit: appState.preferredGlucoseUnit, isBusy: model.isSending) { grams in
-                Task { await model.sendFastCarbs(grams: grams) }
+                let identity = advice.identity
+                Task {
+                    guard await model.sendFastCarbs(grams: grams) else { return }
+                    appState.tookCarbAdviceIdentity = identity
+                    await appState.refreshAfterChatNotesChanged()
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
