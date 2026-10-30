@@ -14,6 +14,7 @@ struct ChatOverlayView: View {
     @State private var photo: UIImage?
     @State private var dragOffset: CGFloat = 0
     @State private var pagingEnabled = false
+    @State private var showTwinForecast = false
     @FocusState private var inputFocused: Bool
 
     var body: some View {
@@ -53,6 +54,11 @@ struct ChatOverlayView: View {
             model.onSnoozePrompt = { [weak appState] in appState?.snoozeGlycemicPrompt() }
             syncPrompt()
             await model.loadInitial()
+        }
+        .task(id: isExpanded) { if isExpanded { await model.loadHitRate() } }
+        .sheet(isPresented: $showTwinForecast) {
+            NavigationStack { TwinForecastView() }
+                .environmentObject(appState)
         }
         .onChange(of: appState.visibleGlycemicPrompt) { _ in syncPrompt() }
         .onChange(of: appState.preferredGlucoseUnit) { _ in syncPrompt() }
@@ -145,6 +151,16 @@ struct ChatOverlayView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
+            if let label = model.hitRateLabel {
+                Button { showTwinForecast = true } label: {
+                    Text(label)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 10).padding(.vertical, 4)
+                        .background(Color.blue.opacity(0.15), in: Capsule())
+                        .foregroundStyle(Color.blue)
+                }
+                .accessibilityLabel("\(label) forecast accuracy, tap to see past forecasts")
+            }
             Button { setExpanded(false) } label: {
                 Image(systemName: "chevron.down")
             }

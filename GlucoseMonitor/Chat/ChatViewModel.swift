@@ -48,6 +48,7 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var isLoadingOlder = false
     @Published private(set) var hasMoreHistory = true
     @Published private(set) var historyLoaded = false
+    @Published private(set) var hitRate: BackendAPI.AssistantHitRate?
 
     /// Called after a quick log is written or undone, so the dashboard reloads notes, IOB and COB.
     var onNotesChanged: (() -> Void)?
@@ -120,6 +121,22 @@ final class ChatViewModel: ObservableObject {
 
     private func appendAssistant(_ text: String) {
         items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(), kind: .assistant(text: text)))
+    }
+
+    // MARK: Hit rate
+
+    /// "Twin 74%"; nil (pill hidden) until at least one forecast has been checked.
+    var hitRateLabel: String? {
+        guard let percent = hitRate?.percent else { return nil }
+        return "Twin \(Int(percent.rounded()))%"
+    }
+
+    func loadHitRate() async {
+        do {
+            hitRate = try await service.fetchHitRate()
+        } catch {
+            // Keep the last value (or no pill); the next appearance retries.
+        }
     }
 
     // MARK: History

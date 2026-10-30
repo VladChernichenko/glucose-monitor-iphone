@@ -16,6 +16,9 @@ final class ChatViewModelTests: XCTestCase {
         private(set) var sent: [(text: String?, photo: Data?, clientTime: String, timezone: String)] = []
         private(set) var historyRequests: [(before: Date?, limit: Int)] = []
         private(set) var undone: [String] = []
+        var hitRate: Result<BackendAPI.AssistantHitRate, Error> = .success(.init(hits: 0, checks: 0, percent: nil))
+
+        func fetchHitRate() async throws -> BackendAPI.AssistantHitRate { try hitRate.get() }
 
         func sendMessage(text: String?, photoJPEG: Data?, clientTime: String, timezone: String,
                          onEvent: @MainActor @escaping (BackendAPI.AssistantEvent) -> Void) async throws {
@@ -46,6 +49,32 @@ final class ChatViewModelTests: XCTestCase {
     private func makeVM(_ fake: FakeAssistantService, pageSize: Int = 3) -> ChatViewModel {
         ChatViewModel(service: fake, pageSize: pageSize, now: { self.fixedNow },
                       timeZone: TimeZone(identifier: "Europe/Berlin")!)
+    }
+
+    // MARK: - Hit rate
+
+    func testHitRateHiddenWhenNoChecks() async {
+        let fake = FakeAssistantService()
+        fake.hitRate = .success(.init(hits: 0, checks: 0, percent: nil))
+        let vm = makeVM(fake)
+        await vm.loadHitRate()
+        XCTAssertNil(vm.hitRateLabel)
+    }
+
+    func testHitRatePillTextShowsRoundedPercent() async {
+        let fake = FakeAssistantService()
+        fake.hitRate = .success(.init(hits: 37, checks: 50, percent: 74.0))
+        let vm = makeVM(fake)
+        await vm.loadHitRate()
+        XCTAssertEqual(vm.hitRateLabel, "Twin 74%")
+    }
+
+    func testHitRateFetchFailureKeepsPillHidden() async {
+        let fake = FakeAssistantService()
+        fake.hitRate = .failure(URLError(.notConnectedToInternet))
+        let vm = makeVM(fake)
+        await vm.loadHitRate()
+        XCTAssertNil(vm.hitRateLabel)
     }
 
     // MARK: - History paging

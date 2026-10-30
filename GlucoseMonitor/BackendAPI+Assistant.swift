@@ -12,6 +12,8 @@ protocol AssistantChatService {
     /// Rows strictly older than `before` (nil = newest), newest first.
     func fetchHistory(before: Date?, limit: Int) async throws -> [BackendAPI.ChatMessageDTO]
     func undo(messageId: String) async throws -> BackendAPI.AssistantUndoResult
+    /// How often the frozen twin forecasts were within tolerance of the CGM.
+    func fetchHitRate() async throws -> BackendAPI.AssistantHitRate
 }
 
 struct BackendAssistantService: AssistantChatService {
@@ -27,6 +29,10 @@ struct BackendAssistantService: AssistantChatService {
 
     func undo(messageId: String) async throws -> BackendAPI.AssistantUndoResult {
         try await BackendAPI.undoAssistantMessage(id: messageId)
+    }
+
+    func fetchHitRate() async throws -> BackendAPI.AssistantHitRate {
+        try await BackendAPI.fetchAssistantHitRate()
     }
 }
 
@@ -146,6 +152,13 @@ extension BackendAPI {
         let undone: Bool
     }
 
+    /// `percent` is nil when no forecast has been checked yet (`checks == 0`).
+    struct AssistantHitRate: Decodable, Equatable {
+        let hits: Int
+        let checks: Int
+        let percent: Double?
+    }
+
     // MARK: Request building
 
     /// Naive local wall time (`yyyy-MM-dd'T'HH:mm:ss`, no offset) in `timeZone`, as `clientTime` requires.
@@ -252,6 +265,16 @@ extension BackendAPI {
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode(AssistantUndoResult.self, from: data)
+        }
+    }
+
+    static func fetchAssistantHitRate() async throws -> AssistantHitRate {
+        // A header pill must never sign the user out when the connection is flaky.
+        try await performWithRefresh(signOutIfUnreachable: false) {
+            let req = try authorizedRequest(path: "/api/assistant/hit-rate")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(AssistantHitRate.self, from: data)
         }
     }
 }
