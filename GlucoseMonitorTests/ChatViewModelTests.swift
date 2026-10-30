@@ -18,7 +18,8 @@ final class ChatViewModelTests: XCTestCase {
         private(set) var undone: [String] = []
         var hitRate: Result<BackendAPI.AssistantHitRate, Error> = .success(.init(hits: 0, checks: 0, percent: nil))
 
-        func fetchHitRate() async throws -> BackendAPI.AssistantHitRate { try hitRate.get() }
+        private(set) var hitRateFetches = 0
+        func fetchHitRate() async throws -> BackendAPI.AssistantHitRate { hitRateFetches += 1; return try hitRate.get() }
 
         func sendMessage(text: String?, photoJPEG: Data?, clientTime: String, timezone: String,
                          onEvent: @MainActor @escaping (BackendAPI.AssistantEvent) -> Void) async throws {
@@ -75,6 +76,26 @@ final class ChatViewModelTests: XCTestCase {
         let vm = makeVM(fake)
         await vm.loadHitRate()
         XCTAssertNil(vm.hitRateLabel)
+    }
+
+    func testHitRateLoadedOnAppearWithoutExpanding() async {
+        let fake = FakeAssistantService()
+        fake.hitRate = .success(.init(hits: 37, checks: 50, percent: 74.0))
+        let vm = makeVM(fake)
+        await vm.loadInitial()
+        XCTAssertEqual(vm.hitRateLabel, "Twin 74%")
+        await vm.loadInitial() // later appearances refresh it too
+        XCTAssertEqual(fake.hitRateFetches, 2)
+    }
+
+    func testCompletedSendRefreshesHitRate() async {
+        let fake = FakeAssistantService()
+        let vm = makeVM(fake)
+        await vm.loadInitial()
+        XCTAssertNil(vm.hitRateLabel)
+        fake.hitRate = .success(.init(hits: 1, checks: 1, percent: 100.0))
+        await vm.send(text: "5u", photoJPEG: nil)
+        XCTAssertEqual(vm.hitRateLabel, "Twin 100%")
     }
 
     // MARK: - History paging

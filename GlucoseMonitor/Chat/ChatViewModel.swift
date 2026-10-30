@@ -142,6 +142,7 @@ final class ChatViewModel: ObservableObject {
     // MARK: History
 
     func loadInitial() async {
+        await loadHitRate()
         guard !historyLoaded else { return }
         do {
             let page = try await service.fetchHistory(before: nil, limit: pageSize)
@@ -221,6 +222,7 @@ final class ChatViewModel: ObservableObject {
         }
         // A reply that never got text (e.g. the stream ended early) leaves no empty bubble behind.
         if let i = index(of: replyId), items[i].kind == .assistant(text: "") { items.remove(at: i) }
+        await loadHitRate() // a quick log can add a frozen snapshot
     }
 
     private func apply(_ event: BackendAPI.AssistantEvent, to replyId: String) {

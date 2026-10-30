@@ -55,7 +55,9 @@ struct ChatOverlayView: View {
             syncPrompt()
             await model.loadInitial()
         }
-        .task(id: isExpanded) { if isExpanded { await model.loadHitRate() } }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await model.loadHitRate() }
+        }
         .sheet(isPresented: $showTwinForecast) {
             NavigationStack { TwinForecastView() }
                 .environmentObject(appState)
@@ -129,6 +131,7 @@ struct ChatOverlayView: View {
                 .foregroundStyle(model.lastMessageLine == nil ? .secondary : .primary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            hitRatePill
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
@@ -151,16 +154,7 @@ struct ChatOverlayView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
-            if let label = model.hitRateLabel {
-                Button { showTwinForecast = true } label: {
-                    Text(label)
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Color.blue.opacity(0.15), in: Capsule())
-                        .foregroundStyle(Color.blue)
-                }
-                .accessibilityLabel("\(label) forecast accuracy, tap to see past forecasts")
-            }
+            hitRatePill
             Button { setExpanded(false) } label: {
                 Image(systemName: "chevron.down")
             }
@@ -168,6 +162,21 @@ struct ChatOverlayView: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var hitRatePill: some View {
+        if let label = model.hitRateLabel {
+            Button { showTwinForecast = true } label: {
+                Text(label)
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.15), in: Capsule())
+                    .foregroundStyle(Color.blue)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(label) forecast accuracy, tap to see past forecasts")
+        }
     }
 
     private var messageList: some View {
