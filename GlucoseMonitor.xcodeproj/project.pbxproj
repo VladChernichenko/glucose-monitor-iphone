@@ -92,6 +92,9 @@
 		700000000000000000000D30 /* EpisodeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D30 /* EpisodeCardView.swift */; };
 		700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D16 /* FoodCaptureFlow.swift */; };
 		700000000000000000000D17 /* MealPlanCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D17 /* MealPlanCardTests.swift */; };
+		700000000000000000000E01 /* HistoryBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E01 /* HistoryBanner.swift */; };
+		700000000000000000000E02 /* HistoryBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E02 /* HistoryBannerView.swift */; };
+		700000000000000000000E03 /* HistoryBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E03 /* HistoryBannerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -227,6 +230,9 @@
 		600000000000000000000D30 /* EpisodeCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000D16 /* FoodCaptureFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCaptureFlow.swift; sourceTree = "<group>"; };
 		600000000000000000000D17 /* MealPlanCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardTests.swift; sourceTree = "<group>"; };
+		600000000000000000000E01 /* HistoryBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBanner.swift; sourceTree = "<group>"; };
+		600000000000000000000E02 /* HistoryBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerView.swift; sourceTree = "<group>"; };
+		600000000000000000000E03 /* HistoryBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -327,6 +333,8 @@
 				600000000000000000000D11 /* CarbAdvice.swift */,
 				600000000000000000000D14 /* MealPlan.swift */,
 				600000000000000000000D15 /* MealPlanCardView.swift */,
+				600000000000000000000E02 /* HistoryBannerView.swift */,
+				600000000000000000000E01 /* HistoryBanner.swift */,
 				600000000000000000000D30 /* EpisodeCardView.swift */,
 				600000000000000000000D16 /* FoodCaptureFlow.swift */,
 			);
@@ -413,6 +421,7 @@
 				600000000000000000000D06 /* ChatViewModelTests.swift */,
 				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
 				600000000000000000000D17 /* MealPlanCardTests.swift */,
+				600000000000000000000E03 /* HistoryBannerTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
 			);
 			path = GlucoseMonitorTests;
@@ -600,6 +609,8 @@
 				700000000000000000000D11 /* CarbAdvice.swift in Sources */,
 				700000000000000000000D14 /* MealPlan.swift in Sources */,
 				700000000000000000000D15 /* MealPlanCardView.swift in Sources */,
+				700000000000000000000E02 /* HistoryBannerView.swift in Sources */,
+				700000000000000000000E01 /* HistoryBanner.swift in Sources */,
 				700000000000000000000D30 /* EpisodeCardView.swift in Sources */,
 				700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */,
 				700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */,
@@ -650,6 +661,7 @@
 				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
 				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
 				700000000000000000000D17 /* MealPlanCardTests.swift in Sources */,
+				700000000000000000000E03 /* HistoryBannerTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -45,8 +45,7 @@ final class AssistantEventDecodingTests: XCTestCase {
     func testDecodesNotYetEmittedEventsWithoutCrashing() {
         // A plan that does not match the MealPlan contract is dropped, not a crash (MealPlanCardTests covers the real shape).
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"plan","plan":{"dose":4,"nested":{"a":[1,2]}}}"#))
-        XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"banner","level":"warning","text":"Falling fast"}"#),
-                       .banner(level: "warning", text: "Falling fast"))
+        XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"banner","level":"warning","text":"Falling fast"}"#))
         XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"citations","ids":["c1","c2"]}"#),
                        .citations(["c1", "c2"]))
     }

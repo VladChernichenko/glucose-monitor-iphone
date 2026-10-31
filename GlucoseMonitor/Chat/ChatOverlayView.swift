@@ -89,7 +89,11 @@ struct ChatOverlayView: View {
             onTook: { dose, pause in Task { await model.tookPlan(messageId: id, doseUnits: dose, pauseMinutes: pause) } },
             onEat: { macros, ateAt in Task { await model.eatPlan(messageId: id, macros: macros, ateAt: ateAt) } },
             onSkip: { Task { await model.skipPlan(messageId: id) } },
-            onReplan: { items in Task { await model.replan(items: items) } })
+            onReplan: { items in Task { await model.replan(items: items) } },
+            bannerState: model.bannerState(id),
+            onChooseDose: { units in Task { await model.chooseBannerDose(messageId: id, units: units) } },
+            onConfirmRed: { model.confirmBannerRed(messageId: id) },
+            onBannerBack: { model.resetBanner(messageId: id) })
     }
 
     private func syncPrompt() {

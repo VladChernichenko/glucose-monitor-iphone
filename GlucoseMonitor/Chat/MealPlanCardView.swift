@@ -11,6 +11,11 @@ struct MealPlanActions {
     let onEat: (_ macros: BackendAPI.MealMacros?, _ ateAt: Date?) -> Void
     let onSkip: () -> Void
     let onReplan: ([BackendAPI.MealPlanItem]) -> Void
+    /// History banner (Task 22): answer state and the three things the user can do with it.
+    var bannerState: HistoryBannerState = .initial
+    var onChooseDose: (_ units: Double) -> Void = { _ in }
+    var onConfirmRed: () -> Void = {}
+    var onBannerBack: () -> Void = {}
 }
 
 /// Meal prep plan card (spec screens 3, 4, 11): macros with ranges, dose, pause, forecast with cone,
@@ -77,7 +82,9 @@ struct MealPlanCardView: View {
 
     @ViewBuilder
     private func plannedSection(now: Date) -> some View {
-        let dose = MealPlanRules.advisedDose(card, now: now)
+        let banner = HistoryBannerRules.activeBanner(card, now: now)
+        let dose = HistoryBannerRules.tookDose(card, state: actions.bannerState, now: now)
+        let awaiting = HistoryBannerRules.awaitingChoice(card, state: actions.bannerState, now: now)
         let expired = MealPlanRules.isExpired(card, now: now)
         HStack {
             if let label = plan.patternLabel {
@@ -88,7 +95,21 @@ struct MealPlanCardView: View {
             Spacer()
         }
         macroGrid
-        if let dose {
+        if let banner {
+            HistoryBannerView(banner: banner, state: actions.bannerState, unit: unit, isBusy: actions.isBusy,
+                              onChoose: actions.onChooseDose, onConfirmRed: actions.onConfirmRed,
+                              onBack: actions.onBannerBack)
+        }
+        if awaiting {
+            // Nothing preselected: the dose is unknown until the user picks one and it passes the re-check.
+            HStack(alignment: .firstTextBaseline) {
+                Text("? U").font(.title2.weight(.bold)).monospacedDigit().foregroundStyle(.secondary)
+                Spacer()
+                if let pause = plan.pause?.pauseMinutes {
+                    Text(pause == 0 ? "no wait" : "wait \(pause) min").font(.title3.weight(.semibold))
+                }
+            }
+        } else if let dose {
             HStack(alignment: .firstTextBaseline) {
                 Text(MealPlanRules.doseText(dose)).font(.title2.weight(.bold)).monospacedDigit()
                 Spacer()
@@ -96,7 +117,9 @@ struct MealPlanCardView: View {
                     Text(pause == 0 ? "no wait" : "wait \(pause) min").font(.title3.weight(.semibold))
                 }
             }
-            if let pause = plan.pause {
+            if banner != nil, case .answered(_, let recheck, _) = actions.bannerState, !recheck.curve.isEmpty {
+                forecastChart(recheck.curve)
+            } else if banner == nil, let pause = plan.pause {
                 forecastChart(pause.curve)
                 if let line = MealPlanRules.peakLine(pause, unit: unit) {
                     Text(line).font(.caption).foregroundStyle(.secondary)
@@ -115,7 +138,11 @@ struct MealPlanCardView: View {
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.5), lineWidth: 1))
         }
         HStack(spacing: 8) {
-            if MealPlanRules.canTakeAdvised(card, now: now), let dose {
+            if awaiting {
+                Button("Took it") {}
+                    .buttonStyle(.borderedProminent)
+                    .disabled(true)
+            } else if let dose, dose > 0 {
                 Button("Took it") { actions.onTook(dose, MealPlanRules.advisedPause(card, now: now) ?? 0) }
                     .buttonStyle(.borderedProminent)
             } else {
@@ -128,7 +155,7 @@ struct MealPlanCardView: View {
                 .buttonStyle(.bordered)
         }
         .disabled(actions.isBusy)
-        if showDoseEntry && !MealPlanRules.canTakeAdvised(card, now: now) {
+        if showDoseEntry && !awaiting && !((dose ?? 0) > 0) {
             doseEntryRow
         }
         Button("Eating without insulin") { macroSheet = .withoutInsulin }

@@ -60,6 +60,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var hitRate: BackendAPI.AssistantHitRate?
     /// Plan cards with an action in flight; their buttons are disabled (double-tap protection).
     @Published private(set) var busyPlanIds: Set<String> = []
+    /// Per plan card: where the user is on the history banner (nothing preselected).
+    @Published private(set) var bannerStates: [String: HistoryBannerState] = [:]
 
     /// Called after a quick log is written or undone, so the dashboard reloads notes, IOB and COB.
     var onNotesChanged: (() -> Void)?
@@ -259,6 +261,12 @@ final class ChatViewModel: ObservableObject {
         return !sendFailed
     }
 
+    private func attachBanner(messageId: String, _ banner: BackendAPI.HistoryBanner) {
+        guard let i = index(of: messageId), case .mealPlan(var card) = items[i].kind else { return }
+        card.payload.banner = banner
+        items[i].kind = .mealPlan(card)
+    }
+
     private var sendFailed = false
     private var streamedPlanId: String?
 
@@ -296,8 +304,10 @@ final class ChatViewModel: ObservableObject {
             // Above the reply bubble (under a plan card, which was inserted earlier).
             guard !episodes.isEmpty else { break }
             items.insert(ChatItem(id: "episodes-\(replyId)", createdAt: items[i].createdAt, kind: .episodes(episodes)), at: i)
-        case .banner, .citations:
-            break // Rendered by later tasks.
+        case .banner(let messageId, let banner):
+            attachBanner(messageId: messageId, banner)
+        case .citations:
+            break // Rendered by a later task.
         }
     }
 
@@ -359,6 +369,43 @@ final class ChatViewModel: ObservableObject {
     /// Edit: there is no re-plan endpoint, so the edited items go out as a new meal-prep message.
     func replan(items: [BackendAPI.MealPlanItem]) async {
         await send(text: MealPlanRules.replanMessage(items), photoJPEG: nil)
+    }
+
+    // MARK: History banner
+
+    func bannerState(_ messageId: String) -> HistoryBannerState { bannerStates[messageId] ?? .initial }
+
+    /// Use N U / Keep N U: re-checks the chosen dose for lows. OK and AMBER adopt it; RED waits for
+    /// `confirmBannerRed`; a refusal or failure keeps the dose unknown.
+    func chooseBannerDose(messageId: String, units: Double) async {
+        guard let i = index(of: messageId), case .mealPlan(let card) = items[i].kind, card.payload.banner != nil else { return }
+        if case .checking = bannerState(messageId) { return }
+        bannerStates[messageId] = .checking(units: units)
+        do {
+            let result = try await service.recheckDose(
+                messageId: messageId, doseUnits: units,
+                clientTime: BackendAPI.assistantClientTime(now(), timeZone: timeZone), timezone: timeZone.identifier)
+            bannerStates[messageId] = HistoryBannerRules.state(units: units, recheck: result)
+        } catch {
+            switch MealPlanRules.classify(error) {
+            case .conflict:
+                bannerStates[messageId] = .initial
+                await refreshPlan(messageId: messageId)
+            case .rejected(let message), .failed(let message):
+                bannerStates[messageId] = .unanswered(notice: message)
+            }
+        }
+    }
+
+    /// The second, explicit tap on a RED answer ("Use N U anyway").
+    func confirmBannerRed(messageId: String) {
+        bannerStates[messageId] = HistoryBannerRules.confirmRed(bannerState(messageId))
+    }
+
+    /// "Back": drop the answer; nothing is selected again.
+    func resetBanner(messageId: String) {
+        if case .checking = bannerState(messageId) { return }
+        bannerStates[messageId] = .initial
     }
 
     private func runPlanAction(messageId: String, _ action: BackendAPI.MealPlanAction) async {

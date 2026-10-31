@@ -17,9 +17,18 @@ protocol AssistantChatService {
     /// Took it / Eating now / Not eating on a meal plan card.
     func mealPlanAction(messageId: String, action: BackendAPI.MealPlanAction, clientTime: String,
                         timezone: String) async throws -> BackendAPI.MealPlanActionResult
+    /// Low re-check of a chosen dose on a PLANNED plan (history banner).
+    func recheckDose(messageId: String, doseUnits: Double, clientTime: String,
+                     timezone: String) async throws -> BackendAPI.DoseRecheck
 }
 
 struct BackendAssistantService: AssistantChatService {
+    func recheckDose(messageId: String, doseUnits: Double, clientTime: String,
+                     timezone: String) async throws -> BackendAPI.DoseRecheck {
+        try await BackendAPI.postDoseRecheck(messageId: messageId, doseUnits: doseUnits, clientTime: clientTime,
+                                             timezone: timezone)
+    }
+
     func sendMessage(text: String?, photoJPEG: Data?, clientTime: String, timezone: String,
                      onEvent: @MainActor @escaping (BackendAPI.AssistantEvent) -> Void) async throws {
         try await BackendAPI.streamAssistantMessage(text: text, photoJPEG: photoJPEG, clientTime: clientTime,
@@ -89,7 +98,7 @@ extension BackendAPI {
     }
 
     /// One NDJSON line of the assistant stream, keyed by its `type`. `banner` and `citations`
-    /// are not sent by the backend yet; they decode so a newer backend never breaks the stream.
+    /// is not sent by the backend yet; it decodes so a newer backend never breaks the stream.
     enum AssistantEvent: Equatable {
         case logged(AssistantLogged)
         case token(String)
@@ -100,7 +109,8 @@ extension BackendAPI {
         case plan(messageId: String, plan: MealPlan, plannedAt: Date?, doseValidUntil: Date?)
         /// Past events behind the answer (top 5); entries of an unknown kind are dropped.
         case episodes([AssistantEpisode])
-        case banner(level: String?, text: String)
+        /// History-dose banner for the plan card `messageId` (sent right after `plan`).
+        case banner(messageId: String, banner: HistoryBanner)
         case citations([String])
     }
 
@@ -128,6 +138,11 @@ extension BackendAPI {
         }
 
         private enum CodingKeys: String, CodingKey { case episodes }
+    }
+
+    private struct BannerEventBody: Decodable {
+        let messageId: String
+        let banner: HistoryBanner
     }
 
     private struct PlanEventBody: Decodable {
@@ -159,7 +174,7 @@ extension BackendAPI {
         case "episodes":
             return (try? decoder.decode(EpisodesEventBody.self, from: data)).map { .episodes($0.episodes) }
         case "banner":
-            return env.text.map { .banner(level: env.level, text: $0) }
+            return (try? decoder.decode(BannerEventBody.self, from: data)).map { .banner(messageId: $0.messageId, banner: $0.banner) }
         case "citations":
             return .citations(env.ids ?? [])
         default:

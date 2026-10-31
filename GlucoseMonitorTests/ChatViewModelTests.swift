@@ -40,6 +40,9 @@ final class ChatViewModelTests: XCTestCase {
             return undoResult
         }
 
+        func recheckDose(messageId: String, doseUnits: Double, clientTime: String,
+                         timezone: String) async throws -> BackendAPI.DoseRecheck { throw URLError(.badServerResponse) }
+
         var planResult: Result<BackendAPI.MealPlanActionResult, Error> = .failure(URLError(.badServerResponse))
         /// Suspends inside the call so a second tap can arrive while the first is in flight.
         var planActionYields = false

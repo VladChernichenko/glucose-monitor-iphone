@@ -18,8 +18,10 @@ extension BackendAPI {
         let peak: Double?
         let min: Double?
         let reason: String?
+        /// A pre-bolus is already running: no new pause was searched and no history banner is sent.
+        let inFlight: Bool
 
-        private enum CodingKeys: String, CodingKey { case pauseMinutes, curve, peak, min, reason }
+        private enum CodingKeys: String, CodingKey { case pauseMinutes, curve, peak, min, reason, inFlight }
 
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -28,6 +30,7 @@ extension BackendAPI {
             peak = try c.decodeIfPresent(Double.self, forKey: .peak)
             min = try c.decodeIfPresent(Double.self, forKey: .min)
             reason = try c.decodeIfPresent(String.self, forKey: .reason)
+            inFlight = try c.decodeIfPresent(Bool.self, forKey: .inFlight) ?? false
         }
     }
 
@@ -115,6 +118,20 @@ extension BackendAPI {
         var skippedAt: Date?
         var supersededBy: String?
         var supersededAt: Date?
+        /// The history banner (Task 22), absent when none was built. A malformed one is dropped, not the card.
+        var bannerBox: LossyHistoryBanner?
+
+        var banner: HistoryBanner? {
+            get { bannerBox?.value }
+            set { bannerBox = newValue.map { LossyHistoryBanner(value: $0) } }
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case userMessageId, language, state, description, plannedAt, meal, items, plan, doseValidUntil, tookAt
+            case doseUnits, pauseMinutes, eatAt, overdueAt, doseNoteId, doseSource, advisedDoseUnits, eatenAt
+            case mealNoteId, eatenMeal, skippedAt, supersededBy, supersededAt
+            case bannerBox = "banner"
+        }
 
         var phase: MealPlanPhase? { MealPlanPhase(rawValue: state) }
     }
