@@ -11,6 +11,8 @@ final class ChatViewModelTests: XCTestCase {
     final class FakeAssistantService: AssistantChatService {
         var scriptedEvents: [BackendAPI.AssistantEvent] = []
         var sendError: Error?
+        /// Called after each scripted event is delivered.
+        var afterEvent: (() -> Void)?
         var pages: [[BackendAPI.ChatMessageDTO]] = []
         var undoResult = BackendAPI.AssistantUndoResult(messageId: "u1", noteIds: ["n1"], undone: true)
         private(set) var sent: [(text: String?, photo: Data?, clientTime: String, timezone: String)] = []
@@ -24,7 +26,7 @@ final class ChatViewModelTests: XCTestCase {
         func sendMessage(text: String?, photoJPEG: Data?, clientTime: String, timezone: String,
                          onEvent: @MainActor @escaping (BackendAPI.AssistantEvent) -> Void) async throws {
             sent.append((text, photoJPEG, clientTime, timezone))
-            for e in scriptedEvents { await onEvent(e) }
+            for e in scriptedEvents { await onEvent(e); afterEvent?() }
             if let sendError { throw sendError }
         }
 
@@ -240,12 +242,48 @@ final class ChatViewModelTests: XCTestCase {
 
     func testFutureAndUnknownEventsDoNotAddBubbles() async {
         let fake = FakeAssistantService()
-        fake.scriptedEvents = [.episodes, .citations(["c1"]), .token("ok"),
+        fake.scriptedEvents = [.citations(["c1"]), .token("ok"),
                                .done(BackendAPI.AssistantDone(userMessageId: nil, assistantMessageId: nil, intent: "question"))]
         let vm = makeVM(fake)
         await vm.send(text: "q", photoJPEG: nil)
         XCTAssertEqual(vm.items.count, 2)
         XCTAssertEqual(vm.items[1].kind, .assistant(text: "ok"))
+    }
+
+    private func episode(_ id: String) -> BackendAPI.AssistantEpisode {
+        let json = #"{"id":"\#(id)","kind":"MEAL","at":"2026-10-12T13:00","text":"soup","doseUnits":3.0,"peak":13.6}"#
+        return try! JSONDecoder().decode(BackendAPI.AssistantEpisode.self, from: Data(json.utf8))
+    }
+
+    func testEpisodesAttachAboveTheReplyAndThinkingShowsUntilFirstToken() async {
+        let fake = FakeAssistantService()
+        fake.scriptedEvents = [.episodes([episode("e1"), episode("e2")]), .token("Because of the soup."),
+                               .done(BackendAPI.AssistantDone(userMessageId: "u1", assistantMessageId: "a1", intent: "question"))]
+        let vm = makeVM(fake)
+        var thinking: [Bool] = []
+        fake.afterEvent = { thinking.append(vm.items.last?.isThinking ?? false) }
+        await vm.send(text: "why high after soup?", photoJPEG: nil)
+        XCTAssertEqual(thinking, [true, false, false]) // still thinking after episodes, not after the token
+        XCTAssertEqual(vm.items.count, 3)
+        guard case .episodes(let list) = vm.items[1].kind else { return XCTFail("expected episodes row") }
+        XCTAssertEqual(list.map(\.id), ["e1", "e2"])
+        XCTAssertEqual(vm.items[2].kind, .assistant(text: "Because of the soup."))
+        XCTAssertEqual(vm.lastMessageLine, "Because of the soup.")
+    }
+
+    func testEmptyEpisodesAddNoRow() async {
+        let fake = FakeAssistantService()
+        fake.scriptedEvents = [.episodes([]), .token("ok")]
+        let vm = makeVM(fake)
+        await vm.send(text: "q", photoJPEG: nil)
+        XCTAssertEqual(vm.items.count, 2)
+    }
+
+    func testEpisodeRowTextUsesUserUnit() {
+        let e = episode("e1")
+        XCTAssertEqual(EpisodeFormatting.row(e, unit: "mmol/L"), .init(text: "Oct 12 · soup · 3.0 U · peak 13.6", mark: false))
+        XCTAssertEqual(EpisodeFormatting.row(e, unit: "mg/dL").text, "Oct 12 · soup · 3.0 U · peak 245")
+        XCTAssertEqual(EpisodeFormatting.title([e]), "Similar meals")
     }
 
     func testErrorEventShowsErrorRow() async {

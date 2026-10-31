@@ -45,11 +45,51 @@ final class AssistantEventDecodingTests: XCTestCase {
     func testDecodesNotYetEmittedEventsWithoutCrashing() {
         // A plan that does not match the MealPlan contract is dropped, not a crash (MealPlanCardTests covers the real shape).
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"plan","plan":{"dose":4,"nested":{"a":[1,2]}}}"#))
-        XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"episodes","episodes":[{"id":"e1"}]}"#), .episodes)
         XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"banner","level":"warning","text":"Falling fast"}"#),
                        .banner(level: "warning", text: "Falling fast"))
         XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"citations","ids":["c1","c2"]}"#),
                        .citations(["c1", "c2"]))
+    }
+
+    private func episodes(_ line: String) -> [BackendAPI.AssistantEpisode]? {
+        guard case .episodes(let list)? = BackendAPI.decodeAssistantEvent(line: line) else { return nil }
+        return list
+    }
+
+    func testDecodesFullEpisodesEvent() throws {
+        let line = #"{"type":"episodes","episodes":[{"id":"6f1c","kind":"MEAL","at":"2026-10-12T13:00","text":"lunch, pork chop, rice 150 g","carbs":55.0,"fat":22.0,"protein":30.0,"doseUnits":5.0,"pauseMinutes":15,"startGlucose":6.4,"peak":11.2,"peakMinute":95,"nadir":5.8,"nadirMinute":230,"g60":9.1,"g120":10.8,"g240":6.0,"minutesBelow39":0,"minutesAbove10":70,"activityMinutes":0,"contaminated":true,"score":0.83},{"id":"c1","kind":"LOW","at":"2026-10-22T03:15","text":"hypo confirmed","startGlucose":3.5,"carbs":15.0,"nadir":3.2,"nadirMinute":20}]}"#
+        let list = try XCTUnwrap(episodes(line))
+        XCTAssertEqual(list.map(\.kind), [.MEAL, .LOW])
+        let meal = list[0]
+        XCTAssertEqual(meal.id, "6f1c")
+        XCTAssertEqual(meal.at, "2026-10-12T13:00")
+        XCTAssertEqual(meal.doseUnits, 5.0)
+        XCTAssertEqual(meal.pauseMinutes, 15)
+        XCTAssertEqual(meal.peak, 11.2)
+        XCTAssertEqual(meal.peakMinute, 95)
+        XCTAssertEqual(meal.g240, 6.0)
+        XCTAssertEqual(meal.minutesAbove10, 70)
+        XCTAssertEqual(meal.contaminated, true)
+        XCTAssertEqual(meal.score, 0.83)
+    }
+
+    func testEpisodeWithOnlyRequiredFieldsDecodes() throws {
+        let list = try XCTUnwrap(episodes(#"{"type":"episodes","episodes":[{"id":"a1","kind":"ACTIVITY","at":"2026-10-21T18:00"}]}"#))
+        XCTAssertEqual(list.count, 1)
+        XCTAssertNil(list[0].text)
+        XCTAssertNil(list[0].doseUnits)
+        XCTAssertNil(list[0].contaminated)
+        XCTAssertNil(list[0].score)
+    }
+
+    func testEmptyEpisodesList() {
+        XCTAssertEqual(episodes(#"{"type":"episodes","episodes":[]}"#), [])
+        XCTAssertEqual(episodes(#"{"type":"episodes"}"#), [])
+    }
+
+    func testEpisodeOfUnknownKindIsIgnoredOthersKept() throws {
+        let line = #"{"type":"episodes","episodes":[{"id":"x","kind":"SLEEP","at":"2026-10-12T13:00"},{"id":"m","kind":"MEAL","at":"2026-10-12T13:00"},{"nope":1}]}"#
+        XCTAssertEqual(try XCTUnwrap(episodes(line)).map(\.id), ["m"])
     }
 
     func testUnknownTypeAndJunkAreIgnored() {

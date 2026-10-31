@@ -278,6 +278,20 @@ final class MealPlanCardTests: XCTestCase {
         return try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.MealPlanActionResult.self, from: Data(json.utf8))
     }
 
+    func testEpisodesGoUnderThePlanCardAboveTheExplanation() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let ep = try JSONDecoder().decode(BackendAPI.AssistantEpisode.self,
+                                          from: Data(#"{"id":"e1","kind":"MEAL","at":"2026-10-12T13:00"}"#.utf8))
+        fake.scriptedEvents = [.plan(messageId: "a1", plan: try decodePlan(planJSON), plannedAt: nil, doseValidUntil: nil),
+                               .episodes([ep]), .token("Explanation.")]
+        let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))
+        await vm.send(text: "prepare me", photoJPEG: nil)
+        guard vm.items.count == 4, case .mealPlan = vm.items[1].kind, case .episodes = vm.items[2].kind else {
+            return XCTFail("expected user, plan, episodes, reply; got \(vm.items.map(\.kind))")
+        }
+        XCTAssertEqual(vm.items[3].kind, .assistant(text: "Explanation."))
+    }
+
     func testStreamedPlanBecomesCardBeforeExplanation() async throws {
         let fake = ChatViewModelTests.FakeAssistantService()
         let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))

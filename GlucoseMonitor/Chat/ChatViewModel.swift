@@ -20,6 +20,8 @@ struct ChatItem: Identifiable, Equatable {
         case glycemicPrompt(BackendAPI.GlycemicEvent, text: String)
         /// Meal prep plan card (Took it / Eating now / Not eating).
         case mealPlan(MealPlanCard)
+        /// Past events behind a reply, listed above it. Live only: history rows carry none.
+        case episodes([BackendAPI.AssistantEpisode])
     }
 
     let id: String
@@ -27,6 +29,9 @@ struct ChatItem: Identifiable, Equatable {
     var kind: Kind
     /// A reply the backend could not finish (history intent `question_failed`); shown muted.
     var isFailed = false
+
+    /// The reply placeholder before its first token arrives (the "thinking..." state).
+    var isThinking: Bool { kind == .assistant(text: "") }
 
     /// One-line text for the dashboard peek.
     var previewText: String {
@@ -36,6 +41,7 @@ struct ChatItem: Identifiable, Equatable {
         case .logged(let entry): return entry.summary
         case .error(let message): return message
         case .glycemicPrompt(_, let text): return text
+        case .episodes: return ""
         case .mealPlan(let card): return "Meal plan: \(MealPlanRules.midText(card.plan.carbs)) carbs"
         }
     }
@@ -282,7 +288,11 @@ final class ChatViewModel: ObservableObject {
                                     doseValidUntil: doseValidUntil)
             items.insert(ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
             streamedPlanId = messageId
-        case .banner, .episodes, .citations:
+        case .episodes(let episodes):
+            // Above the reply bubble (under a plan card, which was inserted earlier).
+            guard !episodes.isEmpty else { break }
+            items.insert(ChatItem(id: "episodes-\(replyId)", createdAt: items[i].createdAt, kind: .episodes(episodes)), at: i)
+        case .banner, .citations:
             break // Rendered by later tasks.
         }
     }

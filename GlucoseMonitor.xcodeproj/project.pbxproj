@@ -89,6 +89,7 @@
 		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
 		700000000000000000000D14 /* MealPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D14 /* MealPlan.swift */; };
 		700000000000000000000D15 /* MealPlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D15 /* MealPlanCardView.swift */; };
+		700000000000000000000D30 /* EpisodeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D30 /* EpisodeCardView.swift */; };
 		700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D16 /* FoodCaptureFlow.swift */; };
 		700000000000000000000D17 /* MealPlanCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D17 /* MealPlanCardTests.swift */; };
 /* End PBXBuildFile section */
@@ -223,6 +224,7 @@
 		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D14 /* MealPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlan.swift; sourceTree = "<group>"; };
 		600000000000000000000D15 /* MealPlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000D30 /* EpisodeCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000D16 /* FoodCaptureFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCaptureFlow.swift; sourceTree = "<group>"; };
 		600000000000000000000D17 /* MealPlanCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -325,6 +327,7 @@
 				600000000000000000000D11 /* CarbAdvice.swift */,
 				600000000000000000000D14 /* MealPlan.swift */,
 				600000000000000000000D15 /* MealPlanCardView.swift */,
+				600000000000000000000D30 /* EpisodeCardView.swift */,
 				600000000000000000000D16 /* FoodCaptureFlow.swift */,
 			);
 			path = Chat;
@@ -597,6 +600,7 @@
 				700000000000000000000D11 /* CarbAdvice.swift in Sources */,
 				700000000000000000000D14 /* MealPlan.swift in Sources */,
 				700000000000000000000D15 /* MealPlanCardView.swift in Sources */,
+				700000000000000000000D30 /* EpisodeCardView.swift in Sources */,
 				700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */,
 				700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,

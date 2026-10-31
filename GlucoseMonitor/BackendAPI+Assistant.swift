@@ -60,7 +60,35 @@ extension BackendAPI {
         let intent: String?
     }
 
-    /// One NDJSON line of the assistant stream, keyed by its `type`. `episodes`, `banner` and `citations`
+    /// One past event the answer is based on (a similar meal, a correction, an activity or a low). Glucose
+    /// is mmol/L, minutes count from `at`, `at` is the user's wall clock (`yyyy-MM-ddTHH:mm`).
+    struct AssistantEpisode: Decodable, Equatable, Identifiable {
+        enum Kind: String, Decodable { case MEAL, CORRECTION, ACTIVITY, LOW }
+        let id: String
+        let kind: Kind
+        let at: String
+        let text: String?
+        let carbs: Double?
+        let fat: Double?
+        let protein: Double?
+        let doseUnits: Double?
+        let pauseMinutes: Int?
+        let startGlucose: Double?
+        let peak: Double?
+        let peakMinute: Int?
+        let nadir: Double?
+        let nadirMinute: Int?
+        let g60: Double?
+        let g120: Double?
+        let g240: Double?
+        let minutesBelow39: Int?
+        let minutesAbove10: Int?
+        let activityMinutes: Int?
+        let contaminated: Bool?
+        let score: Double?
+    }
+
+    /// One NDJSON line of the assistant stream, keyed by its `type`. `banner` and `citations`
     /// are not sent by the backend yet; they decode so a newer backend never breaks the stream.
     enum AssistantEvent: Equatable {
         case logged(AssistantLogged)
@@ -70,7 +98,8 @@ extension BackendAPI {
         /// Meal prep: the plan card for assistant message `messageId`. The planned dose is valid up to
         /// `doseValidUntil` (user wall time).
         case plan(messageId: String, plan: MealPlan, plannedAt: Date?, doseValidUntil: Date?)
-        case episodes
+        /// Past events behind the answer (top 5); entries of an unknown kind are dropped.
+        case episodes([AssistantEpisode])
         case banner(level: String?, text: String)
         case citations([String])
     }
@@ -81,6 +110,23 @@ extension BackendAPI {
         let message: String?
         let level: String?
         let ids: [String]?
+    }
+
+    private struct EpisodesEventBody: Decodable {
+        let episodes: [AssistantEpisode]
+
+        private struct Lossy: Decodable {
+            let value: AssistantEpisode?
+            init(from decoder: Decoder) throws { value = try? AssistantEpisode(from: decoder) }
+        }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let items = (try? c.decodeIfPresent([Lossy].self, forKey: .episodes)) ?? nil
+            episodes = (items ?? []).compactMap(\.value)
+        }
+
+        private enum CodingKeys: String, CodingKey { case episodes }
     }
 
     private struct PlanEventBody: Decodable {
@@ -110,7 +156,7 @@ extension BackendAPI {
                 .plan(messageId: $0.messageId, plan: $0.plan, plannedAt: $0.plannedAt, doseValidUntil: $0.doseValidUntil)
             }
         case "episodes":
-            return .episodes
+            return (try? decoder.decode(EpisodesEventBody.self, from: data)).map { .episodes($0.episodes) }
         case "banner":
             return env.text.map { .banner(level: env.level, text: $0) }
         case "citations":

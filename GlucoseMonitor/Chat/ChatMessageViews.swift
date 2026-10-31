@@ -52,6 +52,8 @@ struct ChatMessageRow: View {
             if let mealPlan {
                 MealPlanCardView(card: card, unit: displayUnit, actions: mealPlan(card))
             }
+        case .episodes(let episodes):
+            EpisodeCardView(episodes: episodes, unit: displayUnit)
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)
@@ -157,12 +159,15 @@ struct TypingDots: View {
     private let timer = Timer.publish(every: 0.4, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<3, id: \.self) { i in
-                Circle()
-                    .frame(width: 6, height: 6)
-                    .opacity(phase == i ? 1 : 0.3)
+        HStack(spacing: 6) {
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { i in
+                    Circle()
+                        .frame(width: 6, height: 6)
+                        .opacity(phase == i ? 1 : 0.3)
+                }
             }
+            Text("Thinking…").font(.footnote)
         }
         .foregroundStyle(.secondary)
         .onReceive(timer) { _ in phase = (phase + 1) % 3 }
