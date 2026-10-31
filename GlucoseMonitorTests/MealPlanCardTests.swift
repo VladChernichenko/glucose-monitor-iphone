@@ -390,9 +390,9 @@ final class MealPlanCardTests: XCTestCase {
         fake.planResult = .success(try actionResult("EATEN", extra: tookExtra))
         let macros = BackendAPI.MealMacros(carbs: 50, fat: nil, protein: nil, fiber: nil, gi: nil)
 
-        await vm.eatPlan(messageId: "a1", macros: macros)
+        await vm.eatPlan(messageId: "a1", macros: macros, ateAt: nil)
 
-        XCTAssertEqual(fake.planActions.first?.action, .eating(macros))
+        XCTAssertEqual(fake.planActions.first?.action, .eating(macros, ateAt: nil))
         XCTAssertEqual(planCard(vm)?.payload.phase, .eaten)
     }
 
@@ -413,6 +413,134 @@ final class MealPlanCardTests: XCTestCase {
         let vm = makeVM(fake, now: local("2026-10-31T12:02:00"))
         await vm.replan(items: [.init(name: "rye bread", grams: 60)])
         XCTAssertEqual(fake.sent.last?.text, "prepare me for: rye bread 60 g")
+    }
+
+    // MARK: - Fix round 1
+
+    private var noValidityPlan: String {
+        planJSON.replacingOccurrences(of: #","doseValidUntil":"2026-10-31T12:15:00""#, with: "")
+    }
+
+    func testNoValidityFallsBackToPlannedAtPlus15() throws {
+        let c = try card(payloadJSON(state: "PLANNED", plan: noValidityPlan)) // plannedAt 12:00:00
+        XCTAssertEqual(MealPlanRules.advisedDose(c, now: local("2026-10-31T12:15:00")), 4.5)
+        XCTAssertNil(MealPlanRules.advisedDose(c, now: local("2026-10-31T12:15:01")))
+    }
+
+    func testNoValidityAndNoPlannedAtIsExpired() throws {
+        let json = payloadJSON(state: "PLANNED", plan: noValidityPlan)
+            .replacingOccurrences(of: #""plannedAt":"2026-10-31T12:00:00","#, with: "")
+        let c = try card(json)
+        XCTAssertNil(c.payload.plannedAt)
+        XCTAssertTrue(MealPlanRules.isExpired(c, now: local("2026-10-31T12:00:00")), "fail closed")
+        XCTAssertNil(MealPlanRules.advisedDose(c, now: local("2026-10-31T12:00:00")))
+    }
+
+    func testStreamedPlanWithoutTimesDoesNotInventValidity() throws {
+        let c = MealPlanCard(messageId: "a1", plan: try decodePlan(noValidityPlan), plannedAt: nil, doseValidUntil: nil)
+        XCTAssertNil(MealPlanRules.advisedDose(c, now: Date()))
+    }
+
+    func testEatingBodyCarriesAteAt() throws {
+        let body = BackendAPI.mealPlanActionBody(.eating(.init(carbs: 50), ateAt: "2026-10-31T12:20:00"),
+                                                 clientTime: "2026-10-31T13:10:00", timezone: "Europe/Berlin")
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(obj["ateAt"] as? String, "2026-10-31T12:20:00")
+        XCTAssertEqual(obj["carbs"] as? Double, 50)
+        XCTAssertTrue(obj["fat"] is NSNull)
+        let now = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: BackendAPI.mealPlanActionBody(.eating(.init(), ateAt: nil), clientTime: "x", timezone: "y")) as? [String: Any])
+        XCTAssertNil(now["ateAt"], "no ateAt means now")
+    }
+
+    func testLateMealSendsAteAtInUserZone() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: berlinTime("2026-10-31T13:10:00"))
+        try await streamPlan(vm, fake)
+        fake.planResult = .success(try actionResult("EATEN", extra: tookExtra))
+        await vm.eatPlan(messageId: "a1", macros: nil, ateAt: berlinTime("2026-10-31T12:16:00"))
+        XCTAssertEqual(fake.planActions.first?.action, .eating(BackendAPI.MealMacros(), ateAt: "2026-10-31T12:16:00"))
+    }
+
+    func testAteAtToSendClampsAndOmitsNow() {
+        let lower = local("2026-10-31T12:01:30")
+        let now = local("2026-10-31T13:10:00")
+        XCTAssertEqual(MealPlanRules.ateAtToSend(picked: local("2026-10-31T12:01:00"), lower: lower, now: now), lower,
+                       "minute picker below tookAt is clamped up")
+        XCTAssertEqual(MealPlanRules.ateAtToSend(picked: local("2026-10-31T12:16:00"), lower: lower, now: now),
+                       local("2026-10-31T12:16:00"))
+        XCTAssertNil(MealPlanRules.ateAtToSend(picked: local("2026-10-31T13:09:30"), lower: lower, now: now),
+                     "within a minute of now: let the server use its now")
+        XCTAssertNil(MealPlanRules.ateAtToSend(picked: local("2026-10-31T13:20:00"), lower: lower, now: now))
+    }
+
+    func testLateMealDefaultIsEatAt() throws {
+        let p = try decodePayload(payloadJSON(state: "TOOK", extra: tookExtra))
+        XCTAssertEqual(MealPlanRules.lateMealDefault(p, now: local("2026-10-31T14:00:00")), local("2026-10-31T12:16:00"))
+        XCTAssertEqual(MealPlanRules.ateAtLowerBound(p), local("2026-10-31T12:01:00"))
+        let planned = try decodePayload(payloadJSON(state: "PLANNED"))
+        XCTAssertEqual(MealPlanRules.ateAtLowerBound(planned), local("2026-10-31T12:00:00"))
+    }
+
+    func testAteAtBoundRejectionShowsServerMessage() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T13:10:00"))
+        try await streamPlan(vm, fake)
+        fake.planResult = .failure(GlucoseMonitorAPI.APIError.httpStatus(400, #"{"message":"ateAt is before tookAt"}"#))
+        await vm.eatPlan(messageId: "a1", macros: nil, ateAt: local("2026-10-31T12:30:00"))
+        XCTAssertEqual(vm.items.last?.kind, .error("ateAt is before tookAt"))
+    }
+
+    func testDecodesSupersededAndRendersReplaced() throws {
+        let c = try card(payloadJSON(state: "SUPERSEDED", extra: #","supersededBy":"a2","supersededAt":"2026-10-31T12:05:00""#))
+        XCTAssertEqual(c.payload.phase, .superseded)
+        XCTAssertEqual(c.payload.supersededBy, "a2")
+        XCTAssertTrue(MealPlanRules.isReplaced(c, newestPlanId: nil))
+    }
+
+    func testOnlyNewestPlannedCardIsActionable() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))
+        try await streamPlan(vm, fake)
+        fake.scriptedEvents = [.plan(messageId: "a2", plan: try decodePlan(planJSON), plannedAt: nil, doseValidUntil: nil),
+                               .done(.init(userMessageId: "u2", assistantMessageId: "a2", intent: "meal_plan"))]
+        await vm.send(text: "prepare me for: rye bread 60 g", photoJPEG: nil)
+
+        XCTAssertEqual(vm.newestPlanId, "a2")
+        let cards = vm.items.compactMap { item -> MealPlanCard? in
+            if case .mealPlan(let c) = item.kind { return c } else { return nil }
+        }
+        XCTAssertEqual(cards.map(\.messageId), ["a1", "a2"])
+        XCTAssertTrue(MealPlanRules.isReplaced(cards[0], newestPlanId: vm.newestPlanId))
+        XCTAssertFalse(MealPlanRules.isReplaced(cards[1], newestPlanId: vm.newestPlanId))
+    }
+
+    func testTookCardIsNeverReplaced() throws {
+        let c = try card(payloadJSON(state: "TOOK", extra: tookExtra))
+        XCTAssertFalse(MealPlanRules.isReplaced(c, newestPlanId: "other"))
+    }
+
+    func testEatingWithoutInsulinFromPlanned() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T12:05:00"))
+        try await streamPlan(vm, fake)
+        fake.planResult = .success(try actionResult("EATEN", extra: #","eatenAt":"2026-10-31T12:05:00","mealNoteId":"n2""#))
+        let macros = BackendAPI.MealMacros(carbs: 45, fat: 8, protein: 20, fiber: 4, gi: 50)
+
+        await vm.eatPlan(messageId: "a1", macros: macros, ateAt: nil)
+
+        XCTAssertEqual(fake.planActions.map(\.action), [.eating(macros, ateAt: nil)])
+        XCTAssertEqual(planCard(vm)?.payload.phase, .eaten)
+        XCTAssertNil(planCard(vm)?.payload.doseSource)
+    }
+
+    func testEatingWithoutInsulinOfferedOnStaleAndRefusedPlans() throws {
+        for plan in [stalePlanJSON, refusedPlanJSON] {
+            let c = try card(payloadJSON(state: "PLANNED", plan: plan))
+            XCTAssertTrue(MealPlanRules.canEatWithoutInsulin(c, newestPlanId: "a1"))
+        }
+        let replaced = try card(payloadJSON(state: "PLANNED"))
+        XCTAssertFalse(MealPlanRules.canEatWithoutInsulin(replaced, newestPlanId: "a2"))
     }
 
     func testTookBodyEncodesContractFields() throws {

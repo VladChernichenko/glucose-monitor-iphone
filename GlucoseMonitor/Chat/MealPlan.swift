@@ -82,7 +82,11 @@ extension BackendAPI {
         var grams: Double?
     }
 
-    enum MealPlanPhase: String { case planned = "PLANNED", took = "TOOK", eaten = "EATEN", skipped = "SKIPPED" }
+    enum MealPlanPhase: String {
+        case planned = "PLANNED", took = "TOOK", eaten = "EATEN", skipped = "SKIPPED"
+        /// A newer plan replaced this PLANNED one (final; actions return 409).
+        case superseded = "SUPERSEDED"
+    }
 
     /// `payload` of a `meal_plan` chat message (history and every action response). Times are the
     /// user's local wall time.
@@ -109,6 +113,8 @@ extension BackendAPI {
         var mealNoteId: String?
         var eatenMeal: MealMacros?
         var skippedAt: Date?
+        var supersededBy: String?
+        var supersededAt: Date?
 
         var phase: MealPlanPhase? { MealPlanPhase(rawValue: state) }
     }
@@ -122,7 +128,8 @@ extension BackendAPI {
 
     enum MealPlanAction: Equatable {
         case took(doseUnits: Double, pauseMinutes: Int)
-        case eating(MealMacros)
+        /// `ateAt`: naive local time of a late meal; nil = now.
+        case eating(MealMacros, ateAt: String?)
         case skip
     }
 
@@ -141,7 +148,8 @@ extension BackendAPI {
         case .took(let dose, let pause):
             body["doseUnits"] = dose
             body["pauseMinutes"] = pause
-        case .eating(let m):
+        case .eating(let m, let ateAt):
+            if let ateAt { body["ateAt"] = ateAt }
             // Null macros are taken from the planned meal by the backend.
             body["carbs"] = m.carbs ?? NSNull()
             body["fat"] = m.fat ?? NSNull()
@@ -182,7 +190,7 @@ struct MealPlanCard: Equatable {
     }
 
     /// A plan that just arrived on the stream: PLANNED, nothing persisted locally yet.
-    init(messageId: String, plan: BackendAPI.MealPlan, plannedAt: Date, doseValidUntil: Date?) {
+    init(messageId: String, plan: BackendAPI.MealPlan, plannedAt: Date?, doseValidUntil: Date?) {
         self.messageId = messageId
         self.payload = BackendAPI.MealPlanPayload(state: BackendAPI.MealPlanPhase.planned.rawValue,
                                                   plannedAt: plannedAt, plan: plan,
@@ -197,6 +205,8 @@ struct MealPlanCard: Equatable {
 enum MealPlanRules {
 
     static let overdueGrace: TimeInterval = 45 * 60
+    /// The backend's dose validity (plannedAt + 15 min), used when no `doseValidUntil` was sent.
+    static let doseValidity: TimeInterval = 15 * 60
 
     static let staleText = "No dose advice \u{2014} Libre hasn't updated recently. Check the sensor or do a fingerstick, then ask again."
     static let expiredText = "Plan expired \u{2014} re-plan for a fresh dose, or log the dose you took."
@@ -226,14 +236,50 @@ enum MealPlanRules {
 
     static func doseText(_ units: Double) -> String { String(format: "%.1f U", units) }
 
-    /// The plan's validity: from the payload / event, or the plan itself.
+    /// The plan's validity: from the payload / event, the plan itself, or plannedAt + 15 min.
     static func doseValidUntil(_ card: MealPlanCard) -> Date? {
         card.payload.doseValidUntil ?? card.plan.doseValidUntil
+            ?? card.payload.plannedAt.map { $0.addingTimeInterval(doseValidity) }
     }
 
+    /// Fails closed: with no validity and no plannedAt the dose counts as expired.
     static func isExpired(_ card: MealPlanCard, now: Date) -> Bool {
-        guard card.plan.doseUnits != nil, let until = doseValidUntil(card) else { return false }
+        guard card.plan.doseUnits != nil else { return false }
+        guard let until = doseValidUntil(card) else { return true }
         return now > until
+    }
+
+    /// Replaced: SUPERSEDED by the server, or a PLANNED card that is not the newest plan card in the chat
+    /// (only that one is actionable). TOOK and later states are never replaced.
+    static func isReplaced(_ card: MealPlanCard, newestPlanId: String?) -> Bool {
+        switch card.payload.phase {
+        case .superseded: return true
+        case .planned: return newestPlanId != nil && newestPlanId != card.messageId
+        default: return false
+        }
+    }
+
+    /// "Eating without insulin": any actionable PLANNED card (0 U, refused, stale or the user's choice).
+    static func canEatWithoutInsulin(_ card: MealPlanCard, newestPlanId: String?) -> Bool {
+        card.payload.phase == .planned && !isReplaced(card, newestPlanId: newestPlanId)
+    }
+
+    /// Earliest meal time the backend accepts: tookAt (TOOK) or plannedAt (PLANNED).
+    static func ateAtLowerBound(_ p: BackendAPI.MealPlanPayload) -> Date? {
+        p.phase == .took ? p.tookAt : p.plannedAt
+    }
+
+    /// The late-meal default: when the meal was due (eatAt), never after now.
+    static func lateMealDefault(_ p: BackendAPI.MealPlanPayload, now: Date) -> Date {
+        min(eatAt(p) ?? now, now)
+    }
+
+    /// What to send as `ateAt` for a picked time: clamped up to `lower` (the picker has minute
+    /// resolution); nil within a minute of now or in the future, so the server uses its own now and a
+    /// slightly fast phone clock never trips the "in the future" check.
+    static func ateAtToSend(picked: Date, lower: Date?, now: Date) -> Date? {
+        let t = lower.map { max(picked, $0) } ?? picked
+        return now.timeIntervalSince(t) < 60 ? nil : t
     }
 
     /// The calculator dose to show and prefill; nil when stale, refused or expired.

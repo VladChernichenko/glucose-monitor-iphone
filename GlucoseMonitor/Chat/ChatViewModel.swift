@@ -278,7 +278,7 @@ final class ChatViewModel: ObservableObject {
             appendError(message, replacing: replyId)
         case .plan(let messageId, let plan, let plannedAt, let doseValidUntil):
             // The card goes above the reply bubble, which keeps streaming the explanation.
-            let card = MealPlanCard(messageId: messageId, plan: plan, plannedAt: plannedAt ?? now(),
+            let card = MealPlanCard(messageId: messageId, plan: plan, plannedAt: plannedAt,
                                     doseValidUntil: doseValidUntil)
             items.insert(ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
             streamedPlanId = messageId
@@ -322,9 +322,20 @@ final class ChatViewModel: ObservableObject {
         await runPlanAction(messageId: messageId, .took(doseUnits: doseUnits, pauseMinutes: pauseMinutes))
     }
 
-    /// Eating now; nil macros (or nil fields) use the planned meal.
-    func eatPlan(messageId: String, macros: BackendAPI.MealMacros?) async {
-        await runPlanAction(messageId: messageId, .eating(macros ?? BackendAPI.MealMacros()))
+    /// Eating now (TOOK) or eating without insulin (PLANNED); nil macros (or nil fields) use the
+    /// planned meal. `ateAt` dates a late meal; nil = now.
+    func eatPlan(messageId: String, macros: BackendAPI.MealMacros?, ateAt: Date?) async {
+        let at = ateAt.map { BackendAPI.assistantClientTime($0, timeZone: timeZone) }
+        await runPlanAction(messageId: messageId, .eating(macros ?? BackendAPI.MealMacros(), ateAt: at))
+    }
+
+    /// The newest plan card in the chat. A PLANNED card is actionable only if it is this one: the backend
+    /// supersedes every older PLANNED plan when it makes a new one, whatever happens to the new one later.
+    var newestPlanId: String? {
+        for item in items.reversed() {
+            if case .mealPlan(let card) = item.kind { return card.messageId }
+        }
+        return nil
     }
 
     func skipPlan(messageId: String) async {

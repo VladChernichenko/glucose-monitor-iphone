@@ -4,8 +4,11 @@ import SwiftUI
 /// What a plan card can do; wired to `ChatViewModel` by the overlay.
 struct MealPlanActions {
     let isBusy: Bool
+    /// An older PLANNED card (a newer plan exists) or SUPERSEDED: shown as replaced, no actions.
+    let isReplaced: Bool
     let onTook: (_ doseUnits: Double, _ pauseMinutes: Int) -> Void
-    let onEat: (BackendAPI.MealMacros?) -> Void
+    /// Eating (TOOK) or eating without insulin (PLANNED); `ateAt` nil = now.
+    let onEat: (_ macros: BackendAPI.MealMacros?, _ ateAt: Date?) -> Void
     let onSkip: () -> Void
     let onReplan: ([BackendAPI.MealPlanItem]) -> Void
 }
@@ -19,7 +22,7 @@ struct MealPlanCardView: View {
     let actions: MealPlanActions
 
     @State private var showReplan = false
-    @State private var showMealEdit = false
+    @State private var macroSheet: MacroSheetMode?
     @State private var showDoseEntry = false
     @State private var doseText = ""
 
@@ -30,9 +33,21 @@ struct MealPlanCardView: View {
         .sheet(isPresented: $showReplan) {
             MealReplanSheet(initial: replanSeed) { actions.onReplan($0) }
         }
-        .sheet(isPresented: $showMealEdit) {
-            MealMacrosSheet(initial: card.payload.meal ?? midMacros) { actions.onEat($0) }
+        .sheet(item: $macroSheet) { mode in
+            let p = card.payload
+            let now = Date()
+            MealMacrosSheet(initial: p.meal ?? midMacros,
+                            title: mode == .withoutInsulin ? "Eating without insulin" : "Edit meal",
+                            lower: MealPlanRules.ateAtLowerBound(p),
+                            defaultTime: mode == .late ? MealPlanRules.lateMealDefault(p, now: now) : now) {
+                actions.onEat($0, $1)
+            }
         }
+    }
+
+    enum MacroSheetMode: String, Identifiable {
+        case edit, late, withoutInsulin
+        var id: String { rawValue }
     }
 
     private var plan: BackendAPI.MealPlan { card.plan }
@@ -43,6 +58,7 @@ struct MealPlanCardView: View {
         let amber = MealPlanRules.isOverdue(p, now: now)
         VStack(alignment: .leading, spacing: 10) {
             switch p.phase {
+            case _ where actions.isReplaced: replacedSection
             case .took: tookSection(now: now, overdue: amber)
             case .eaten: eatenSection
             case .skipped: skippedSection
@@ -115,6 +131,20 @@ struct MealPlanCardView: View {
         if showDoseEntry && !MealPlanRules.canTakeAdvised(card, now: now) {
             doseEntryRow
         }
+        Button("Eating without insulin") { macroSheet = .withoutInsulin }
+            .font(.footnote)
+            .disabled(actions.isBusy)
+    }
+
+    private var replacedSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("Replaced by a newer plan", systemImage: "arrow.triangle.2.circlepath")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text("\(MealPlanRules.midText(plan.carbs)) carbs \u{00B7} \(card.payload.description ?? "earlier plan")")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     /// Logging only: the user types the dose they took; nothing is prefilled and no pause is sent.
@@ -175,9 +205,13 @@ struct MealPlanCardView: View {
         if overdue {
             Text("Meal not logged \u{00B7} \(p.doseUnits.map(MealPlanRules.doseText) ?? "the dose") is active. If you ate, log the meal; if not, eat something or tell me.")
                 .font(.subheadline)
+            let due = MealPlanRules.lateMealDefault(p, now: now)
             HStack(spacing: 8) {
-                Button("I ate") { actions.onEat(nil) }.buttonStyle(.borderedProminent).tint(.orange)
-                Button("Edit meal") { showMealEdit = true }.buttonStyle(.bordered)
+                Button("I ate at \(ChatFormatting.clock(due))") {
+                    actions.onEat(nil, MealPlanRules.ateAtToSend(picked: due, lower: MealPlanRules.ateAtLowerBound(p), now: Date()))
+                }
+                .buttonStyle(.borderedProminent).tint(.orange)
+                Button("Other time\u{2026}") { macroSheet = .late }.buttonStyle(.bordered)
                 Button("Didn't eat", action: actions.onSkip).buttonStyle(.bordered)
             }
             .disabled(actions.isBusy)
@@ -192,8 +226,8 @@ struct MealPlanCardView: View {
             }
             .frame(maxWidth: .infinity)
             HStack(spacing: 8) {
-                Button("Eating now") { actions.onEat(nil) }.buttonStyle(.borderedProminent)
-                Button("Edit meal") { showMealEdit = true }.buttonStyle(.bordered)
+                Button("Eating now") { actions.onEat(nil, nil) }.buttonStyle(.borderedProminent)
+                Button("Edit meal") { macroSheet = .edit }.buttonStyle(.bordered)
                 Button("Not eating", action: actions.onSkip).buttonStyle(.bordered)
             }
             .disabled(actions.isBusy)
@@ -323,11 +357,17 @@ struct MealReplanSheet: View {
 
 // MARK: - Edit meal: macros for Eating now
 
-/// Edit meal on a TOOK card: adjust macros, then log the meal now.
+/// Adjust macros and the meal time, then log the meal (Eating now / late meal / without insulin).
+/// The time is bounded to [tookAt or plannedAt, now], the backend's `ateAt` rule.
 struct MealMacrosSheet: View {
     let initial: BackendAPI.MealMacros
-    let onEat: (BackendAPI.MealMacros) -> Void
+    var title = "Edit meal"
+    let lower: Date?
+    let defaultTime: Date
+    let onEat: (BackendAPI.MealMacros, Date?) -> Void
     @Environment(\.dismiss) private var dismiss
+    @State private var ateAt = Date()
+    @State private var openedAt = Date()
     @State private var carbs = ""
     @State private var fat = ""
     @State private var protein = ""
@@ -336,23 +376,32 @@ struct MealMacrosSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                field("Carbs", $carbs)
-                field("Fat", $fat)
-                field("Protein", $protein)
-                field("Fiber", $fiber)
+                Section {
+                    field("Carbs", $carbs)
+                    field("Fat", $fat)
+                    field("Protein", $protein)
+                    field("Fiber", $fiber)
+                }
+                Section {
+                    DatePicker("Ate at", selection: $ateAt, in: timeRange, displayedComponents: [.hourAndMinute])
+                }
             }
-            .navigationTitle("Edit meal")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Eating now") {
-                        if let m = macros { onEat(m); dismiss() }
+                    Button("Log meal") {
+                        guard let m = macros else { return }
+                        onEat(m, MealPlanRules.ateAtToSend(picked: ateAt, lower: lower, now: Date()))
+                        dismiss()
                     }
                     .disabled(macros == nil)
                 }
             }
             .onAppear {
+                openedAt = Date()
+                ateAt = min(max(defaultTime, timeRange.lowerBound), timeRange.upperBound)
                 carbs = text(initial.carbs); fat = text(initial.fat)
                 protein = text(initial.protein); fiber = text(initial.fiber)
             }
@@ -368,6 +417,12 @@ struct MealMacrosSheet: View {
     }
 
     private func text(_ v: Double?) -> String { v.map { String(Int($0.rounded())) } ?? "" }
+
+    /// [lower, now]; with no lower bound only "now" is offered (no backdating the server can't check).
+    private var timeRange: ClosedRange<Date> {
+        let upper = max(openedAt, Date())
+        return min(lower ?? upper, upper)...upper
+    }
 
     private func parse(_ s: String) -> Double? {
         let t = s.trimmingCharacters(in: .whitespaces)

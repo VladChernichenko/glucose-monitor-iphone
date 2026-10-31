@@ -85,8 +85,9 @@ struct ChatOverlayView: View {
         let id = card.messageId
         return MealPlanActions(
             isBusy: model.busyPlanIds.contains(id),
+            isReplaced: MealPlanRules.isReplaced(card, newestPlanId: model.newestPlanId),
             onTook: { dose, pause in Task { await model.tookPlan(messageId: id, doseUnits: dose, pauseMinutes: pause) } },
-            onEat: { macros in Task { await model.eatPlan(messageId: id, macros: macros) } },
+            onEat: { macros, ateAt in Task { await model.eatPlan(messageId: id, macros: macros, ateAt: ateAt) } },
             onSkip: { Task { await model.skipPlan(messageId: id) } },
             onReplan: { items in Task { await model.replan(items: items) } })
     }
