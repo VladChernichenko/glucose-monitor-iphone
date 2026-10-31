@@ -243,14 +243,45 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.items.last?.kind, .assistant(text: "50 U looks too large to log."))
     }
 
-    func testFutureAndUnknownEventsDoNotAddBubbles() async {
+    func testUnknownEventsDoNotAddBubbles() async {
         let fake = FakeAssistantService()
-        fake.scriptedEvents = [.citations(["c1"]), .token("ok"),
+        fake.scriptedEvents = [.citations([]), .token("ok"),
                                .done(BackendAPI.AssistantDone(userMessageId: nil, assistantMessageId: nil, intent: "question"))]
         let vm = makeVM(fake)
         await vm.send(text: "q", photoJPEG: nil)
         XCTAssertEqual(vm.items.count, 2)
         XCTAssertEqual(vm.items[1].kind, .assistant(text: "ok"))
+    }
+
+    private func citation(_ ref: Int) -> BackendAPI.AssistantCitation {
+        BackendAPI.AssistantCitation(ref: ref, title: "T\(ref)", source: "ADA", year: 2024, url: URL(string: "https://a.org/\(ref)")!)
+    }
+
+    func testCitationsAttachUnderTheirReply() async {
+        let fake = FakeAssistantService()
+        fake.scriptedEvents = [.episodes([episode("e1")]), .citations([citation(1), citation(2)]), .token("Answer [1][2]."),
+                               .done(BackendAPI.AssistantDone(userMessageId: "u1", assistantMessageId: "a1", intent: "question"))]
+        let vm = makeVM(fake)
+        await vm.send(text: "q1", photoJPEG: nil)
+        fake.scriptedEvents = [.token("Second."), .done(BackendAPI.AssistantDone(userMessageId: "u2", assistantMessageId: "a2", intent: "question"))]
+        await vm.send(text: "q2", photoJPEG: nil)
+        // user, episodes, reply, chips, user, reply (the second reply has none)
+        XCTAssertEqual(vm.items.count, 6)
+        XCTAssertEqual(vm.items[2].kind, .assistant(text: "Answer [1][2]."))
+        XCTAssertEqual(vm.items[3].kind, .citations([citation(1), citation(2)]))
+        XCTAssertEqual(vm.items[5].kind, .assistant(text: "Second."))
+        XCTAssertEqual(vm.lastMessageLine, "Second.")
+    }
+
+    func testHistoryPutsCitationsAfterTheStoredReply() throws {
+        let json = #"""
+        [{"id":"a1","createdAt":"2026-10-30T11:00:00Z","role":"ASSISTANT","text":"Answer [1].","intent":"question","hasPhoto":false,"noteIds":[],"payload":{"citations":[{"ref":1,"title":"T1","source":"ADA","year":2024,"url":"https://a.org/1"}]}},
+         {"id":"u1","createdAt":"2026-10-30T10:59:00Z","role":"USER","text":"q","intent":"question","hasPhoto":false,"noteIds":[],"payload":null}]
+        """#
+        let rows = try GlucoseMonitorAPI.jsonDecoder().decode([BackendAPI.ChatMessageDTO].self, from: Data(json.utf8))
+        let items = ChatViewModel.items(fromNewestFirst: rows)
+        XCTAssertEqual(items.map(\.id), ["u1", "a1", "citations-a1"])
+        XCTAssertEqual(items[2].kind, .citations([citation(1)]))
     }
 
     private func episode(_ id: String) -> BackendAPI.AssistantEpisode {

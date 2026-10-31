@@ -22,6 +22,8 @@ struct ChatItem: Identifiable, Equatable {
         case mealPlan(MealPlanCard)
         /// Past events behind a reply, listed above it. Question replies carry them in history too; plan replies do not.
         case episodes([BackendAPI.AssistantEpisode])
+        /// Sources a question reply cites, listed right under it.
+        case citations([BackendAPI.AssistantCitation])
     }
 
     let id: String
@@ -41,7 +43,7 @@ struct ChatItem: Identifiable, Equatable {
         case .logged(let entry): return entry.summary
         case .error(let message): return message
         case .glycemicPrompt(_, let text): return text
-        case .episodes: return ""
+        case .episodes, .citations: return ""
         case .mealPlan(let card): return "Meal plan: \(MealPlanRules.midText(card.plan.carbs)) carbs"
         }
     }
@@ -199,6 +201,9 @@ final class ChatViewModel: ObservableObject {
                 return out
             }
             var out = [item(from: row, undoneUserIds: undoneUserIds)]
+            if row.role != "USER", let citations = row.payload?.citations, !citations.isEmpty {
+                out.append(ChatItem(id: "citations-\(row.id)", createdAt: row.createdAt, kind: .citations(citations)))
+            }
             if row.role != "USER", let episodes = row.payload?.episodes, !episodes.isEmpty {
                 out.insert(ChatItem(id: "episodes-\(row.id)", createdAt: row.createdAt, kind: .episodes(episodes)), at: 0)
             }
@@ -306,8 +311,10 @@ final class ChatViewModel: ObservableObject {
             items.insert(ChatItem(id: "episodes-\(replyId)", createdAt: items[i].createdAt, kind: .episodes(episodes)), at: i)
         case .banner(let messageId, let banner):
             attachBanner(messageId: messageId, banner)
-        case .citations:
-            break // Rendered by a later task.
+        case .citations(let citations):
+            // Under the reply bubble it belongs to (the event arrives before the first token).
+            guard !citations.isEmpty else { break }
+            items.insert(ChatItem(id: "citations-\(replyId)", createdAt: items[i].createdAt, kind: .citations(citations)), at: i + 1)
         }
     }
 

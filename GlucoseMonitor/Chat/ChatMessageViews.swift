@@ -54,6 +54,8 @@ struct ChatMessageRow: View {
             }
         case .episodes(let episodes):
             EpisodeCardView(episodes: episodes, unit: displayUnit)
+        case .citations(let citations):
+            CitationChipsView(citations: citations)
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)

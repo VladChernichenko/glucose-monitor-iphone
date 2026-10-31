@@ -46,8 +46,33 @@ final class AssistantEventDecodingTests: XCTestCase {
         // A plan that does not match the MealPlan contract is dropped, not a crash (MealPlanCardTests covers the real shape).
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"plan","plan":{"dose":4,"nested":{"a":[1,2]}}}"#))
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"banner","level":"warning","text":"Falling fast"}"#))
-        XCTAssertEqual(BackendAPI.decodeAssistantEvent(line: #"{"type":"citations","ids":["c1","c2"]}"#),
-                       .citations(["c1", "c2"]))
+    }
+
+    private func citations(_ line: String) -> [BackendAPI.AssistantCitation]? {
+        guard case .citations(let list)? = BackendAPI.decodeAssistantEvent(line: line) else { return nil }
+        return list
+    }
+
+    func testDecodesCitationsEvent() {
+        let list = citations(#"{"type":"citations","citations":[{"ref":1,"id":"x","title":"Glycemic Goals","source":"ADA","year":2024,"url":"https://doi.org/10.2337/dc25-S006","citation":"ADA. Diabetes Care 2025"},{"ref":2,"title":"Bell et al.","url":"http://example.org/p"}]}"#)
+        XCTAssertEqual(list?.map(\.ref), [1, 2])
+        XCTAssertEqual(list?[0].url.absoluteString, "https://doi.org/10.2337/dc25-S006")
+        XCTAssertEqual(list?[0].chipLabel, "[1] Glycemic Goals · ADA 2024")
+        XCTAssertEqual(list?[1].chipLabel, "[2] Bell et al.")
+    }
+
+    func testMalformedAndNonHttpCitationsAreDropped() {
+        let line = #"{"type":"citations","citations":[{"ref":1,"title":"Good","url":"https://a.org"},{"title":"no ref","url":"https://a.org"},{"ref":3,"title":"js","url":"javascript:alert(1)"},{"ref":4,"title":"file","url":"file:///etc/passwd"},{"ref":5,"title":"no url"},{"ref":6,"title":"  ","url":"https://a.org"},"junk",{"ref":7,"title":"Fine","url":"https://b.org"}]}"#
+        XCTAssertEqual(citations(line)?.map(\.ref), [1, 7])
+        XCTAssertEqual(citations(#"{"type":"citations","citations":"nope"}"#), [])
+    }
+
+    func testHistoryPayloadCarriesCitationsLossily() throws {
+        let json = #"""
+        [{"id":"a1","createdAt":"2026-10-30T11:00:00Z","role":"ASSISTANT","text":"Answer [1].","intent":"question","hasPhoto":false,"noteIds":[],"payload":{"citations":[{"ref":1,"title":"T","source":"ADA","year":2024,"url":"https://a.org"},{"ref":2,"title":"bad","url":"ftp://a.org"}]}}]
+        """#
+        let rows = try GlucoseMonitorAPI.jsonDecoder().decode([BackendAPI.ChatMessageDTO].self, from: Data(json.utf8))
+        XCTAssertEqual(rows[0].payload?.citations?.map(\.ref), [1])
     }
 
     private func episodes(_ line: String) -> [BackendAPI.AssistantEpisode]? {

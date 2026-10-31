@@ -97,8 +97,72 @@ extension BackendAPI {
         let score: Double?
     }
 
-    /// One NDJSON line of the assistant stream, keyed by its `type`. `banner` and `citations`
-    /// is not sent by the backend yet; it decodes so a newer backend never breaks the stream.
+    /// A clinical-library source the reply cites as `[ref]`. Only http(s) links are kept: an entry with
+    /// any other URL (or none), or without `ref`/`title`, does not decode and is dropped from the list.
+    struct AssistantCitation: Decodable, Equatable, Identifiable {
+        let ref: Int
+        let title: String
+        let source: String?
+        let year: Int?
+        let url: URL
+        var id: Int { ref }
+
+        init(ref: Int, title: String, source: String? = nil, year: Int? = nil, url: URL) {
+            self.ref = ref; self.title = title; self.source = source; self.year = year; self.url = url
+        }
+
+        private enum CodingKeys: String, CodingKey { case ref, title, source, year, url }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            ref = try c.decode(Int.self, forKey: .ref)
+            let rawTitle = try c.decode(String.self, forKey: .title).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !rawTitle.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .title, in: c, debugDescription: "empty title")
+            }
+            title = rawTitle
+            let src = (try? c.decodeIfPresent(String.self, forKey: .source))?.trimmingCharacters(in: .whitespacesAndNewlines)
+            source = (src?.isEmpty ?? true) ? nil : src
+            year = (try? c.decodeIfPresent(Int.self, forKey: .year)) ?? nil
+            let raw = try c.decode(String.self, forKey: .url).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard let parsed = URL(string: raw), let scheme = parsed.scheme?.lowercased(),
+                  scheme == "http" || scheme == "https", parsed.host?.isEmpty == false else {
+                throw DecodingError.dataCorruptedError(forKey: .url, in: c, debugDescription: "not an http(s) URL")
+            }
+            url = parsed
+        }
+
+        /// Chip text, e.g. "[1] ADA Standards of Care · ADA 2024".
+        var chipLabel: String {
+            var tail = [source, year.map(String.init)].compactMap { $0 }.joined(separator: " ")
+            if !tail.isEmpty { tail = " · " + tail }
+            return "[\(ref)] \(title)\(tail)"
+        }
+    }
+
+    /// One citation that decodes to nil instead of failing the whole list.
+    private struct LossyCitation: Decodable {
+        let value: AssistantCitation?
+        init(from decoder: Decoder) throws { value = try? AssistantCitation(from: decoder) }
+    }
+
+    private static func lossyCitations<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) -> [AssistantCitation]? {
+        guard let items = (try? c.decodeIfPresent([LossyCitation].self, forKey: key)) ?? nil else { return nil }
+        return items.compactMap(\.value)
+    }
+
+    private struct CitationsEventBody: Decodable {
+        let citations: [AssistantCitation]
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            citations = BackendAPI.lossyCitations(c, .citations) ?? []
+        }
+
+        private enum CodingKeys: String, CodingKey { case citations }
+    }
+
+    /// One NDJSON line of the assistant stream, keyed by its `type`.
     enum AssistantEvent: Equatable {
         case logged(AssistantLogged)
         case token(String)
@@ -111,7 +175,8 @@ extension BackendAPI {
         case episodes([AssistantEpisode])
         /// History-dose banner for the plan card `messageId` (sent right after `plan`).
         case banner(messageId: String, banner: HistoryBanner)
-        case citations([String])
+        /// Sources behind the reply (question path, sent before the first token); unusable entries are dropped.
+        case citations([AssistantCitation])
     }
 
     private struct AssistantEventEnvelope: Decodable {
@@ -119,7 +184,6 @@ extension BackendAPI {
         let text: String?
         let message: String?
         let level: String?
-        let ids: [String]?
     }
 
     /// One episode that decodes to nil instead of failing the whole list.
@@ -176,7 +240,7 @@ extension BackendAPI {
         case "banner":
             return (try? decoder.decode(BannerEventBody.self, from: data)).map { .banner(messageId: $0.messageId, banner: $0.banner) }
         case "citations":
-            return .citations(env.ids ?? [])
+            return (try? decoder.decode(CitationsEventBody.self, from: data)).map { .citations($0.citations) }
         default:
             return nil
         }
@@ -195,9 +259,11 @@ extension BackendAPI {
         let hypoEventId: String?
         /// Question replies store the cards they were shown with (plan replies do not).
         var episodes: [AssistantEpisode]? = nil
+        /// Question replies store the sources they cited.
+        var citations: [AssistantCitation]? = nil
 
         fileprivate enum CodingKeys: String, CodingKey {
-            case type, noteIds, summary, iob, forecastMin, userMessageId, undone, hypoEventId, episodes
+            case type, noteIds, summary, iob, forecastMin, userMessageId, undone, hypoEventId, episodes, citations
         }
     }
 
@@ -389,5 +455,6 @@ extension BackendAPI.ChatMessagePayload {
         undone = try c.decodeIfPresent(Bool.self, forKey: .undone)
         hypoEventId = try c.decodeIfPresent(String.self, forKey: .hypoEventId)
         episodes = BackendAPI.decodeLossyEpisodes(c)
+        citations = BackendAPI.lossyCitations(c, .citations)
     }
 }
