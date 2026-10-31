@@ -122,7 +122,6 @@ struct DashboardView: View {
     @EnvironmentObject var appState: AppState
     @State private var showAddNote = false
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
-    @State private var showFoodScan = false
     @State private var showExtendedForecast = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
@@ -206,12 +205,6 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showAddNote) {
                 NoteEditorSheet { input, photo in
-                    await appState.createNote(input, photo: photo)
-                }
-                .environmentObject(appState)
-            }
-            .sheet(isPresented: $showFoodScan) {
-                FoodScanSheet { input, photo in
                     await appState.createNote(input, photo: photo)
                 }
                 .environmentObject(appState)
@@ -741,13 +734,6 @@ struct DashboardView: View {
                 if appState.isLoadingNotes {
                     ProgressView()
                         .scaleEffect(0.75)
-                }
-                Button {
-                    showFoodScan = true
-                } label: {
-                    Image(systemName: "camera.viewfinder")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
                 }
                 Button {
                     showAddNote = true

@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 /// The always-present chat at the bottom of the Dashboard. Collapsed it is a peek (last message line +
@@ -10,8 +9,8 @@ struct ChatOverlayView: View {
     @Binding var isExpanded: Bool
 
     @State private var draft = ""
-    @State private var photoItem: PhotosPickerItem?
     @State private var photo: UIImage?
+    @State private var showFoodCapture = false
     @State private var dragOffset: CGFloat = 0
     @State private var pagingEnabled = false
     @State private var showTwinForecast = false
@@ -65,14 +64,31 @@ struct ChatOverlayView: View {
         }
         .onChange(of: appState.visibleGlycemicPrompt) { _ in syncPrompt() }
         .onChange(of: appState.preferredGlucoseUnit) { _ in syncPrompt() }
-        .onChange(of: photoItem) { item in
-            guard let item else { return }
-            Task {
-                if let data = try? await item.loadTransferable(type: Data.self), let image = UIImage(data: data) {
+        .sheet(isPresented: $showFoodCapture) {
+            FoodCaptureFlow { result in
+                switch result {
+                case .photo(let image):
+                    // Attached to the draft so the user can add "bread 40 g" before sending.
                     photo = image
+                case .arScan(let summary):
+                    if let text = FoodCaptureResult.mealPrepText(summary) {
+                        Task { await model.send(text: text, photoJPEG: nil) }
+                    } else {
+                        photo = summary.capturedImage // nothing recognised on device: let the backend look
+                    }
                 }
             }
         }
+    }
+
+    private func mealPlanActions(_ card: MealPlanCard) -> MealPlanActions {
+        let id = card.messageId
+        return MealPlanActions(
+            isBusy: model.busyPlanIds.contains(id),
+            onTook: { dose, pause in Task { await model.tookPlan(messageId: id, doseUnits: dose, pauseMinutes: pause) } },
+            onEat: { macros in Task { await model.eatPlan(messageId: id, macros: macros) } },
+            onSkip: { Task { await model.skipPlan(messageId: id) } },
+            onReplan: { items in Task { await model.replan(items: items) } })
     }
 
     private func syncPrompt() {
@@ -231,7 +247,8 @@ struct ChatOverlayView: View {
                         }
                         ChatMessageRow(item: item, displayUnit: appState.preferredGlucoseUnit,
                                        onUndo: { Task { await model.undo(itemId: item.id) } },
-                                       prompt: promptActions)
+                                       prompt: promptActions,
+                                       mealPlan: mealPlanActions)
                         .id(item.id)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomId)
@@ -275,7 +292,6 @@ struct ChatOverlayView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                     Button {
                         self.photo = nil
-                        photoItem = nil
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .symbolRenderingMode(.palette)
@@ -292,12 +308,13 @@ struct ChatOverlayView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-                PhotosPicker(selection: $photoItem, matching: .images) {
+                Button { showFoodCapture = true } label: {
                     Image(systemName: "camera")
                         .font(.title3)
                         .padding(.bottom, 6)
                 }
-                .accessibilityLabel("Add photo")
+                .disabled(model.isSending)
+                .accessibilityLabel("Scan food or add a photo")
                 Button(action: send) {
                     Image(systemName: "arrow.up.circle.fill")
                         .font(.title)
@@ -316,7 +333,6 @@ struct ChatOverlayView: View {
         let image = photo
         draft = ""
         photo = nil
-        photoItem = nil
         Task { await model.send(text: text, photo: image) }
     }
 }

@@ -111,6 +111,13 @@ enum PreBolusTimer {
         let seconds = elapsed % 60
         return (true, String(format: "%d:%02d", minutes, seconds))
     }
+
+    /// Remaining pre-bolus wait as "mm:ss" (the chat plan card's countdown); nil once `until` is reached.
+    static func countdownLabel(until: Date, now: Date) -> String? {
+        let remaining = Int(until.timeIntervalSince(now).rounded(.up))
+        guard remaining > 0 else { return nil }
+        return String(format: "%02d:%02d", remaining / 60, remaining % 60)
+    }
 }
 
 // MARK: - Glucose chart + prediction + notes

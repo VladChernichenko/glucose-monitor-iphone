@@ -37,6 +37,18 @@ final class ChatViewModelTests: XCTestCase {
             undone.append(messageId)
             return undoResult
         }
+
+        var planResult: Result<BackendAPI.MealPlanActionResult, Error> = .failure(URLError(.badServerResponse))
+        /// Suspends inside the call so a second tap can arrive while the first is in flight.
+        var planActionYields = false
+        private(set) var planActions: [(messageId: String, action: BackendAPI.MealPlanAction, clientTime: String, timezone: String)] = []
+
+        func mealPlanAction(messageId: String, action: BackendAPI.MealPlanAction, clientTime: String,
+                            timezone: String) async throws -> BackendAPI.MealPlanActionResult {
+            planActions.append((messageId, action, clientTime, timezone))
+            if planActionYields { try? await Task.sleep(nanoseconds: 50_000_000) }
+            return try planResult.get()
+        }
     }
 
     private func row(_ id: String, _ t: TimeInterval, role: String = "USER", text: String? = nil,
@@ -228,7 +240,7 @@ final class ChatViewModelTests: XCTestCase {
 
     func testFutureAndUnknownEventsDoNotAddBubbles() async {
         let fake = FakeAssistantService()
-        fake.scriptedEvents = [.plan, .episodes, .citations(["c1"]), .token("ok"),
+        fake.scriptedEvents = [.episodes, .citations(["c1"]), .token("ok"),
                                .done(BackendAPI.AssistantDone(userMessageId: nil, assistantMessageId: nil, intent: "question"))]
         let vm = makeVM(fake)
         await vm.send(text: "q", photoJPEG: nil)

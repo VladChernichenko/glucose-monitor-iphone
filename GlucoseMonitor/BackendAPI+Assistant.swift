@@ -14,6 +14,9 @@ protocol AssistantChatService {
     func undo(messageId: String) async throws -> BackendAPI.AssistantUndoResult
     /// How often the frozen twin forecasts were within tolerance of the CGM.
     func fetchHitRate() async throws -> BackendAPI.AssistantHitRate
+    /// Took it / Eating now / Not eating on a meal plan card.
+    func mealPlanAction(messageId: String, action: BackendAPI.MealPlanAction, clientTime: String,
+                        timezone: String) async throws -> BackendAPI.MealPlanActionResult
 }
 
 struct BackendAssistantService: AssistantChatService {
@@ -34,6 +37,12 @@ struct BackendAssistantService: AssistantChatService {
     func fetchHitRate() async throws -> BackendAPI.AssistantHitRate {
         try await BackendAPI.fetchAssistantHitRate()
     }
+
+    func mealPlanAction(messageId: String, action: BackendAPI.MealPlanAction, clientTime: String,
+                        timezone: String) async throws -> BackendAPI.MealPlanActionResult {
+        try await BackendAPI.postMealPlanAction(messageId: messageId, action: action, clientTime: clientTime,
+                                                timezone: timezone)
+    }
 }
 
 extension BackendAPI {
@@ -51,14 +60,16 @@ extension BackendAPI {
         let intent: String?
     }
 
-    /// One NDJSON line of the assistant stream, keyed by its `type`. `plan`, `episodes`, `banner` and
-    /// `citations` are not sent by the backend yet; they decode so a newer backend never breaks the stream.
+    /// One NDJSON line of the assistant stream, keyed by its `type`. `episodes`, `banner` and `citations`
+    /// are not sent by the backend yet; they decode so a newer backend never breaks the stream.
     enum AssistantEvent: Equatable {
         case logged(AssistantLogged)
         case token(String)
         case done(AssistantDone)
         case error(String)
-        case plan
+        /// Meal prep: the plan card for assistant message `messageId`. The planned dose is valid up to
+        /// `doseValidUntil` (user wall time).
+        case plan(messageId: String, plan: MealPlan, plannedAt: Date?, doseValidUntil: Date?)
         case episodes
         case banner(level: String?, text: String)
         case citations([String])
@@ -70,6 +81,13 @@ extension BackendAPI {
         let message: String?
         let level: String?
         let ids: [String]?
+    }
+
+    private struct PlanEventBody: Decodable {
+        let messageId: String
+        let plan: MealPlan
+        let plannedAt: Date?
+        let doseValidUntil: Date?
     }
 
     /// Decodes one stream line; nil for blank or malformed lines and for unknown event types.
@@ -88,7 +106,9 @@ extension BackendAPI {
         case "error":
             return .error(env.message ?? "Assistant reply failed")
         case "plan":
-            return .plan
+            return (try? decoder.decode(PlanEventBody.self, from: data)).map {
+                .plan(messageId: $0.messageId, plan: $0.plan, plannedAt: $0.plannedAt, doseValidUntil: $0.doseValidUntil)
+            }
         case "episodes":
             return .episodes
         case "banner":
@@ -122,11 +142,14 @@ extension BackendAPI {
         let hasPhoto: Bool
         let noteIds: [String]
         let payload: ChatMessagePayload?
+        /// The same `payload` read as a meal plan, for intent `meal_plan` rows.
+        let mealPlan: MealPlanPayload?
 
         init(id: String, createdAt: Date, role: String, text: String?, intent: String?,
-             hasPhoto: Bool, noteIds: [String], payload: ChatMessagePayload?) {
+             hasPhoto: Bool, noteIds: [String], payload: ChatMessagePayload?, mealPlan: MealPlanPayload? = nil) {
             self.id = id; self.createdAt = createdAt; self.role = role; self.text = text
             self.intent = intent; self.hasPhoto = hasPhoto; self.noteIds = noteIds; self.payload = payload
+            self.mealPlan = mealPlan
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -143,6 +166,7 @@ extension BackendAPI {
             hasPhoto = try c.decodeIfPresent(Bool.self, forKey: .hasPhoto) ?? false
             noteIds = try c.decodeIfPresent([String].self, forKey: .noteIds) ?? []
             payload = try? c.decodeIfPresent(ChatMessagePayload.self, forKey: .payload)
+            mealPlan = intent == "meal_plan" ? (try? c.decodeIfPresent(MealPlanPayload.self, forKey: .payload)) ?? nil : nil
         }
     }
 

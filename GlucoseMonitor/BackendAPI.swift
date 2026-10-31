@@ -210,7 +210,7 @@ enum BackendAPI {
         let absorptionMode: String?
     }
 
-    struct PredictionPathPoint: Decodable {
+    struct PredictionPathPoint: Decodable, Equatable {
         let timestamp: Date
         let predictedGlucose: Double?
         let carbAbsorptionEffect: Double?

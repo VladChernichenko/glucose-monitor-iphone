@@ -6,6 +6,8 @@ struct ChatMessageRow: View {
     let displayUnit: String
     let onUndo: () -> Void
     var prompt: GlycemicPromptActions?
+    /// Actions for a meal plan card row.
+    var mealPlan: ((MealPlanCard) -> MealPlanActions)?
 
     var body: some View {
         switch item.kind {
@@ -45,6 +47,10 @@ struct ChatMessageRow: View {
         case .glycemicPrompt(let event, let text):
             if let prompt {
                 GlycemicPromptBubble(event: event, text: text, actions: prompt)
+            }
+        case .mealPlan(let card):
+            if let mealPlan {
+                MealPlanCardView(card: card, unit: displayUnit, actions: mealPlan(card))
             }
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")

@@ -18,6 +18,8 @@ struct ChatItem: Identifiable, Equatable {
         case error(String)
         /// The glycemic event engine's pending question, pinned last; `text` is the preview line.
         case glycemicPrompt(BackendAPI.GlycemicEvent, text: String)
+        /// Meal prep plan card (Took it / Eating now / Not eating).
+        case mealPlan(MealPlanCard)
     }
 
     let id: String
@@ -34,6 +36,7 @@ struct ChatItem: Identifiable, Equatable {
         case .logged(let entry): return entry.summary
         case .error(let message): return message
         case .glycemicPrompt(_, let text): return text
+        case .mealPlan(let card): return "Meal plan: \(MealPlanRules.midText(card.plan.carbs)) carbs"
         }
     }
 }
@@ -49,6 +52,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var hasMoreHistory = true
     @Published private(set) var historyLoaded = false
     @Published private(set) var hitRate: BackendAPI.AssistantHitRate?
+    /// Plan cards with an action in flight; their buttons are disabled (double-tap protection).
+    @Published private(set) var busyPlanIds: Set<String> = []
 
     /// Called after a quick log is written or undone, so the dashboard reloads notes, IOB and COB.
     var onNotesChanged: (() -> Void)?
@@ -173,24 +178,36 @@ final class ChatViewModel: ObservableObject {
     }
 
     /// Maps a newest-first history page to oldest-first items. A quick-log reply reads its Undo state
-    /// from the USER row it belongs to (`payload.undone`).
+    /// from the USER row it belongs to (`payload.undone`). A meal plan row becomes its card followed by
+    /// the explanation text.
     static func items(fromNewestFirst rows: [BackendAPI.ChatMessageDTO]) -> [ChatItem] {
         let undoneUserIds = Set(rows.filter { $0.role == "USER" && $0.payload?.undone == true }.map(\.id))
-        return rows.reversed().map { row in
-            if row.role == "USER" {
-                return ChatItem(id: row.id, createdAt: row.createdAt,
-                                kind: .user(text: row.text ?? "", hasPhoto: row.hasPhoto))
+        return rows.reversed().flatMap { row -> [ChatItem] in
+            if let payload = row.mealPlan, let card = MealPlanCard(messageId: row.id, payload: payload) {
+                var out = [ChatItem(id: row.id, createdAt: row.createdAt, kind: .mealPlan(card))]
+                if let text = row.text, !text.isEmpty {
+                    out.append(ChatItem(id: row.id + "-text", createdAt: row.createdAt, kind: .assistant(text: text)))
+                }
+                return out
             }
-            if let p = row.payload, p.type == "logged" {
-                let userId = p.userMessageId ?? row.id
-                let entry = ChatLoggedEntry(summary: p.summary ?? row.text ?? "", forecastMin: p.forecastMin,
-                                            undoMessageId: userId,
-                                            undone: undoneUserIds.contains(userId) || p.undone == true)
-                return ChatItem(id: row.id, createdAt: row.createdAt, kind: .logged(entry))
-            }
-            return ChatItem(id: row.id, createdAt: row.createdAt, kind: .assistant(text: row.text ?? ""),
-                            isFailed: row.intent == "question_failed")
+            return [item(from: row, undoneUserIds: undoneUserIds)]
         }
+    }
+
+    private static func item(from row: BackendAPI.ChatMessageDTO, undoneUserIds: Set<String>) -> ChatItem {
+        if row.role == "USER" {
+            return ChatItem(id: row.id, createdAt: row.createdAt,
+                            kind: .user(text: row.text ?? "", hasPhoto: row.hasPhoto))
+        }
+        if let p = row.payload, p.type == "logged" {
+            let userId = p.userMessageId ?? row.id
+            let entry = ChatLoggedEntry(summary: p.summary ?? row.text ?? "", forecastMin: p.forecastMin,
+                                        undoMessageId: userId,
+                                        undone: undoneUserIds.contains(userId) || p.undone == true)
+            return ChatItem(id: row.id, createdAt: row.createdAt, kind: .logged(entry))
+        }
+        return ChatItem(id: row.id, createdAt: row.createdAt, kind: .assistant(text: row.text ?? ""),
+                        isFailed: row.intent == "question_failed")
     }
 
     // MARK: Sending
@@ -220,15 +237,20 @@ final class ChatViewModel: ObservableObject {
                 self?.apply(event, to: replyId)
             }
         } catch {
-            appendError("Couldn't reach the assistant. \(error.localizedDescription)", replacing: replyId)
+            // A 4xx carries the server's reason (e.g. the phone clock is off); show it as-is.
+            appendError(MealPlanRules.serverRejection(error)
+                        ?? "Couldn't reach the assistant. \(error.localizedDescription)", replacing: replyId)
         }
         // A reply that never got text (e.g. the stream ended early) leaves no empty bubble behind.
         if let i = index(of: replyId), items[i].kind == .assistant(text: "") { items.remove(at: i) }
+        // The stream's plan has no items; the stored payload does (Edit needs them).
+        if let planId = streamedPlanId { streamedPlanId = nil; await refreshPlan(messageId: planId) }
         await loadHitRate() // a quick log can add a frozen snapshot
         return !sendFailed
     }
 
     private var sendFailed = false
+    private var streamedPlanId: String?
 
     /// "Took N g" on the carb advice card: logs fast sugar through the normal chat send path,
     /// where the backend quick-log parser attaches it to an open low.
@@ -254,7 +276,13 @@ final class ChatViewModel: ObservableObject {
             }
         case .error(let message):
             appendError(message, replacing: replyId)
-        case .banner, .plan, .episodes, .citations:
+        case .plan(let messageId, let plan, let plannedAt, let doseValidUntil):
+            // The card goes above the reply bubble, which keeps streaming the explanation.
+            let card = MealPlanCard(messageId: messageId, plan: plan, plannedAt: plannedAt ?? now(),
+                                    doseValidUntil: doseValidUntil)
+            items.insert(ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
+            streamedPlanId = messageId
+        case .banner, .episodes, .citations:
             break // Rendered by later tasks.
         }
     }
@@ -286,6 +314,67 @@ final class ChatViewModel: ObservableObject {
             items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(),
                                   kind: .error("Undo failed. \(error.localizedDescription)")))
         }
+    }
+
+    // MARK: Meal plan actions
+
+    func tookPlan(messageId: String, doseUnits: Double, pauseMinutes: Int) async {
+        await runPlanAction(messageId: messageId, .took(doseUnits: doseUnits, pauseMinutes: pauseMinutes))
+    }
+
+    /// Eating now; nil macros (or nil fields) use the planned meal.
+    func eatPlan(messageId: String, macros: BackendAPI.MealMacros?) async {
+        await runPlanAction(messageId: messageId, .eating(macros ?? BackendAPI.MealMacros()))
+    }
+
+    func skipPlan(messageId: String) async {
+        await runPlanAction(messageId: messageId, .skip)
+    }
+
+    /// Edit: there is no re-plan endpoint, so the edited items go out as a new meal-prep message.
+    func replan(items: [BackendAPI.MealPlanItem]) async {
+        await send(text: MealPlanRules.replanMessage(items), photoJPEG: nil)
+    }
+
+    private func runPlanAction(messageId: String, _ action: BackendAPI.MealPlanAction) async {
+        guard !busyPlanIds.contains(messageId) else { return }
+        busyPlanIds.insert(messageId)
+        defer { busyPlanIds.remove(messageId) }
+        let at = now()
+        do {
+            let result = try await service.mealPlanAction(
+                messageId: messageId, action: action,
+                clientTime: BackendAPI.assistantClientTime(at, timeZone: timeZone), timezone: timeZone.identifier)
+            setPlanPayload(messageId: messageId, result.payload)
+            if result.noteId != nil { onNotesChanged?() }
+        } catch {
+            switch MealPlanRules.classify(error) {
+            case .conflict:
+                // Already done elsewhere (or a second tap): show the real state, not an error.
+                await refreshPlan(messageId: messageId)
+            case .rejected(let message), .failed(let message):
+                items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(), kind: .error(message)))
+            }
+        }
+    }
+
+    /// Re-reads one plan message from history (newest page, then the page around it).
+    func refreshPlan(messageId: String) async {
+        guard let i = index(of: messageId) else { return }
+        let around = items[i].createdAt.addingTimeInterval(60)
+        for before in [nil, around] as [Date?] {
+            guard let page = try? await service.fetchHistory(before: before, limit: pageSize) else { continue }
+            if let row = page.first(where: { $0.id == messageId }), let payload = row.mealPlan, payload.plan != nil {
+                setPlanPayload(messageId: messageId, payload)
+                return
+            }
+        }
+    }
+
+    private func setPlanPayload(messageId: String, _ payload: BackendAPI.MealPlanPayload) {
+        guard let i = index(of: messageId), case .mealPlan(var card) = items[i].kind, payload.plan != nil else { return }
+        card.payload = payload
+        items[i].kind = .mealPlan(card)
     }
 
     private func index(of id: String) -> Int? { items.firstIndex { $0.id == id } }
