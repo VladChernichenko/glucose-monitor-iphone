@@ -165,7 +165,7 @@ struct MealPlanCardView: View {
 
     private var replacedSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label("Replaced by a newer plan", systemImage: "arrow.triangle.2.circlepath")
+            Label(MealPlanRules.replacedTitle(card.payload), systemImage: "arrow.triangle.2.circlepath")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.secondary)
             Text("\(MealPlanRules.midText(plan.carbs)) carbs \u{00B7} \(card.payload.description ?? "earlier plan")")

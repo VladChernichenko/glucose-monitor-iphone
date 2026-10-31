@@ -8,6 +8,8 @@ struct ChatMessageRow: View {
     var prompt: GlycemicPromptActions?
     /// Actions for a meal plan card row.
     var mealPlan: ((MealPlanCard) -> MealPlanActions)?
+    /// Actions for an event proposal row (Confirm / No).
+    var proposal: ((EventProposalCard) -> EventProposalActions)?
 
     var body: some View {
         switch item.kind {
@@ -56,6 +58,10 @@ struct ChatMessageRow: View {
             EpisodeCardView(episodes: episodes, unit: displayUnit)
         case .citations(let citations):
             CitationChipsView(citations: citations)
+        case .eventProposal(let card):
+            if let proposal {
+                EventProposalBubble(card: card, actions: proposal(card))
+            }
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)

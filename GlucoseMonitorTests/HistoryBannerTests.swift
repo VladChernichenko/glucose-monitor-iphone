@@ -74,6 +74,8 @@ final class HistoryBannerTests: XCTestCase {
             recheckCalls.append((messageId, doseUnits))
             return try rechecks.removeFirst().get()
         }
+        func confirmEvent(messageId: String, clientTime: String,
+                          timezone: String) async throws -> BackendAPI.EventConfirmResult { throw URLError(.badURL) }
     }
 
     /// A view model whose chat holds one streamed plan card "a1", with the banner event delivered after it.

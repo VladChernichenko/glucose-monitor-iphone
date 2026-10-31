@@ -87,7 +87,7 @@ extension BackendAPI {
 
     enum MealPlanPhase: String {
         case planned = "PLANNED", took = "TOOK", eaten = "EATEN", skipped = "SKIPPED"
-        /// A newer plan replaced this PLANNED one (final; actions return 409).
+        /// A newer plan, or insulin logged after it, replaced this PLANNED one (final; actions return 409).
         case superseded = "SUPERSEDED"
     }
 
@@ -117,6 +117,8 @@ extension BackendAPI {
         var eatenMeal: MealMacros?
         var skippedAt: Date?
         var supersededBy: String?
+        /// Set instead of `supersededBy` when other rapid insulin was logged after the plan (stacking guard).
+        var supersededByNoteId: String?
         var supersededAt: Date?
         /// The history banner (Task 22), absent when none was built. A malformed one is dropped, not the card.
         var bannerBox: LossyHistoryBanner?
@@ -129,7 +131,7 @@ extension BackendAPI {
         private enum CodingKeys: String, CodingKey {
             case userMessageId, language, state, description, plannedAt, meal, items, plan, doseValidUntil, tookAt
             case doseUnits, pauseMinutes, eatAt, overdueAt, doseNoteId, doseSource, advisedDoseUnits, eatenAt
-            case mealNoteId, eatenMeal, skippedAt, supersededBy, supersededAt
+            case mealNoteId, eatenMeal, skippedAt, supersededBy, supersededByNoteId, supersededAt
             case bannerBox = "banner"
         }
 
@@ -241,6 +243,11 @@ enum MealPlanRules {
         default:
             return "No dose advice for this meal."
         }
+    }
+
+    /// Why a card is no longer actionable: other insulin was logged, or a newer plan exists.
+    static func replacedTitle(_ p: BackendAPI.MealPlanPayload) -> String {
+        p.supersededByNoteId != nil ? "Insulin logged after this plan: make a new plan" : "Replaced by a newer plan"
     }
 
     static func midText(_ r: BackendAPI.NutritionRange) -> String { "\(Int(r.mid.rounded())) g" }

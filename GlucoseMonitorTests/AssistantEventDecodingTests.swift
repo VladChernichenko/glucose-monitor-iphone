@@ -42,6 +42,33 @@ final class AssistantEventDecodingTests: XCTestCase {
                        .error("Assistant reply failed"))
     }
 
+    func testPlanWithNullPeakAndMinStillDecodes() {
+        // The backend sends peak/min as null for an empty forecast curve (never "NaN").
+        let line = #"{"type":"plan","messageId":"a1","plan":{"carbs":{"low":40,"mid":45,"high":50},"#
+            + #""fat":{"low":0,"mid":0,"high":0},"protein":{"low":0,"mid":0,"high":0},"fiber":{"low":0,"mid":0,"high":0},"#
+            + #""doseUnits":4.5,"refusalCode":null,"stale":false,"#
+            + #""pause":{"pauseMinutes":null,"curve":[],"peak":null,"min":null,"reason":"Every pause...","inFlight":false}}}"#
+        guard case .plan(let id, let plan, _, _)? = BackendAPI.decodeAssistantEvent(line: line) else {
+            return XCTFail("plan with null peak/min was dropped")
+        }
+        XCTAssertEqual(id, "a1")
+        XCTAssertEqual(plan.doseUnits, 4.5)
+        XCTAssertNil(plan.pause?.peak)
+        XCTAssertNil(plan.pause?.min)
+        XCTAssertEqual(plan.pause?.curve.count, 0)
+    }
+
+    func testPlanSupersededByLoggedInsulinSaysSo() throws {
+        let json = #"{"state":"SUPERSEDED","supersededByNoteId":"n7","supersededAt":"2026-10-31T12:05:00"}"#
+        let p = try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.MealPlanPayload.self, from: Data(json.utf8))
+        XCTAssertEqual(p.phase, .superseded)
+        XCTAssertEqual(p.supersededByNoteId, "n7")
+        XCTAssertEqual(MealPlanRules.replacedTitle(p), "Insulin logged after this plan: make a new plan")
+        let newer = try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.MealPlanPayload.self,
+                                                              from: Data(#"{"state":"SUPERSEDED","supersededBy":"a2"}"#.utf8))
+        XCTAssertEqual(MealPlanRules.replacedTitle(newer), "Replaced by a newer plan")
+    }
+
     func testDecodesNotYetEmittedEventsWithoutCrashing() {
         // A plan that does not match the MealPlan contract is dropped, not a crash (MealPlanCardTests covers the real shape).
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"plan","plan":{"dose":4,"nested":{"a":[1,2]}}}"#))

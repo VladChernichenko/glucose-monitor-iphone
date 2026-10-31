@@ -20,9 +20,15 @@ protocol AssistantChatService {
     /// Low re-check of a chosen dose on a PLANNED plan (history banner).
     func recheckDose(messageId: String, doseUnits: Double, clientTime: String,
                      timezone: String) async throws -> BackendAPI.DoseRecheck
+    /// Confirm on a proposed event: saves the note.
+    func confirmEvent(messageId: String, clientTime: String, timezone: String) async throws -> BackendAPI.EventConfirmResult
 }
 
 struct BackendAssistantService: AssistantChatService {
+    func confirmEvent(messageId: String, clientTime: String, timezone: String) async throws -> BackendAPI.EventConfirmResult {
+        try await BackendAPI.postEventConfirm(messageId: messageId, clientTime: clientTime, timezone: timezone)
+    }
+
     func recheckDose(messageId: String, doseUnits: Double, clientTime: String,
                      timezone: String) async throws -> BackendAPI.DoseRecheck {
         try await BackendAPI.postDoseRecheck(messageId: messageId, doseUnits: doseUnits, clientTime: clientTime,
@@ -177,6 +183,8 @@ extension BackendAPI {
         case banner(messageId: String, banner: HistoryBanner)
         /// Sources behind the reply (question path, sent before the first token); unusable entries are dropped.
         case citations([AssistantCitation])
+        /// A free-text event proposed as a note (assistant message `messageId`); saved only on Confirm.
+        case proposal(messageId: String, tags: [String], comment: String?)
     }
 
     private struct AssistantEventEnvelope: Decodable {
@@ -241,6 +249,10 @@ extension BackendAPI {
             return (try? decoder.decode(BannerEventBody.self, from: data)).map { .banner(messageId: $0.messageId, banner: $0.banner) }
         case "citations":
             return (try? decoder.decode(CitationsEventBody.self, from: data)).map { .citations($0.citations) }
+        case "proposal":
+            return (try? decoder.decode(ProposalEventBody.self, from: data)).map {
+                .proposal(messageId: $0.messageId, tags: $0.tags ?? [], comment: $0.comment)
+            }
         default:
             return nil
         }
@@ -284,12 +296,15 @@ extension BackendAPI {
         let payload: ChatMessagePayload?
         /// The same `payload` read as a meal plan, for intent `meal_plan` rows.
         let mealPlan: MealPlanPayload?
+        /// The same `payload` read as an event proposal, for intent `event_proposal` rows.
+        let eventProposal: EventProposalPayload?
 
         init(id: String, createdAt: Date, role: String, text: String?, intent: String?,
-             hasPhoto: Bool, noteIds: [String], payload: ChatMessagePayload?, mealPlan: MealPlanPayload? = nil) {
+             hasPhoto: Bool, noteIds: [String], payload: ChatMessagePayload?, mealPlan: MealPlanPayload? = nil,
+             eventProposal: EventProposalPayload? = nil) {
             self.id = id; self.createdAt = createdAt; self.role = role; self.text = text
             self.intent = intent; self.hasPhoto = hasPhoto; self.noteIds = noteIds; self.payload = payload
-            self.mealPlan = mealPlan
+            self.mealPlan = mealPlan; self.eventProposal = eventProposal
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -307,6 +322,8 @@ extension BackendAPI {
             noteIds = try c.decodeIfPresent([String].self, forKey: .noteIds) ?? []
             payload = try? c.decodeIfPresent(ChatMessagePayload.self, forKey: .payload)
             mealPlan = intent == "meal_plan" ? (try? c.decodeIfPresent(MealPlanPayload.self, forKey: .payload)) ?? nil : nil
+            eventProposal = intent == "event_proposal"
+                ? (try? c.decodeIfPresent(EventProposalPayload.self, forKey: .payload)) ?? nil : nil
         }
     }
 
