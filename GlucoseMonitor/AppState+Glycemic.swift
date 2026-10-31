@@ -10,7 +10,9 @@ extension AppState {
 
     /// The prompt to show: hidden while a hypo prompt is open (a hypo always wins) or when snoozed here.
     var visibleGlycemicPrompt: BackendAPI.GlycemicEvent? {
-        guard openHypoEvent == nil, let prompt = glycemicPrompt, !snoozedGlycemicIds.contains(prompt.id) else { return nil }
+        guard openHypoEvent == nil, let prompt = glycemicPrompt, !snoozedGlycemicIds.contains(prompt.id),
+              // Unlogged food/insulin stay on the backend only, like their chart markers.
+              !GlycemicEventMarkerLayout.hiddenCategories.contains(prompt.category) else { return nil }
         return prompt
     }
 
@@ -87,6 +89,7 @@ extension AppState {
         glycemicPrompt = nil
         isAnsweringGlycemicPrompt = false
         openHypoEvent = nil
+        pendingSiteNote = nil
         UserDefaults.standard.removeObject(forKey: Self.glycemicSnoozeKey)
     }
 

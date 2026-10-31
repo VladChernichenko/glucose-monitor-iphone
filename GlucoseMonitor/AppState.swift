@@ -18,10 +18,19 @@ final class AppState: ObservableObject {
     @Published var calculations: BackendAPI.GlucoseCalculationsResponse?
     /// True when the last calculations refresh failed and `calculations` is showing a stale (previously fetched) value.
     @Published var calculationsStale: Bool = false
+    /// True while `calculations` is the copy restored from DashboardCache at launch and no fetch has succeeded
+    /// since. Separate from `calculationsStale` so the dashboard's "Stale" badge is unchanged. The carb advice
+    /// card is hidden while this is true.
+    @Published var calculationsFromCache: Bool = false
+    /// Identity of the carb advice the user already acted on ("Took N g"); that advice stays hidden.
+    @Published var tookCarbAdviceIdentity: String?
     @Published var notes: [BackendAPI.GlucoseNote] = []
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
     @Published var glucoseHistory: [GlucoseChartPoint] = []
+    /// True while the backend reports LibreLinkUp unavailable (its circuit breaker), after one reconnect
+    /// attempt: the readings are stale, so the dashboard hides the current value and the forecast.
+    @Published var libreDataStale = false
     @Published var errorMessage: String?
     @Published var preferredGlucoseUnit: String = "mmol/L"
     @Published var dataSource: String = "libre"
@@ -30,6 +39,8 @@ final class AppState: ObservableObject {
     @Published var insulinPrefs: BackendAPI.UserInsulinPreferences?
     /// Open hypo prompt awaiting confirm/dismiss, if any. Drives `HypoPromptView` via `.sheet(item:)`.
     @Published var openHypoEvent: BackendAPI.HypoEvent?
+    /// A just-logged insulin dose whose injection site to ask about (spec F7); drives the site picker.
+    @Published var pendingSiteNote: BackendAPI.GlucoseNote?
     /// Glycemic events for the chart's recent range (see `AppState+Glycemic.swift`).
     @Published var glycemicEvents: [BackendAPI.GlycemicEvent] = []
     /// The one event the server wants to ask about now.
@@ -88,6 +99,7 @@ final class AppState: ObservableObject {
         if let json = payload.calculationsResponseJSON {
             lastCalculationsResponseJSON = json
             calculations = BackendAPI.decodeGlucoseCalculationsResponse(from: json)
+            calculationsFromCache = true
         }
         notes = payload.notes.map { n in
             BackendAPI.GlucoseNote(
@@ -172,16 +184,19 @@ final class AppState: ObservableObject {
         currentReading = nil
         calculations = nil
         calculationsStale = false
+        calculationsFromCache = false
+        tookCarbAdviceIdentity = nil
         notes = []
         isLoadingNotes = false
         notesLoadError = nil
         glucoseHistory = []
+        libreDataStale = false
         errorMessage = nil
         sensorInfo = nil
         clearEventPromptState()
         GlucoseMonitorAPI.sharedDefaults().removeObject(forKey: LockScreenWidgetSnapshot.storageKey)
         DashboardCache.clear()
-        WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
+        LockScreenWidgetSnapshot.allWidgetKinds.forEach { WidgetCenter.shared.reloadTimelines(ofKind: $0) }
     }
 
     /// Glucose value in mmol/L for `POST /api/glucose-calculations/` (web sends mmol).
@@ -268,7 +283,7 @@ final class AppState: ObservableObject {
 
     /// IOB shown on the dashboard. Single source of truth: the backend's `activeInsulinOnBoard`
     /// from `/api/glucose-calculations/`. We deliberately do NOT fall back to a client-side
-    /// note estimate - that fallback made the dashboard disagree with the Experiments tab
+    /// note estimate - that fallback made the dashboard disagree with other views
     /// (which reads the backend directly). Both screens now show the same backend value.
     var displayedIOB: Double? {
         calculations?.activeInsulinOnBoard
@@ -286,6 +301,20 @@ final class AppState: ObservableObject {
 
     // MARK: - Refresh
 
+    /// Readings older than this are fetched from LibreLinkUp now (forced server sync) instead of
+    /// waiting for the backend scheduler, which slows to 15 min after a sync with no new data.
+    static let readingMaxAge: TimeInterval = 5 * 60
+
+    /// Age of the newest reading on screen, or nil when there is none.
+    var latestReadingAge: TimeInterval? {
+        (currentReading?.timestamp ?? glucoseHistory.last?.time).map { Date().timeIntervalSince($0) }
+    }
+
+    /// True when the newest reading is older than `readingMaxAge` (or there is none yet).
+    var isReadingOutdated: Bool {
+        latestReadingAge.map { $0 > Self.readingMaxAge } ?? true
+    }
+
     func startAutoRefreshIfNeeded() {
         autoRefreshTask?.cancel()
         autoRefreshTask = Task { [weak self] in
@@ -297,6 +326,12 @@ final class AppState: ObservableObject {
                 // even after a long background suspension (where Task.sleep effectively pauses).
                 try? await Task.sleep(nanoseconds: 60_000_000_000)
                 guard let self, self.isAuthenticated else { continue }
+                // Reading over 5 min old: fetch from LibreLinkUp now, at most once a minute (this loop).
+                if self.dataSource != "nightscout", self.isReadingOutdated {
+                    lastFireTime = Date()
+                    await self.refreshGlucoseOnly(silent: true, forceServerSync: true)
+                    continue
+                }
                 guard Date().timeIntervalSince(lastFireTime) >= 5 * 60 else { continue }
                 lastFireTime = Date()
                 await self.refreshGlucoseOnly(silent: true)
@@ -441,7 +476,8 @@ final class AppState: ObservableObject {
             cobGrams: calculations?.activeCarbsOnBoard,
             iobUnits: displayedIOB,
             twoHourPredictionMmol: calculations?.twoHourPrediction,
-            chartPoints: Array(chart)
+            chartPoints: Array(chart),
+            dataStale: libreDataStale
         )
         snap.save()
         reloadWidgetTimelines()
@@ -449,7 +485,7 @@ final class AppState: ObservableObject {
 
     /// Push fresh snapshot to Home Screen / Lock Screen widgets (after foreground or background fetch).
     func reloadWidgetTimelines() {
-        WidgetCenter.shared.reloadTimelines(ofKind: LockScreenWidgetSnapshot.widgetKind)
+        LockScreenWidgetSnapshot.allWidgetKinds.forEach { WidgetCenter.shared.reloadTimelines(ofKind: $0) }
     }
 
     private func refreshCurrentReading() async {
@@ -483,6 +519,12 @@ final class AppState: ObservableObject {
             .1
     }
 
+    /// After the chat wrote or undid notes on the server: reload notes, then IOB/COB and the forecast.
+    func refreshAfterChatNotesChanged() async {
+        await fetchNotes()
+        await refreshCalculations()
+    }
+
     private func refreshCalculations() async {
         let generation = authGeneration
         // Use any available CGM reading regardless of age - the UI already shows "Updated X ago".
@@ -504,6 +546,7 @@ final class AppState: ObservableObject {
             // failure, so there's nothing stale to flag.
             calculations = nil
             calculationsStale = false
+            calculationsFromCache = false
             persistWidgetSnapshot()
             return
         }
@@ -516,6 +559,7 @@ final class AppState: ObservableObject {
             calculations = fetched.response
             lastCalculationsResponseJSON = fetched.rawData
             calculationsStale = false
+            calculationsFromCache = false
         } catch {
             do {
                 let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
@@ -526,6 +570,7 @@ final class AppState: ObservableObject {
                 calculations = fetched.response
                 lastCalculationsResponseJSON = fetched.rawData
                 calculationsStale = false
+                calculationsFromCache = false
             } catch {
                 guard generation == authGeneration else { return }
                 // Keep showing the last-known COB/IOB instead of blanking the dashboard to "--" -
@@ -545,6 +590,7 @@ final class AppState: ObservableObject {
         let generation = authGeneration
         do {
             if source == "nightscout" {
+                libreDataStale = false
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
                 guard generation == authGeneration else { return }
                 glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
@@ -554,6 +600,7 @@ final class AppState: ObservableObject {
                 if forceServerSync {
                     _ = try? await BackendAPI.syncLibreNow()
                 }
+                await refreshLibreUpstreamStatus(justSynced: forceServerSync)
                 guard generation == authGeneration else { return }
                 // LLU: read from the cached chart data written by the background scheduler
                 // (runs every 5 min). Pass the latest cached timestamp so the backend only
@@ -595,11 +642,30 @@ final class AppState: ObservableObject {
                 }
             }
         } catch {
+            // No sign-out here: the only call not already covered by BackendAPI.performWithRefresh is
+            // fetchLibreGlucoseHistory, which waits on LibreLinkUp, so its timeouts mean LLU is down.
             guard generation == authGeneration else { return }
-            if errorMessage == nil {
+            // LibreLinkUp trouble is never shown as raw error text: the backend logs in again by itself,
+            // and a real outage shows as the stale-data banner (libreDataStale).
+            if source == "nightscout", errorMessage == nil {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    /// Reads LibreLinkUp availability from the backend's circuit breaker. When LLU is down, makes one
+    /// reconnect attempt (an on-demand sync, which becomes the breaker's trial call once its open window
+    /// has passed) before flagging the data stale. Skips that attempt when the caller has just synced.
+    /// If the status itself can't be read, the flag is left as it was.
+    private func refreshLibreUpstreamStatus(justSynced: Bool) async {
+        let generation = authGeneration
+        guard var status = try? await BackendAPI.fetchLibreUpstreamStatus() else { return }
+        if !status.available && !justSynced {
+            _ = try? await BackendAPI.syncLibreNow()
+            status = (try? await BackendAPI.fetchLibreUpstreamStatus()) ?? status
+        }
+        guard generation == authGeneration else { return }
+        libreDataStale = !status.available
     }
 
     private static func nightscoutEntriesToChartPoints(_ entries: [BackendAPI.NightscoutEntry]) -> [GlucoseChartPoint] {
@@ -732,8 +798,26 @@ final class AppState: ObservableObject {
         do {
             let note = try await BackendAPI.createNote(input)
             notes.append(note)
+            askForInjectionSite(note)
         } catch {
             errorMessage = "Failed to log long-acting insulin: \(error.localizedDescription)"
+        }
+    }
+
+    /// Queue the "Where did you inject?" question for a newly logged dose.
+    private func askForInjectionSite(_ note: BackendAPI.GlucoseNote) {
+        guard note.insulin > 0, !note.isActivity, note.siteZone == nil else { return }
+        pendingSiteNote = note
+    }
+
+    /// Store where a dose was injected (a zone code, or "unknown"). Returns false if saving failed.
+    func recordInjectionSite(noteId: String, zone: String) async -> Bool {
+        do {
+            let updated = try await BackendAPI.updateNote(id: noteId, body: BackendAPI.UpdateNoteBody(siteZone: zone))
+            if let idx = notes.firstIndex(where: { $0.id == noteId }) { notes[idx] = updated }
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -810,6 +894,7 @@ final class AppState: ObservableObject {
                 note = try await BackendAPI.uploadNotePhoto(noteId: note.id, image: photo)
             }
             notes.append(note)
+            askForInjectionSite(note)
             await refreshCalculations()
         } catch {
             errorMessage = "Failed to save note: \(error.localizedDescription)"

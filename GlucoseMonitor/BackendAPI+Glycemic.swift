@@ -42,14 +42,6 @@ extension BackendAPI {
         let reason: String?
     }
 
-    struct GlycemicInsights: Decodable, Equatable {
-        let days: Int
-        let counts: [String: Int]
-        let hourHistogram: [String: [Int]]
-        let noEffectCount14d: Int
-        let agreementRate: [String: Double]
-    }
-
     private struct ConfirmGlycemicEventBody: Encodable {
         let category: String?
         let carbs: Double?
@@ -102,15 +94,6 @@ extension BackendAPI {
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode([GlycemicEventHistoryEntry].self, from: data)
-        }
-    }
-
-    static func fetchGlycemicInsights(days: Int = 30) async throws -> GlycemicInsights {
-        try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/glycemic-events/insights?days=\(days)")
-            let (data, resp) = try await URLSession.shared.data(for: req)
-            try checkStatus(resp, data: data)
-            return try GlucoseMonitorAPI.jsonDecoder().decode(GlycemicInsights.self, from: data)
         }
     }
 }

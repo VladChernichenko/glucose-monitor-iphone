@@ -43,13 +43,7 @@ final class GlycemicEventDecodingTests: XCTestCase {
         XCTAssertNil(e.confidence)
     }
 
-    func testDecodesInsightsAndHistory() throws {
-        let insights = """
-        {"days":30,"counts":{"STRESS":2},"hourHistogram":{"STRESS":[0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0]},
-         "noEffectCount14d":1,"agreementRate":{"STRESS":0.5}}
-        """
-        let i = try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.GlycemicInsights.self, from: Data(insights.utf8))
-        XCTAssertEqual(i.hourHistogram["STRESS"]?[10], 2)
+    func testDecodesHistory() throws {
         let history = """
         [{"kind":"DETECTED","at":"2026-09-30T12:46:00","categoryBefore":null,"categoryAfter":"STRESS",
           "confidence":0.5,"actor":"SYSTEM","reason":"rule:R4"}]

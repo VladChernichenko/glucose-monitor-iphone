@@ -5,6 +5,12 @@ public struct LockScreenWidgetSnapshot: Codable, Sendable {
     public static let storageKey = "gm_lock_screen_widget_snapshot_v1"
     /// Must match `GlucoseLockScreenWidget.kind` in the widget extension target.
     public static let widgetKind = "GlucoseMonitorLockScreenWidget"
+    /// Must match `GlucoseHighContrastWidget.kind` in the widget extension target.
+    public static let highContrastWidgetKind = "GlucoseMonitorHighContrastWidget"
+    /// Every widget kind that reads this snapshot; reload all of them when it changes.
+    public static let allWidgetKinds = [widgetKind, highContrastWidgetKind]
+    /// A reading older than this is not shown as current on the lock screen.
+    public static let staleAfter: TimeInterval = 15 * 60
 
     public var savedAt: Date
     /// Display glucose in the user's preferred unit (mmol/L values as stored by the app).
@@ -18,6 +24,8 @@ public struct LockScreenWidgetSnapshot: Codable, Sendable {
     /// Backend 2h prediction in mmol/L (same as `GlucoseCalculations.twoHourPrediction`).
     public var twoHourPredictionMmol: Double?
     public var chartPoints: [ChartPoint]
+    /// True when the app knows the data is stale (LibreLinkUp unavailable). Nil in older snapshots.
+    public var dataStale: Bool?
 
     public struct ChartPoint: Codable, Sendable {
         public var time: Date
@@ -37,7 +45,8 @@ public struct LockScreenWidgetSnapshot: Codable, Sendable {
         cobGrams: Double?,
         iobUnits: Double?,
         twoHourPredictionMmol: Double? = nil,
-        chartPoints: [ChartPoint]
+        chartPoints: [ChartPoint],
+        dataStale: Bool? = nil
     ) {
         self.savedAt = savedAt
         self.glucoseValue = glucoseValue
@@ -48,6 +57,12 @@ public struct LockScreenWidgetSnapshot: Codable, Sendable {
         self.iobUnits = iobUnits
         self.twoHourPredictionMmol = twoHourPredictionMmol
         self.chartPoints = chartPoints
+        self.dataStale = dataStale
+    }
+
+    /// Whether the reading must not be shown as current at `date`: flagged stale by the app, or too old.
+    public func isStale(at date: Date) -> Bool {
+        dataStale == true || date.timeIntervalSince(savedAt) > Self.staleAfter
     }
 
     private static var encoder: JSONEncoder {

@@ -7,7 +7,8 @@ struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Int = 0
-    @StateObject private var experimentVM = ExperimentViewModel()
+    /// The dose whose injection site is being asked about (mirrors `appState.pendingSiteNote`, delayed).
+    @State private var siteNote: BackendAPI.GlucoseNote?
 
     private static let dashboardTab = 0
 
@@ -16,16 +17,11 @@ struct ContentView: View {
             DashboardView()
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
-                .environmentObject(experimentVM)
             NotesView(selectedTab: $selectedTab)
                 .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
-            ExperimentsListView()
-                .tag(2)
-                .tabItem { Label("Experiments", systemImage: "flask.fill") }
-                .environmentObject(experimentVM)
             SettingsView()
-                .tag(3)
+                .tag(2)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .onChange(of: selectedTab) { newTab in
@@ -35,6 +31,21 @@ struct ContentView: View {
             // coalesces with any in-flight refresh, and the token refresh has its own 45-min throttle.
             guard newTab == Self.dashboardTab, appState.isAuthenticated else { return }
             Task { await appState.refreshGlucoseOnly(silent: true, forceServerSync: true) }
+        }
+        // "Where did you inject?" after a dose. The dose is saved while its logging sheet is still up,
+        // and only one sheet can be presented at a time, so wait for that sheet to finish closing.
+        .onChange(of: appState.pendingSiteNote) { note in
+            guard let note else { return }
+            Task {
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                siteNote = note
+                appState.pendingSiteNote = nil
+            }
+        }
+        .sheet(item: $siteNote) { note in
+            InjectionSitePickerSheet(note: note)
+                .environmentObject(appState)
+                .presentationDetents([.large])
         }
         .onAppear {
             appState.checkAuthentication()
@@ -49,7 +60,6 @@ struct ContentView: View {
                     } else if appState.currentReading == nil {
                         await appState.refreshAll()
                     }
-                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
                 BackgroundRefreshService.scheduleNextRefresh()
@@ -66,13 +76,14 @@ struct ContentView: View {
                     await GlucoseMonitorAPI.proactiveRefreshSessionTokens(minimumInterval: 10 * 60)
                     await MainActor.run { appState.checkAuthentication() }
                     let elapsed = appState.lastGlucoseRefresh.map { Date().timeIntervalSince($0) } ?? .infinity
-                    guard elapsed > 45 else { return }
+                    // Opening the app always refreshes when the reading is over 5 min old; otherwise
+                    // skip only if we refreshed in the last 45 s (quick app switches).
+                    guard elapsed > 45 || appState.isReadingOutdated else { return }
                     if appState.currentReading == nil {
                         await appState.refreshAll()
                     } else {
                         await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     }
-                    await experimentVM.loadAvailable()
                 }
             default:
                 break
@@ -89,7 +100,6 @@ struct ContentView: View {
                     // pull-to-refresh or the 5-min auto-refresh. refreshAll forces a server-side
                     // LibreLinkUp sync (loadGlucoseHistory forceServerSync: true).
                     await appState.refreshAll()
-                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
             } else {
@@ -110,20 +120,19 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
-    @State private var showFoodScan = false
-    @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
-    @State private var showAI = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
-    @State private var showGlycemicEvents = false
+    @State private var showTwinForecast = false
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
+    @State private var chatExpanded = false
+    private static let chatPeekClearance: CGFloat = 150
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
@@ -131,70 +140,41 @@ struct DashboardView: View {
                 if !appState.isAuthenticated {
                     notSignedInPlaceholder
                 } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
-                                isfSuggestionBanner(suggestion)
-                            }
-                            if experimentVM.hasActiveExperiment, let exp = experimentVM.activeExperiment {
-                                Button { showExperimentRun = true } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "flask.fill")
-                                            .foregroundStyle(.orange)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Experiment in Progress")
-                                                .font(.subheadline.bold())
-                                                .foregroundStyle(.primary)
-                                            Text(exp.type.title)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding()
-                                    .background(Color.orange.opacity(0.12))
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
-                                    )
+                    ZStack(alignment: .bottom) {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                if appState.libreDataStale && scenePhase == .active {
+                                    libreStaleBanner
                                 }
-                                .buttonStyle(.plain)
+                                if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
+                                    isfSuggestionBanner(suggestion)
+                                }
+                                TimelineView(.periodic(from: .now, by: 1)) { context in
+                                    compactGlucoseCard(at: context.date)
+                                }
+                                extendedChartSection
+                                recentNotesSection
+                                if appState.dataSource == "libre" {
+                                    sensorAlarmsBar
+                                }
+                                quickActions
+                                if let msg = appState.errorMessage {
+                                    Text(msg)
+                                        .font(.footnote)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
                             }
-                            TimelineView(.periodic(from: .now, by: 1)) { context in
-                                compactGlucoseCard(at: context.date)
-                            }
-                            extendedChartSection
-                            if let prompt = appState.visibleGlycemicPrompt {
-                                GlycemicEventPromptCard(
-                                    event: prompt,
-                                    displayUnit: appState.preferredGlucoseUnit,
-                                    isBusy: appState.isAnsweringGlycemicPrompt,
-                                    onAnswer: { category, carbs, insulin in
-                                        Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
-                                    },
-                                    onNotSure: { appState.snoozeGlycemicPrompt() },
-                                    onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
-                            }
-                            recentNotesSection
-                            if appState.dataSource == "libre" {
-                                sensorAlarmsBar
-                            }
-                            quickActions
-                            if let msg = appState.errorMessage {
-                                Text(msg)
-                                    .font(.footnote)
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                            }
+                            .padding()
+                            // Room for the chat peek so the last dashboard rows can scroll above it.
+                            .padding(.bottom, Self.chatPeekClearance)
                         }
-                        .padding()
+                        .refreshable { await appState.refreshAll() }
+
+                        // Bottom layer of the dashboard, not a sheet: the sheets below present above it.
+                        ChatOverlayView(isExpanded: $chatExpanded)
                     }
-                    .refreshable { await appState.refreshAll() }
                 }
             }
             .toolbar {
@@ -223,27 +203,12 @@ struct DashboardView: View {
                     .disabled(!appState.isAuthenticated)
                 }
             }
-            .sheet(isPresented: $showExperimentRun) {
-                if let active = experimentVM.activeExperiment {
-                    NavigationStack {
-                        ExperimentRunView(experimentType: active.type, viewModel: experimentVM)
-                            .environmentObject(appState)
-                    }
-                }
-            }
             .sheet(isPresented: $showAddNote) {
                 NoteEditorSheet { input, photo in
                     await appState.createNote(input, photo: photo)
                 }
                 .environmentObject(appState)
             }
-            .sheet(isPresented: $showFoodScan) {
-                FoodScanSheet { input, photo in
-                    await appState.createNote(input, photo: photo)
-                }
-                .environmentObject(appState)
-            }
-            .sheet(isPresented: $showAI) { AIInsightsSheet() }
             .fullScreenCover(isPresented: $showBedsideMode) {
                 BedsideModeView().environmentObject(appState)
             }
@@ -257,8 +222,8 @@ struct DashboardView: View {
                 ActivityNoteSheet()
                     .environmentObject(appState)
             }
-            .sheet(isPresented: $showGlycemicEvents) {
-                NavigationStack { GlycemicEventsView() }
+            .sheet(isPresented: $showTwinForecast) {
+                NavigationStack { TwinForecastView() }
                     .environmentObject(appState)
             }
             .sheet(item: $noteToEdit) { note in
@@ -409,6 +374,36 @@ struct DashboardView: View {
     private static let dashboardCobTint = Color(red: 0.92, green: 0.55, blue: 0.12)
     private static let dashboardIobTint = Color(red: 0.35, green: 0.45, blue: 0.95)
 
+    /// Shown while LibreLinkUp is unavailable: the readings are stale, so the card hides the current
+    /// value and the forecast until the backend reconnects.
+    private var libreStaleBanner: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("LibreLinkUp isn't responding")
+                    .font(.subheadline.bold())
+                Group {
+                    if let ts = appState.currentReading?.timestamp {
+                        Text("Data is stale - last reading ") + Text(ts, style: .relative) + Text(" ago. Reconnecting...")
+                    } else {
+                        Text("Data is stale. Reconnecting...")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding()
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
+        )
+    }
+
     private func compactGlucoseCard(at date: Date) -> some View {
         let calc = appState.calculations
         let pre = PreBolusTimer.state(notes: appState.notes, now: date)
@@ -426,7 +421,8 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .top, spacing: 14) {
                         VStack(alignment: .leading, spacing: 8) {
-                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, trendArrow: r.trendArrow, expanded: showExtendedForecast)
+                            glucosePredictionHeadline(current: displayValue, unit: displayUnit, calc: calc, trendArrow: r.trendArrow, expanded: showExtendedForecast,
+                                                      hideValues: appState.libreDataStale)
                                 .minimumScaleFactor(0.55)
                                 .lineLimit(1)
                                 .animation(.easeInOut(duration: 0.2), value: showExtendedForecast)
@@ -436,7 +432,7 @@ struct DashboardView: View {
                                 }
 
                             HStack(alignment: .center, spacing: 10) {
-                                if let status = r.status {
+                                if let status = r.status, !appState.libreDataStale {
                                     statusBadge(status)
                                 }
                             }
@@ -561,10 +557,14 @@ struct DashboardView: View {
     }
 
     @ViewBuilder
-    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, trendArrow: String? = nil, expanded: Bool = false) -> some View {
+    private func glucosePredictionHeadline(current: Double, unit: String, calc: BackendAPI.GlucoseCalculationsResponse?, trendArrow: String? = nil, expanded: Bool = false,
+                                           hideValues: Bool = false) -> some View {
         let unitStr = unitLabel(unit)
         let fourHour = calc?.predictionPath?.last?.predictedGlucose
-        let trendArrowDisplay = (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
+        let trendArrowDisplay = hideValues ? "\u{2192}"
+            : (trendArrow?.isEmpty == false && trendArrow != "?") ? trendArrow! : "\u{2192}"
+        // Stale data (hideValues): show placeholders, never an old reading or a forecast built on it.
+        let currentText = hideValues ? "--" : formatGlucose(current, unit: unit)
 
         if let calc {
             // Tap switches the single forecast slot between 2h and 4h (same position),
@@ -584,12 +584,12 @@ struct DashboardView: View {
 
                 // Number row
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(formatGlucose(current, unit: unit))
+                    Text(currentText)
                         .frame(minWidth: 60, alignment: .leading)
                     Text(trendArrowDisplay)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(Self.dashboardGlucoseOrange.opacity(0.7))
-                    Text(formatBackendGlucoseMmol(forecastValue, displayUnit: unit))
+                    Text(hideValues ? "--" : formatBackendGlucoseMmol(forecastValue, displayUnit: unit))
                     Text(unitStr)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.secondary)
@@ -604,7 +604,7 @@ struct DashboardView: View {
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(formatGlucose(current, unit: unit))
+                    Text(currentText)
                         .font(.system(size: 40, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Self.dashboardGlucoseOrange)
@@ -707,7 +707,8 @@ struct DashboardView: View {
                 .font(.headline)
             GlucoseHistoryChart(
                 history: appState.glucoseHistory,
-                prediction: appState.predictionChartPoints(),
+                // Stale LibreLinkUp data: no forecast curve built on an old reading.
+                prediction: appState.libreDataStale ? [] : appState.predictionChartPoints(),
                 notes: appState.notes,
                 window: window,
                 currentGlucose: appState.currentGlucoseMmolForAPI(),
@@ -733,13 +734,6 @@ struct DashboardView: View {
                 if appState.isLoadingNotes {
                     ProgressView()
                         .scaleEffect(0.75)
-                }
-                Button {
-                    showFoodScan = true
-                } label: {
-                    Image(systemName: "camera.viewfinder")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
                 }
                 Button {
                     showAddNote = true
@@ -847,12 +841,8 @@ struct DashboardView: View {
                     quickActionRow(title: "Log activity", systemImage: "figure.run")
                 }
                 Divider()
-                Button { showGlycemicEvents = true } label: {
-                    quickActionRow(title: "Detected events", systemImage: "waveform.badge.magnifyingglass")
-                }
-                Divider()
-                Button { showAI = true } label: {
-                    quickActionRow(title: "AI insights", systemImage: "sparkles")
+                Button { showTwinForecast = true } label: {
+                    quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
                 }
             }
         }

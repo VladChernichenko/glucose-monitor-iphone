@@ -84,6 +84,8 @@ enum BackendAPI {
         var intensity: String? = nil
         /// Duration in minutes when `type == activity`.
         var durationMin: Int? = nil
+        /// Injection site code (`InjectionZone.code`, or "unknown") for an insulin note; nil when not asked.
+        var siteZone: String? = nil
 
         /// True when this note records a long-acting (basal) dose - not a rapid-acting bolus.
         var isLongActing: Bool { type == NoteType.longActing }
@@ -124,6 +126,8 @@ enum BackendAPI {
         var activityType: String? = nil
         var intensity: String? = nil
         var durationMin: Int? = nil
+        /// Injection site code; nil leaves the stored site unchanged.
+        var siteZone: String? = nil
     }
 
     /// A detected hypoglycaemia window prompting the user to log a fast-acting rescue carb.
@@ -206,7 +210,7 @@ enum BackendAPI {
         let absorptionMode: String?
     }
 
-    struct PredictionPathPoint: Decodable {
+    struct PredictionPathPoint: Decodable, Equatable {
         let timestamp: Date
         let predictedGlucose: Double?
         let carbAbsorptionEffect: Double?
@@ -257,6 +261,8 @@ enum BackendAPI {
         let confidence: Double
         let factors: PredictionFactors?
         let predictionPath: [PredictionPathPoint]?
+        /// Pre-emptive fast-carbs advice; nil when absent or when the state is unknown to this app version.
+        let carbAdvice: CarbAdvice?
 
         struct Envelope: Decodable {
             let backendMode: Bool?
@@ -267,7 +273,7 @@ enum BackendAPI {
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
             case eightHourPrediction
-            case predictionTrend, confidence, factors, predictionPath
+            case predictionTrend, confidence, factors, predictionPath, carbAdvice
         }
 
         init(from decoder: Decoder) throws {
@@ -281,6 +287,7 @@ enum BackendAPI {
             confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
             factors = try? c.decode(PredictionFactors.self, forKey: .factors)
             predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
+            carbAdvice = try? c.decodeIfPresent(CarbAdvice.self, forKey: .carbAdvice)
         }
 
         private static func decodeFlexible(
@@ -519,24 +526,56 @@ enum BackendAPI {
         return req
     }
 
-    static func performWithRefresh<T>(_ work: () async throws -> T) async throws -> T {
+    /// Runs a backend call with one 401-refresh retry. If the backend can't be reached at all, the user
+    /// is signed out (by product decision: any failed connection, not only sustained outages).
+    /// Pass `signOutIfUnreachable: false` for calls that wait on LibreLinkUp: a slow or down LLU makes
+    /// them time out though the backend is fine, and that must leave the user signed in.
+    static func performWithRefresh<T>(signOutIfUnreachable: Bool = true, _ work: () async throws -> T) async throws -> T {
         do {
-            return try await work()
-        } catch let err as GlucoseMonitorAPI.APIError {
-            if case .httpStatus(401, _) = err {
-                do {
-                    try await GlucoseMonitorAPI.refreshToken()
-                } catch {
-                    // refresh failed - the refresh token itself is expired/revoked.
-                    // Keeping the dead tokens in the Keychain just repeats this dance
-                    // forever; clear them so the UI can prompt re-login.
-                    GlucoseMonitorAPI.clearSession()
-                    throw err
-                }
+            do {
                 return try await work()
+            } catch let err as GlucoseMonitorAPI.APIError {
+                if case .httpStatus(401, _) = err {
+                    do {
+                        try await GlucoseMonitorAPI.refreshToken()
+                    } catch {
+                        // refresh failed - the refresh token itself is expired/revoked.
+                        // Keeping the dead tokens in the Keychain just repeats this dance
+                        // forever; clear them so the UI can prompt re-login.
+                        GlucoseMonitorAPI.clearSession()
+                        throw err
+                    }
+                    return try await work()
+                }
+                throw err
             }
-            throw err
+        } catch {
+            if signOutIfUnreachable { signOutIfBackendUnreachable(error) }
+            throw error
         }
+    }
+
+    /// Defaults key holding why the app last signed itself out; shown once on the sign-in screen.
+    static let signOutReasonKey = "gm_sign_out_reason"
+    static let backendUnreachableReason = "Signed out because the server couldn't be reached. Sign in again when it's back."
+
+    /// True for transport errors meaning the backend was never reached (as opposed to an HTTP error it returned).
+    static func isBackendUnreachable(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .timedOut, .networkConnectionLost,
+             .notConnectedToInternet, .cannotLoadFromNetwork, .internationalRoamingOff, .dataNotAllowed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// Clear the session (AppState observes this and shows sign-in) when `error` means the backend is unreachable.
+    static func signOutIfBackendUnreachable(_ error: Error) {
+        guard isBackendUnreachable(error) else { return }
+        GlucoseMonitorAPI.sharedDefaults().set(backendUnreachableReason, forKey: signOutReasonKey)
+        GlucoseMonitorAPI.clearSession()
     }
 
     static func checkStatus(_ response: URLResponse, data: Data) throws {
@@ -637,7 +676,7 @@ enum BackendAPI {
         return image
     }
 
-    private static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+    static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
         let side = max(image.size.width, image.size.height)
         guard side > maxSide else { return image }
         let scale = maxSide / side
@@ -647,7 +686,7 @@ enum BackendAPI {
     }
 
     /// Tries decreasing JPEG quality until the data fits under 1 MB (LogMeal's hard limit).
-    private static func compressUnder1MB(_ image: UIImage) -> Data? {
+    static func compressUnder1MB(_ image: UIImage) -> Data? {
         let limit = 1_000_000
         for quality in [0.6, 0.5, 0.4, 0.3] {
             if let data = image.jpegData(compressionQuality: quality), data.count < limit {
@@ -1065,12 +1104,33 @@ enum BackendAPI {
     /// server outcome string (e.g. "NEW_DATA", "NO_CHANGE", "IN_PROGRESS").
     @discardableResult
     static func syncLibreNow() async throws -> String {
-        try await performWithRefresh {
+        // The backend waits on LibreLinkUp here, so a timeout means LLU is slow, not that the backend is gone.
+        try await performWithRefresh(signOutIfUnreachable: false) {
             let req = try authorizedRequest(path: "/api/libre/sync-now", method: "POST")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
             struct Resp: Decodable { let outcome: String }
             return (try? GlucoseMonitorAPI.jsonDecoder().decode(Resp.self, from: data))?.outcome ?? "OK"
+        }
+    }
+
+    /// LibreLinkUp availability from the backend's per-user circuit breaker (`GET /api/libre/status`).
+    /// `available == false` means the stored readings are stale.
+    struct LibreUpstreamStatus: Decodable, Equatable {
+        let available: Bool
+        /// Breaker state: CLOSED, OPEN or HALF_OPEN.
+        let state: String
+        /// Seconds until an open breaker allows the next reconnect attempt; nil unless OPEN.
+        let retryInSeconds: Int?
+    }
+
+    /// Cheap: the backend reads in-memory breaker state and never calls LibreLinkUp.
+    static func fetchLibreUpstreamStatus() async throws -> LibreUpstreamStatus {
+        try await performWithRefresh {
+            let req = try authorizedRequest(path: "/api/libre/status")
+            let (data, resp) = try await URLSession.shared.data(for: req)
+            try checkStatus(resp, data: data)
+            return try GlucoseMonitorAPI.jsonDecoder().decode(LibreUpstreamStatus.self, from: data)
         }
     }
 
@@ -1179,49 +1239,6 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(body)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-        }
-    }
-
-    // MARK: - AI insights
-
-    /// Streams markdown tokens from the backend NDJSON endpoint.
-    /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.
-    /// Returns when the `{"type":"done"}` event is received or the stream ends.
-    /// - Parameter provider: `"auto"` (default), `"qwen"`, or `"ollama"`.
-    static func streamAiRetrospective(
-        windowHours: Int = 12,
-        provider: String = "auto",
-        onToken: @MainActor @escaping (String) -> Void
-    ) async throws {
-        struct Body: Encodable { let windowHours: Int; let provider: String }
-        struct StreamEvent: Decodable {
-            let type: String
-            let token: String?
-            let message: String?
-        }
-
-        var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours, provider: provider))
-
-        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-        try checkStatus(resp, data: Data())
-
-        for try await line in bytes.lines {
-            guard !line.isEmpty,
-                  let data = line.data(using: .utf8),
-                  let event = try? GlucoseMonitorAPI.jsonDecoder().decode(StreamEvent.self, from: data)
-            else { continue }
-
-            if event.type == "done" { break }
-            if event.type == "error" {
-                // The backend reports failures in-stream after a 200; without this the sheet stays blank.
-                throw NSError(domain: "BackendAPI", code: 0, userInfo: [
-                    NSLocalizedDescriptionKey: "AI analysis failed: \(event.message ?? "unknown error"). Please try again."
-                ])
-            }
-            if event.type == "token", let tok = event.token {
-                await onToken(tok)
-            }
         }
     }
 
