@@ -124,10 +124,19 @@ struct TwinForecastView: View {
                 .foregroundStyle(Color.red.opacity(0.7))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
-            ForEach(f.forecast) { p in
+            if hasBand(f) {
+              ForEach(f.forecast) { p in
                 AreaMark(x: .value("Time", p.time), yStart: .value("Lower", v(p.lower)), yEnd: .value("Upper", v(p.upper)))
                     .interpolationMethod(.monotone)
                     .foregroundStyle(Color.blue.opacity(0.13))
+              }
+            }
+            // Frozen forecasts start at +5 min; join them to the glucose at the log.
+            if let g = f.startGlucose, let first = f.forecast.first, first.minute > 0 {
+                LineMark(x: .value("Time", f.anchor.time), y: .value("Glucose", v(g)), series: .value("Series", "forecast"))
+                    .interpolationMethod(.monotone)
+                    .foregroundStyle(Color.blue)
+                    .lineStyle(StrokeStyle(lineWidth: 3))
             }
             ForEach(f.forecast) { p in
                 LineMark(x: .value("Time", p.time), y: .value("Glucose", v(p.glucose)), series: .value("Series", "forecast"))
@@ -169,11 +178,18 @@ struct TwinForecastView: View {
         .chartYAxis { AxisMarks(position: .leading) }
     }
 
+    /// Frozen forecasts carry no range (lower == upper, coverage 0); only draw a band when there is one.
+    private func hasBand(_ f: BackendAPI.AnchorForecast) -> Bool {
+        f.coverage > 0 && f.forecast.contains { $0.lower != $0.upper }
+    }
+
     private func legend(_ f: BackendAPI.AnchorForecast) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 14) {
                 legendItem(Color.blue, "Forecast from this log")
-                legendItem(Color.blue.opacity(0.25), "Likely range (\(Int((f.coverage * 100).rounded()))% of past forecasts)", thick: true)
+                if hasBand(f) {
+                    legendItem(Color.blue.opacity(0.25), "Likely range (\(Int((f.coverage * 100).rounded()))% of past forecasts)", thick: true)
+                }
             }
             HStack(spacing: 14) {
                 legendItem(Color.primary.opacity(0.8), "CGM (actual)")
@@ -239,7 +255,7 @@ struct TwinForecastView: View {
             index = anchors.count - 1
             await loadForecast()
         } catch GlucoseMonitorAPI.APIError.httpStatus(404, _) {
-            message = "The empirical twin is turned off on the server (app.features.empirical-twin-enabled)."
+            message = "No frozen forecasts yet."
         } catch {
             message = "Couldn't load your logs. Pull to try again later."
         }
@@ -249,6 +265,8 @@ struct TwinForecastView: View {
         guard let a = current, forecasts[a.noteId] == nil else { return }
         do {
             forecasts[a.noteId] = try await BackendAPI.fetchAnchorForecast(noteId: a.noteId)
+        } catch GlucoseMonitorAPI.APIError.httpStatus(404, _) {
+            message = "No frozen forecast for this log."
         } catch {
             message = "Couldn't load the forecast for this log."
         }

@@ -32,7 +32,7 @@ enum GlycemicAmount {
     }
 }
 
-/// The one-tap answer row, shared by the prompt card and the detail sheet. Food and insulin answers
+/// The one-tap answer row, shared by the chat prompt bubble and the detail sheet. Food and insulin answers
 /// expand an optional amount (presets or typed); every other answer confirms immediately.
 struct GlycemicAnswerButtons: View {
     let options: [String]
@@ -113,45 +113,5 @@ struct FlowRow: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
-    }
-}
-
-/// Inline card under the chart asking about the server's chosen event. Not a modal: only a hypo
-/// justifies interrupting the user.
-struct GlycemicEventPromptCard: View {
-    let event: BackendAPI.GlycemicEvent
-    let displayUnit: String
-    let isBusy: Bool
-    let onAnswer: (_ category: String, _ carbs: Double?, _ insulin: Double?) -> Void
-    let onNotSure: () -> Void
-    let onNothing: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Label(event.displayLabel, systemImage: event.isRise ? "arrow.up.right" : "arrow.down.right")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(GlycemicEventStyle.color(for: event))
-                Spacer()
-                Text(event.onsetAt, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            Text(GlycemicEventCopy.question(for: event))
-                .font(.footnote)
-                .foregroundColor(.secondary)
-            GlycemicAnswerButtons(options: event.promptOptions, isBusy: isBusy, onAnswer: onAnswer)
-            HStack {
-                Button("Not sure", action: onNotSure)
-                Button("Nothing", action: onNothing)
-            }
-            .font(.footnote)
-            .foregroundColor(.secondary)
-            .disabled(isBusy)
-        }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(GlycemicEventStyle.color(for: event).opacity(0.4)))
     }
 }

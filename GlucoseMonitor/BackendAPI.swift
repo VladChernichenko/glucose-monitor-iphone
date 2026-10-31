@@ -210,7 +210,7 @@ enum BackendAPI {
         let absorptionMode: String?
     }
 
-    struct PredictionPathPoint: Decodable {
+    struct PredictionPathPoint: Decodable, Equatable {
         let timestamp: Date
         let predictedGlucose: Double?
         let carbAbsorptionEffect: Double?
@@ -261,6 +261,8 @@ enum BackendAPI {
         let confidence: Double
         let factors: PredictionFactors?
         let predictionPath: [PredictionPathPoint]?
+        /// Pre-emptive fast-carbs advice; nil when absent or when the state is unknown to this app version.
+        let carbAdvice: CarbAdvice?
 
         struct Envelope: Decodable {
             let backendMode: Bool?
@@ -271,7 +273,7 @@ enum BackendAPI {
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
             case eightHourPrediction
-            case predictionTrend, confidence, factors, predictionPath
+            case predictionTrend, confidence, factors, predictionPath, carbAdvice
         }
 
         init(from decoder: Decoder) throws {
@@ -285,6 +287,7 @@ enum BackendAPI {
             confidence = Self.decodeFlexible(c, key: .confidence) ?? 0
             factors = try? c.decode(PredictionFactors.self, forKey: .factors)
             predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
+            carbAdvice = try? c.decodeIfPresent(CarbAdvice.self, forKey: .carbAdvice)
         }
 
         private static func decodeFlexible(
@@ -673,7 +676,7 @@ enum BackendAPI {
         return image
     }
 
-    private static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+    static func resizeImage(_ image: UIImage, maxSide: CGFloat) -> UIImage {
         let side = max(image.size.width, image.size.height)
         guard side > maxSide else { return image }
         let scale = maxSide / side
@@ -683,7 +686,7 @@ enum BackendAPI {
     }
 
     /// Tries decreasing JPEG quality until the data fits under 1 MB (LogMeal's hard limit).
-    private static func compressUnder1MB(_ image: UIImage) -> Data? {
+    static func compressUnder1MB(_ image: UIImage) -> Data? {
         let limit = 1_000_000
         for quality in [0.6, 0.5, 0.4, 0.3] {
             if let data = image.jpegData(compressionQuality: quality), data.count < limit {
@@ -1236,49 +1239,6 @@ enum BackendAPI {
             req.httpBody = try JSONEncoder().encode(body)
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
-        }
-    }
-
-    // MARK: - AI insights
-
-    /// Streams markdown tokens from the backend NDJSON endpoint.
-    /// Calls `onToken` on the main actor for each `{"type":"token","token":"..."}` line.
-    /// Returns when the `{"type":"done"}` event is received or the stream ends.
-    /// - Parameter provider: `"auto"` (default), `"qwen"`, or `"ollama"`.
-    static func streamAiRetrospective(
-        windowHours: Int = 12,
-        provider: String = "auto",
-        onToken: @MainActor @escaping (String) -> Void
-    ) async throws {
-        struct Body: Encodable { let windowHours: Int; let provider: String }
-        struct StreamEvent: Decodable {
-            let type: String
-            let token: String?
-            let message: String?
-        }
-
-        var req = try authorizedRequest(path: "/api/ai-insights/retrospective/stream", method: "POST")
-        req.httpBody = try JSONEncoder().encode(Body(windowHours: windowHours, provider: provider))
-
-        let (bytes, resp) = try await URLSession.shared.bytes(for: req)
-        try checkStatus(resp, data: Data())
-
-        for try await line in bytes.lines {
-            guard !line.isEmpty,
-                  let data = line.data(using: .utf8),
-                  let event = try? GlucoseMonitorAPI.jsonDecoder().decode(StreamEvent.self, from: data)
-            else { continue }
-
-            if event.type == "done" { break }
-            if event.type == "error" {
-                // The backend reports failures in-stream after a 200; without this the sheet stays blank.
-                throw NSError(domain: "BackendAPI", code: 0, userInfo: [
-                    NSLocalizedDescriptionKey: "AI analysis failed: \(event.message ?? "unknown error"). Please try again."
-                ])
-            }
-            if event.type == "token", let tok = event.token {
-                await onToken(tok)
-            }
         }
     }
 

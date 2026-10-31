@@ -18,6 +18,12 @@ final class AppState: ObservableObject {
     @Published var calculations: BackendAPI.GlucoseCalculationsResponse?
     /// True when the last calculations refresh failed and `calculations` is showing a stale (previously fetched) value.
     @Published var calculationsStale: Bool = false
+    /// True while `calculations` is the copy restored from DashboardCache at launch and no fetch has succeeded
+    /// since. Separate from `calculationsStale` so the dashboard's "Stale" badge is unchanged. The carb advice
+    /// card is hidden while this is true.
+    @Published var calculationsFromCache: Bool = false
+    /// Identity of the carb advice the user already acted on ("Took N g"); that advice stays hidden.
+    @Published var tookCarbAdviceIdentity: String?
     @Published var notes: [BackendAPI.GlucoseNote] = []
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
@@ -93,6 +99,7 @@ final class AppState: ObservableObject {
         if let json = payload.calculationsResponseJSON {
             lastCalculationsResponseJSON = json
             calculations = BackendAPI.decodeGlucoseCalculationsResponse(from: json)
+            calculationsFromCache = true
         }
         notes = payload.notes.map { n in
             BackendAPI.GlucoseNote(
@@ -177,6 +184,8 @@ final class AppState: ObservableObject {
         currentReading = nil
         calculations = nil
         calculationsStale = false
+        calculationsFromCache = false
+        tookCarbAdviceIdentity = nil
         notes = []
         isLoadingNotes = false
         notesLoadError = nil
@@ -274,7 +283,7 @@ final class AppState: ObservableObject {
 
     /// IOB shown on the dashboard. Single source of truth: the backend's `activeInsulinOnBoard`
     /// from `/api/glucose-calculations/`. We deliberately do NOT fall back to a client-side
-    /// note estimate - that fallback made the dashboard disagree with the Experiments tab
+    /// note estimate - that fallback made the dashboard disagree with other views
     /// (which reads the backend directly). Both screens now show the same backend value.
     var displayedIOB: Double? {
         calculations?.activeInsulinOnBoard
@@ -510,6 +519,12 @@ final class AppState: ObservableObject {
             .1
     }
 
+    /// After the chat wrote or undid notes on the server: reload notes, then IOB/COB and the forecast.
+    func refreshAfterChatNotesChanged() async {
+        await fetchNotes()
+        await refreshCalculations()
+    }
+
     private func refreshCalculations() async {
         let generation = authGeneration
         // Use any available CGM reading regardless of age - the UI already shows "Updated X ago".
@@ -531,6 +546,7 @@ final class AppState: ObservableObject {
             // failure, so there's nothing stale to flag.
             calculations = nil
             calculationsStale = false
+            calculationsFromCache = false
             persistWidgetSnapshot()
             return
         }
@@ -543,6 +559,7 @@ final class AppState: ObservableObject {
             calculations = fetched.response
             lastCalculationsResponseJSON = fetched.rawData
             calculationsStale = false
+            calculationsFromCache = false
         } catch {
             do {
                 let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
@@ -553,6 +570,7 @@ final class AppState: ObservableObject {
                 calculations = fetched.response
                 lastCalculationsResponseJSON = fetched.rawData
                 calculationsStale = false
+                calculationsFromCache = false
             } catch {
                 guard generation == authGeneration else { return }
                 // Keep showing the last-known COB/IOB instead of blanking the dashboard to "--" -

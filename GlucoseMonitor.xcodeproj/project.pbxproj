@@ -50,6 +50,14 @@
 		700000000000000000000A03 /* GlycemicEventPromptCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A03 /* GlycemicEventPromptCard.swift */; };
 		700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A02 /* GlycemicEventMarkers.swift */; };
 		700000000000000000000A0A /* AppState+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A0A /* AppState+Glycemic.swift */; };
+		700000000000000000000D01 /* ChatOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D01 /* ChatOverlayView.swift */; };
+		700000000000000000000D02 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D02 /* ChatViewModel.swift */; };
+		700000000000000000000D03 /* ChatMessageViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D03 /* ChatMessageViews.swift */; };
+		700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D04 /* BackendAPI+Assistant.swift */; };
+		700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D05 /* AssistantEventDecodingTests.swift */; };
+		700000000000000000000DA3 /* EventProposalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000DA3 /* EventProposalTests.swift */; };
+		700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000DA5 /* NoteRemovalTests.swift */; };
+		700000000000000000000D06 /* ChatViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D06 /* ChatViewModelTests.swift */; };
 		700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A01 /* BackendAPI+Glycemic.swift */; };
 		700000000000000000000094 /* HypoPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000094 /* HypoPromptTests.swift */; };
 		700000000000000000000A09 /* GlycemicEventTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A09 /* GlycemicEventTextTests.swift */; };
@@ -71,29 +79,28 @@
 		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
-		F5A240912FD1F09E0030E031 /* ExperimentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240862FD1F09E0030E031 /* ExperimentModels.swift */; };
-		F5A240922FD1F09E0030E031 /* ExperimentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */; };
-		F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */; };
-		F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */; };
-		F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */; };
-		F5A240AA2FD1F09E0030E031 /* IsfMealWindowChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */; };
-		F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */; };
-		F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */; };
-		F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */; };
-		F5A240992FD1F09E0030E031 /* ExperimentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240892FD1F09E0030E031 /* ExperimentService.swift */; };
-		F5A2409A2FD1F09E0030E031 /* BackgroundCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */; };
-		F5A2409B2FD1F09E0030E031 /* ExperimentsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */; };
-		F5A2409C2FD1F09E0030E031 /* VerificationDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */; };
-		F5A2409D2FD1F09E0030E031 /* ExperimentAlarmManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */; };
 		F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B001002FCC7001001AB224 /* DashboardCache.swift */; };
 		F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */; };
 		F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5D833292FCC1CA30027C6BB /* SignInView.swift */; };
 		700000000000000000000060 /* OnboardingViewModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000060 /* OnboardingViewModels.swift */; };
 		700000000000000000000061 /* OnboardingRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000061 /* OnboardingRegisterView.swift */; };
 		700000000000000000000062 /* OnboardingDataSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000062 /* OnboardingDataSourceView.swift */; };
-		70000000000000000000004A /* ExperimentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004B /* ExperimentTests.swift */; };
-		70000000000000000000004B /* VerificationViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004C /* VerificationViewModelTests.swift */; };
 		70000000000000000000004C /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004D /* OnboardingFlowTests.swift */; };
+		700000000000000000000D11 /* CarbAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D11 /* CarbAdvice.swift */; };
+		700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D12 /* CarbAdviceCardView.swift */; };
+		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
+		700000000000000000000D14 /* MealPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D14 /* MealPlan.swift */; };
+		700000000000000000000D15 /* MealPlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D15 /* MealPlanCardView.swift */; };
+		700000000000000000000D30 /* EpisodeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D30 /* EpisodeCardView.swift */; };
+		700000000000000000000D90 /* CitationChipsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D90 /* CitationChipsView.swift */; };
+		700000000000000000000DA2 /* EventProposal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000DA2 /* EventProposal.swift */; };
+		700000000000000000000DA4 /* NoteRemoval.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000DA4 /* NoteRemoval.swift */; };
+		700000000000000000000DA1 /* ChatItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000DA1 /* ChatItem.swift */; };
+		700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D16 /* FoodCaptureFlow.swift */; };
+		700000000000000000000D17 /* MealPlanCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D17 /* MealPlanCardTests.swift */; };
+		700000000000000000000E01 /* HistoryBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E01 /* HistoryBanner.swift */; };
+		700000000000000000000E02 /* HistoryBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E02 /* HistoryBannerView.swift */; };
+		700000000000000000000E03 /* HistoryBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E03 /* HistoryBannerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -188,6 +195,14 @@
 		600000000000000000000A03 /* GlycemicEventPromptCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventPromptCard.swift; sourceTree = "<group>"; };
 		600000000000000000000A02 /* GlycemicEventMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkers.swift; sourceTree = "<group>"; };
 		600000000000000000000A0A /* AppState+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState+Glycemic.swift"; sourceTree = "<group>"; };
+		600000000000000000000D01 /* ChatOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatOverlayView.swift; sourceTree = "<group>"; };
+		600000000000000000000D02 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		600000000000000000000D03 /* ChatMessageViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessageViews.swift; sourceTree = "<group>"; };
+		600000000000000000000D04 /* BackendAPI+Assistant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Assistant.swift"; sourceTree = "<group>"; };
+		600000000000000000000D05 /* AssistantEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantEventDecodingTests.swift; sourceTree = "<group>"; };
+		600000000000000000000DA3 /* EventProposalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventProposalTests.swift; sourceTree = "<group>"; };
+		600000000000000000000DA5 /* NoteRemovalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRemovalTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D06 /* ChatViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModelTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A01 /* BackendAPI+Glycemic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "BackendAPI+Glycemic.swift"; sourceTree = "<group>"; };
 		600000000000000000000094 /* HypoPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HypoPromptTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A09 /* GlycemicEventTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventTextTests.swift; sourceTree = "<group>"; };
@@ -208,29 +223,28 @@
 		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
 		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
-		F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCheckView.swift; sourceTree = "<group>"; };
-		F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentAlarmManager.swift; sourceTree = "<group>"; };
-		F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentDetailView.swift; sourceTree = "<group>"; };
-		F5A240862FD1F09E0030E031 /* ExperimentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentModels.swift; sourceTree = "<group>"; };
-		F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentResultView.swift; sourceTree = "<group>"; };
-		F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentRunView.swift; sourceTree = "<group>"; };
-		F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsfMealWindowChart.swift; sourceTree = "<group>"; };
-		F5A240892FD1F09E0030E031 /* ExperimentService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentService.swift; sourceTree = "<group>"; };
-		F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentsListView.swift; sourceTree = "<group>"; };
-		F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentViewModel.swift; sourceTree = "<group>"; };
-		F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationDashboardView.swift; sourceTree = "<group>"; };
-		F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationDetailView.swift; sourceTree = "<group>"; };
-		F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationModels.swift; sourceTree = "<group>"; };
-		F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationViewModel.swift; sourceTree = "<group>"; };
 		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
 		F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundRefreshService.swift; sourceTree = "<group>"; };
 		F5D833292FCC1CA30027C6BB /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignInView.swift; sourceTree = "<group>"; };
 		600000000000000000000060 /* OnboardingViewModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingViewModels.swift; sourceTree = "<group>"; };
 		600000000000000000000061 /* OnboardingRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingRegisterView.swift; sourceTree = "<group>"; };
 		600000000000000000000062 /* OnboardingDataSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDataSourceView.swift; sourceTree = "<group>"; };
-		60000000000000000000004B /* ExperimentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentTests.swift; sourceTree = "<group>"; };
-		60000000000000000000004C /* VerificationViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerificationViewModelTests.swift; sourceTree = "<group>"; };
 		60000000000000000000004D /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D11 /* CarbAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdvice.swift; sourceTree = "<group>"; };
+		600000000000000000000D12 /* CarbAdviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D14 /* MealPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlan.swift; sourceTree = "<group>"; };
+		600000000000000000000D15 /* MealPlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000D30 /* EpisodeCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000D90 /* CitationChipsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CitationChipsView.swift; sourceTree = "<group>"; };
+		600000000000000000000DA2 /* EventProposal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventProposal.swift; sourceTree = "<group>"; };
+		600000000000000000000DA4 /* NoteRemoval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRemoval.swift; sourceTree = "<group>"; };
+		600000000000000000000DA1 /* ChatItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatItem.swift; sourceTree = "<group>"; };
+		600000000000000000000D16 /* FoodCaptureFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodCaptureFlow.swift; sourceTree = "<group>"; };
+		600000000000000000000D17 /* MealPlanCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardTests.swift; sourceTree = "<group>"; };
+		600000000000000000000E01 /* HistoryBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBanner.swift; sourceTree = "<group>"; };
+		600000000000000000000E02 /* HistoryBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerView.swift; sourceTree = "<group>"; };
+		600000000000000000000E03 /* HistoryBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -283,7 +297,6 @@
 		800000000000000000000002 /* GlucoseMonitor */ = {
 			isa = PBXGroup;
 			children = (
-				F5A240902FD1F09E0030E031 /* Experiments */,
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
 				F5B001002FCC7001001AB224 /* DashboardCache.swift */,
@@ -300,6 +313,8 @@
 				600000000000000000000A03 /* GlycemicEventPromptCard.swift */,
 				600000000000000000000A02 /* GlycemicEventMarkers.swift */,
 				600000000000000000000A0A /* AppState+Glycemic.swift */,
+				800000000000000000000D00 /* Chat */,
+				600000000000000000000D04 /* BackendAPI+Assistant.swift */,
 				600000000000000000000A01 /* BackendAPI+Glycemic.swift */,
 				60000000000000000000000C /* NotesView.swift */,
 				60000000000000000000000D /* SettingsView.swift */,
@@ -318,6 +333,28 @@
 				600000000000000000000006 /* Assets.xcassets */,
 			);
 			path = GlucoseMonitor;
+			sourceTree = "<group>";
+		};
+		800000000000000000000D00 /* Chat */ = {
+			isa = PBXGroup;
+			children = (
+				600000000000000000000D01 /* ChatOverlayView.swift */,
+				600000000000000000000D02 /* ChatViewModel.swift */,
+				600000000000000000000D03 /* ChatMessageViews.swift */,
+				600000000000000000000D12 /* CarbAdviceCardView.swift */,
+				600000000000000000000D11 /* CarbAdvice.swift */,
+				600000000000000000000D14 /* MealPlan.swift */,
+				600000000000000000000D15 /* MealPlanCardView.swift */,
+				600000000000000000000E02 /* HistoryBannerView.swift */,
+				600000000000000000000E01 /* HistoryBanner.swift */,
+				600000000000000000000D30 /* EpisodeCardView.swift */,
+				600000000000000000000D90 /* CitationChipsView.swift */,
+				600000000000000000000DA2 /* EventProposal.swift */,
+				600000000000000000000DA4 /* NoteRemoval.swift */,
+				600000000000000000000DA1 /* ChatItem.swift */,
+				600000000000000000000D16 /* FoodCaptureFlow.swift */,
+			);
+			path = Chat;
 			sourceTree = "<group>";
 		};
 		800000000000000000000003 /* Shared */ = {
@@ -385,8 +422,6 @@
 				600000000000000000000096 /* InsulinMarkerLayoutTests.swift */,
 				600000000000000000000049 /* NutritionAPIServiceTests.swift */,
 				60000000000000000000004A /* FoodModelsTests.swift */,
-				60000000000000000000004B /* ExperimentTests.swift */,
-				60000000000000000000004C /* VerificationViewModelTests.swift */,
 				60000000000000000000004D /* OnboardingFlowTests.swift */,
 				60000000000000000000004E /* RefreshFlowTests.swift */,
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
@@ -398,30 +433,16 @@
 				600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */,
 				600000000000000000000A07 /* GlycemicEventAppStateTests.swift */,
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
+				600000000000000000000D05 /* AssistantEventDecodingTests.swift */,
+				600000000000000000000DA3 /* EventProposalTests.swift */,
+				600000000000000000000DA5 /* NoteRemovalTests.swift */,
+				600000000000000000000D06 /* ChatViewModelTests.swift */,
+				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
+				600000000000000000000D17 /* MealPlanCardTests.swift */,
+				600000000000000000000E03 /* HistoryBannerTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
 			);
 			path = GlucoseMonitorTests;
-			sourceTree = "<group>";
-		};
-		F5A240902FD1F09E0030E031 /* Experiments */ = {
-			isa = PBXGroup;
-			children = (
-				F5A240832FD1F09E0030E031 /* BackgroundCheckView.swift */,
-				F5A240842FD1F09E0030E031 /* ExperimentAlarmManager.swift */,
-				F5A240852FD1F09E0030E031 /* ExperimentDetailView.swift */,
-				F5A240862FD1F09E0030E031 /* ExperimentModels.swift */,
-				F5A240872FD1F09E0030E031 /* ExperimentResultView.swift */,
-				F5A240882FD1F09E0030E031 /* ExperimentRunView.swift */,
-				F5A240AB2FD1F09E0030E031 /* IsfMealWindowChart.swift */,
-				F5A240892FD1F09E0030E031 /* ExperimentService.swift */,
-				F5A2408A2FD1F09E0030E031 /* ExperimentsListView.swift */,
-				F5A2408B2FD1F09E0030E031 /* ExperimentViewModel.swift */,
-				F5A2408C2FD1F09E0030E031 /* VerificationDashboardView.swift */,
-				F5A2408D2FD1F09E0030E031 /* VerificationDetailView.swift */,
-				F5A2408E2FD1F09E0030E031 /* VerificationModels.swift */,
-				F5A2408F2FD1F09E0030E031 /* VerificationViewModel.swift */,
-			);
-			path = Experiments;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -599,6 +620,22 @@
 				700000000000000000000A02 /* GlycemicEventMarkers.swift in Sources */,
 				700000000000000000000A0A /* AppState+Glycemic.swift in Sources */,
 				700000000000000000000A01 /* BackendAPI+Glycemic.swift in Sources */,
+				700000000000000000000D01 /* ChatOverlayView.swift in Sources */,
+				700000000000000000000D02 /* ChatViewModel.swift in Sources */,
+				700000000000000000000D03 /* ChatMessageViews.swift in Sources */,
+				700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */,
+				700000000000000000000D11 /* CarbAdvice.swift in Sources */,
+				700000000000000000000D14 /* MealPlan.swift in Sources */,
+				700000000000000000000D15 /* MealPlanCardView.swift in Sources */,
+				700000000000000000000E02 /* HistoryBannerView.swift in Sources */,
+				700000000000000000000E01 /* HistoryBanner.swift in Sources */,
+				700000000000000000000D30 /* EpisodeCardView.swift in Sources */,
+				700000000000000000000D90 /* CitationChipsView.swift in Sources */,
+				700000000000000000000DA2 /* EventProposal.swift in Sources */,
+				700000000000000000000DA4 /* NoteRemoval.swift in Sources */,
+				700000000000000000000DA1 /* ChatItem.swift in Sources */,
+				700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */,
+				700000000000000000000D04 /* BackendAPI+Assistant.swift in Sources */,
 				70000000000000000000000C /* NotesView.swift in Sources */,
 				70000000000000000000000D /* SettingsView.swift in Sources */,
 				F5D8332A2FCC1CA30027C6BB /* SignInView.swift in Sources */,
@@ -610,20 +647,6 @@
 				70000000000000000000000F /* InsulinIOB.swift in Sources */,
 				700000000000000000000010 /* DashboardExtras.swift in Sources */,
 				700000000000000000000020 /* ARFoodScanner.swift in Sources */,
-				F5A240912FD1F09E0030E031 /* ExperimentModels.swift in Sources */,
-				F5A240922FD1F09E0030E031 /* ExperimentViewModel.swift in Sources */,
-				F5A240932FD1F09E0030E031 /* VerificationModels.swift in Sources */,
-				F5A240942FD1F09E0030E031 /* ExperimentDetailView.swift in Sources */,
-				F5A240952FD1F09E0030E031 /* ExperimentRunView.swift in Sources */,
-				F5A240AA2FD1F09E0030E031 /* IsfMealWindowChart.swift in Sources */,
-				F5A240962FD1F09E0030E031 /* VerificationDashboardView.swift in Sources */,
-				F5A240972FD1F09E0030E031 /* ExperimentResultView.swift in Sources */,
-				F5A240982FD1F09E0030E031 /* VerificationViewModel.swift in Sources */,
-				F5A240992FD1F09E0030E031 /* ExperimentService.swift in Sources */,
-				F5A2409A2FD1F09E0030E031 /* BackgroundCheckView.swift in Sources */,
-				F5A2409B2FD1F09E0030E031 /* ExperimentsListView.swift in Sources */,
-				F5A2409C2FD1F09E0030E031 /* VerificationDetailView.swift in Sources */,
-				F5A2409D2FD1F09E0030E031 /* ExperimentAlarmManager.swift in Sources */,
 				700000000000000000000022 /* ARFoodScannerView.swift in Sources */,
 				700000000000000000000025 /* NutritionAPIService.swift in Sources */,
 				700000000000000000000026 /* FoodModels.swift in Sources */,
@@ -645,8 +668,6 @@
 				700000000000000000000096 /* InsulinMarkerLayoutTests.swift in Sources */,
 				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
 				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
-				70000000000000000000004A /* ExperimentTests.swift in Sources */,
-				70000000000000000000004B /* VerificationViewModelTests.swift in Sources */,
 				70000000000000000000004C /* OnboardingFlowTests.swift in Sources */,
 				70000000000000000000004D /* RefreshFlowTests.swift in Sources */,
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
@@ -658,6 +679,13 @@
 				700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */,
 				700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */,
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
+				700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */,
+				700000000000000000000DA3 /* EventProposalTests.swift in Sources */,
+				700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */,
+				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
+				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
+				700000000000000000000D17 /* MealPlanCardTests.swift in Sources */,
+				700000000000000000000E03 /* HistoryBannerTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

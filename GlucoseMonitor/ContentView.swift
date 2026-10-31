@@ -7,7 +7,6 @@ struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Int = 0
-    @StateObject private var experimentVM = ExperimentViewModel()
     /// The dose whose injection site is being asked about (mirrors `appState.pendingSiteNote`, delayed).
     @State private var siteNote: BackendAPI.GlucoseNote?
 
@@ -18,16 +17,11 @@ struct ContentView: View {
             DashboardView()
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
-                .environmentObject(experimentVM)
             NotesView(selectedTab: $selectedTab)
                 .tag(1)
                 .tabItem { Label("Notes", systemImage: "note.text") }
-            ExperimentsListView()
-                .tag(2)
-                .tabItem { Label("Experiments", systemImage: "flask.fill") }
-                .environmentObject(experimentVM)
             SettingsView()
-                .tag(3)
+                .tag(2)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .onChange(of: selectedTab) { newTab in
@@ -66,7 +60,6 @@ struct ContentView: View {
                     } else if appState.currentReading == nil {
                         await appState.refreshAll()
                     }
-                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
                 BackgroundRefreshService.scheduleNextRefresh()
@@ -91,7 +84,6 @@ struct ContentView: View {
                     } else {
                         await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
                     }
-                    await experimentVM.loadAvailable()
                 }
             default:
                 break
@@ -108,7 +100,6 @@ struct ContentView: View {
                     // pull-to-refresh or the 5-min auto-refresh. refreshAll forces a server-side
                     // LibreLinkUp sync (loadGlucoseHistory forceServerSync: true).
                     await appState.refreshAll()
-                    await experimentVM.loadAvailable()
                 }
                 appState.startAutoRefreshIfNeeded()
             } else {
@@ -129,13 +120,9 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var experimentVM: ExperimentViewModel
     @State private var showAddNote = false
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
-    @State private var showFoodScan = false
-    @State private var showExperimentRun = false
     @State private var showExtendedForecast = false
-    @State private var showAI = false
     @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
@@ -143,6 +130,8 @@ struct DashboardView: View {
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
+    @State private var chatExpanded = false
+    private static let chatPeekClearance: CGFloat = 150
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -151,73 +140,41 @@ struct DashboardView: View {
                 if !appState.isAuthenticated {
                     notSignedInPlaceholder
                 } else {
-                    ScrollView {
-                        VStack(spacing: 16) {
-                            if appState.libreDataStale && scenePhase == .active {
-                                libreStaleBanner
-                            }
-                            if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
-                                isfSuggestionBanner(suggestion)
-                            }
-                            if experimentVM.hasActiveExperiment, let exp = experimentVM.activeExperiment {
-                                Button { showExperimentRun = true } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: "flask.fill")
-                                            .foregroundStyle(.orange)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Experiment in Progress")
-                                                .font(.subheadline.bold())
-                                                .foregroundStyle(.primary)
-                                            Text(exp.type.title)
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding()
-                                    .background(Color.orange.opacity(0.12))
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14)
-                                            .strokeBorder(Color.orange.opacity(0.4), lineWidth: 1)
-                                    )
+                    ZStack(alignment: .bottom) {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                if appState.libreDataStale && scenePhase == .active {
+                                    libreStaleBanner
                                 }
-                                .buttonStyle(.plain)
+                                if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
+                                    isfSuggestionBanner(suggestion)
+                                }
+                                TimelineView(.periodic(from: .now, by: 1)) { context in
+                                    compactGlucoseCard(at: context.date)
+                                }
+                                extendedChartSection
+                                recentNotesSection
+                                if appState.dataSource == "libre" {
+                                    sensorAlarmsBar
+                                }
+                                quickActions
+                                if let msg = appState.errorMessage {
+                                    Text(msg)
+                                        .font(.footnote)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
                             }
-                            TimelineView(.periodic(from: .now, by: 1)) { context in
-                                compactGlucoseCard(at: context.date)
-                            }
-                            extendedChartSection
-                            if let prompt = appState.visibleGlycemicPrompt {
-                                GlycemicEventPromptCard(
-                                    event: prompt,
-                                    displayUnit: appState.preferredGlucoseUnit,
-                                    isBusy: appState.isAnsweringGlycemicPrompt,
-                                    onAnswer: { category, carbs, insulin in
-                                        Task { _ = await appState.answerGlycemicPrompt(category: category, carbs: carbs, insulin: insulin) }
-                                    },
-                                    onNotSure: { appState.snoozeGlycemicPrompt() },
-                                    onNothing: { Task { _ = await appState.dismissGlycemicPrompt() } })
-                            }
-                            recentNotesSection
-                            if appState.dataSource == "libre" {
-                                sensorAlarmsBar
-                            }
-                            quickActions
-                            if let msg = appState.errorMessage {
-                                Text(msg)
-                                    .font(.footnote)
-                                    .foregroundColor(.red)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-                            }
+                            .padding()
+                            // Room for the chat peek so the last dashboard rows can scroll above it.
+                            .padding(.bottom, Self.chatPeekClearance)
                         }
-                        .padding()
+                        .refreshable { await appState.refreshAll() }
+
+                        // Bottom layer of the dashboard, not a sheet: the sheets below present above it.
+                        ChatOverlayView(isExpanded: $chatExpanded)
                     }
-                    .refreshable { await appState.refreshAll() }
                 }
             }
             .toolbar {
@@ -246,27 +203,12 @@ struct DashboardView: View {
                     .disabled(!appState.isAuthenticated)
                 }
             }
-            .sheet(isPresented: $showExperimentRun) {
-                if let active = experimentVM.activeExperiment {
-                    NavigationStack {
-                        ExperimentRunView(experimentType: active.type, viewModel: experimentVM)
-                            .environmentObject(appState)
-                    }
-                }
-            }
             .sheet(isPresented: $showAddNote) {
                 NoteEditorSheet { input, photo in
                     await appState.createNote(input, photo: photo)
                 }
                 .environmentObject(appState)
             }
-            .sheet(isPresented: $showFoodScan) {
-                FoodScanSheet { input, photo in
-                    await appState.createNote(input, photo: photo)
-                }
-                .environmentObject(appState)
-            }
-            .sheet(isPresented: $showAI) { AIInsightsSheet() }
             .fullScreenCover(isPresented: $showBedsideMode) {
                 BedsideModeView().environmentObject(appState)
             }
@@ -794,13 +736,6 @@ struct DashboardView: View {
                         .scaleEffect(0.75)
                 }
                 Button {
-                    showFoodScan = true
-                } label: {
-                    Image(systemName: "camera.viewfinder")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                }
-                Button {
                     showAddNote = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
@@ -908,10 +843,6 @@ struct DashboardView: View {
                 Divider()
                 Button { showTwinForecast = true } label: {
                     quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
-                }
-                Divider()
-                Button { showAI = true } label: {
-                    quickActionRow(title: "AI insights", systemImage: "sparkles")
                 }
             }
         }

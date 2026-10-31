@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation
 
 // MARK: - Meal type defaults
 
@@ -45,14 +44,12 @@ private enum NoteSheet: Identifiable {
     case add
     case activity
     case edit(BackendAPI.GlucoseNote)
-    case foodScan
 
     var id: String {
         switch self {
         case .add: return "add"
         case .activity: return "activity"
         case .edit(let n): return n.id
-        case .foodScan: return "foodScan"
         }
     }
 }
@@ -98,7 +95,6 @@ struct NotesView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 4) {
                         activityButton
-                        scanFoodButton
                         addNoteButton
                     }
                 }
@@ -120,12 +116,6 @@ struct NotesView: View {
                 case .edit(let note):
                     EditNoteSheet(note: note) { body in
                         await appState.updateNote(id: note.id, body: body)
-                        selectedTab = 0
-                    }
-                    .environmentObject(appState)
-                case .foodScan:
-                    FoodScanSheet { input, photo in
-                        await appState.createNote(input, photo: photo)
                         selectedTab = 0
                     }
                     .environmentObject(appState)
@@ -158,15 +148,6 @@ struct NotesView: View {
         .accessibilityLabel("Log activity")
     }
 
-    private var scanFoodButton: some View {
-        Button {
-            activeSheet = .foodScan
-        } label: {
-            Image(systemName: "camera.viewfinder")
-        }
-        .disabled(!appState.isAuthenticated)
-    }
-
     private var notSignedInPlaceholder: some View {
         VStack(spacing: 16) {
             Image(systemName: "person.badge.key")
@@ -188,7 +169,7 @@ struct NotesView: View {
                 .foregroundColor(.secondary)
             Text("No notes yet")
                 .font(.title2.bold())
-            Text("Tap + to log a meal or insulin, or the run icon for activity.")
+            Text("Tap + to log a meal or insulin, or the run icon for activity. For a photo or AR scan, use the chat camera on the Dashboard.")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -432,11 +413,6 @@ struct NoteEditorSheet: View {
                     }
                 }
 
-                // -- Pre-bolus advice -----------------------------------------
-                if let pause = snapshot?.preBolusPauseMinutes {
-                    Section { preBolusBanner(pause: pause) }
-                }
-
                 // -- Detected foods -------------------------------------------
                 // Prefer the per-food mass breakdown so each segment shows its
                 // total weight in grams; fall back to the name-only list.
@@ -658,34 +634,6 @@ struct NoteEditorSheet: View {
                                   : String(format: "%.1f %@", v, unit))
                     .foregroundColor(.secondary)
             } else { Text("-").foregroundColor(.secondary) }
-        }
-    }
-
-    @ViewBuilder
-    private func preBolusBanner(pause: Int) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "syringe.fill").font(.title2).foregroundStyle(.white)
-                .frame(width: 40, height: 40).background(Circle().fill(Color.purple))
-            VStack(alignment: .leading, spacing: 2) {
-                if pause == 0 {
-                    Text("Bolus at meal start").font(.headline)
-                    Text("Split or post-meal bolus - inject when you begin eating")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text("Inject \(pause) min before eating").font(.headline)
-                    Text(preBolusPauseReason(pause: pause)).font(.caption).foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func preBolusPauseReason(pause: Int) -> String {
-        switch pause {
-        case 20...: return "High-GI food - early injection prevents post-meal spike"
-        case 15..<20: return "Medium-GI food - pre-bolus improves peak control"
-        case 10..<15: return "Low-medium GI - short head-start recommended"
-        default:     return "Low-GI / high-fiber - minimal pre-bolus needed"
         }
     }
 
@@ -925,225 +873,6 @@ struct EditNoteSheet: View {
                 dismiss()
             }
         }
-    }
-}
-
-// MARK: - Camera Picker
-
-struct CameraPickerView: UIViewControllerRepresentable {
-    @Binding var isPresented: Bool
-    var sourceType: UIImagePickerController.SourceType = .camera
-    let onCapture: (UIImage) -> Void
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    func makeUIViewController(context: Context) -> UIImagePickerController {
-        let picker = UIImagePickerController()
-        picker.sourceType = UIImagePickerController.isSourceTypeAvailable(sourceType) ? sourceType : .photoLibrary
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
-
-    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
-        let parent: CameraPickerView
-        init(_ parent: CameraPickerView) { self.parent = parent }
-
-        func imagePickerController(_ picker: UIImagePickerController,
-                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
-            guard let image = info[.originalImage] as? UIImage else {
-                parent.isPresented = false
-                return
-            }
-            // iOS-5 fix: removed UIImageWriteToSavedPhotosAlbum - silently saved every
-            // food/note photo to the user's Camera Roll without permission or consent.
-            parent.isPresented = false
-            parent.onCapture(image)
-        }
-
-        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.isPresented = false
-        }
-    }
-}
-
-// MARK: - Food Scan Sheet
-
-struct FoodScanSheet: View {
-    let onCreate: (BackendAPI.NoteInput, UIImage?) async -> Void
-    @EnvironmentObject private var appState: AppState
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var showCamera = false
-    @State private var showLibrary = false
-    @State private var showARScanner = false
-    @State private var showSourcePicker = true
-    @State private var isAnalyzing = false
-    @State private var analysisError: String? = nil
-    @State private var capturedImage: UIImage?
-    @State private var arSummary: NutrientSummary? = nil
-    @State private var editorSnapshot: BackendAPI.NutritionSnapshot? = nil
-    @State private var showNoteEditor = false
-    @State private var noteSaved = false
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if showCamera || showLibrary {
-                    Color.black.ignoresSafeArea()
-                } else if showARScanner {
-                    // ARFoodScannerView runs the full pipeline internally
-                    // (segmentation -> LiDAR volume -> local nutrition lookup) and returns NutrientSummary.
-                    ARFoodScannerView(
-                        onResult: { summary in
-                            Task { @MainActor in
-                                showARScanner = false
-                                arSummary      = summary
-                                editorSnapshot = snapshotFrom(summary)
-                                showNoteEditor = true
-                            }
-                        },
-                        onDismiss: {
-                            showARScanner = false
-                            dismiss()
-                        }
-                    )
-                    .ignoresSafeArea()
-                } else if isAnalyzing {
-                    analyzingView
-                } else if let msg = analysisError {
-                    errorView(msg)
-                } else {
-                    // Default background while confirmationDialog is visible or being dismissed.
-                    // fullScreenCover requires a non-empty view hierarchy to present correctly.
-                    Color(.systemBackground).ignoresSafeArea()
-                }
-            }
-            .navigationTitle("Scan Food")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .sheet(isPresented: $showNoteEditor, onDismiss: {
-                if noteSaved { dismiss() }
-            }) {
-                NoteEditorSheet(
-                    image: capturedImage ?? arSummary?.capturedImage,
-                    snapshot: editorSnapshot,
-                    arVolumeReport: arSummary,
-                    onCreate: { input, photo in
-                        await onCreate(input, photo)
-                        await MainActor.run { noteSaved = true }
-                    }
-                )
-                .environmentObject(appState)
-            }
-            .confirmationDialog("Choose Analysis Method", isPresented: $showSourcePicker, titleVisibility: .visible) {
-                Button("AR Volume Scan") { showARScanner = true }
-                Button("Take Photo")     { requestCameraAndOpen() }
-                Button("Choose from Library") { showLibrary = true }
-                Button("Cancel", role: .cancel) { dismiss() }
-            }
-            .fullScreenCover(isPresented: $showCamera, onDismiss: {
-                if capturedImage == nil { dismiss() }
-            }) {
-                CameraPickerView(isPresented: $showCamera, sourceType: .camera) { image in
-                    Task { @MainActor in capturedImage = image; await analyzePhoto(image) }
-                }
-                .ignoresSafeArea()
-            }
-            .fullScreenCover(isPresented: $showLibrary, onDismiss: {
-                if capturedImage == nil { dismiss() }
-            }) {
-                CameraPickerView(isPresented: $showLibrary, sourceType: .photoLibrary) { image in
-                    Task { @MainActor in capturedImage = image; await analyzePhoto(image) }
-                }
-                .ignoresSafeArea()
-            }
-        }
-    }
-
-    private var analyzingView: some View {
-        VStack(spacing: 20) {
-            if let img = capturedImage {
-                Image(uiImage: img).resizable().scaledToFit()
-                    .frame(maxHeight: 240).cornerRadius(12).padding(.horizontal)
-            }
-            ProgressView("Recognizing nutrition...").font(.headline)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func errorView(_ message: String) -> some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle").font(.system(size: 48)).foregroundColor(.orange)
-            Text("Analysis failed").font(.title2.bold())
-            Text(message).foregroundColor(.secondary).multilineTextAlignment(.center).padding(.horizontal, 32)
-            Button("Try Again") { analysisError = nil; showSourcePicker = true }.buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // MARK: - Camera permission gate
-
-    private func requestCameraAndOpen() {
-        switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized:
-            showCamera = true
-        case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async { if granted { showCamera = true } else { dismiss() } }
-            }
-        default:
-            // Denied/restricted - open Settings so the user can re-enable
-            if let url = URL(string: UIApplication.openSettingsURLString) {
-                UIApplication.shared.open(url)
-            }
-        }
-    }
-
-    // MARK: - Photo analysis path (unchanged)
-
-    @MainActor
-    private func analyzePhoto(_ image: UIImage) async {
-        isAnalyzing = true; analysisError = nil
-        do {
-            editorSnapshot = try await BackendAPI.analyzePhotoNutrition(image: image)
-            showNoteEditor = true
-        } catch {
-            analysisError = error.localizedDescription
-        }
-        isAnalyzing = false
-    }
-
-    // MARK: - NutrientSummary -> NutritionSnapshot bridge
-
-    /// Converts a NutrientSummary into the BackendAPI snapshot format needed by
-    /// NoteEditorSheet for carb prefill and glucose forecasting.
-    private func snapshotFrom(_ s: NutrientSummary) -> BackendAPI.NutritionSnapshot {
-        BackendAPI.NutritionSnapshot(
-            absorptionMode:       "DEFAULT_DECAY",
-            source:               "AR_LIDAR",
-            confidence:           1.0,
-            totalCarbs:           s.totalCarbsG,
-            fiber:                nil,
-            protein:              s.totalProteinG,
-            fat:                  s.totalFatG,
-            estimatedGi:          s.averageGI,
-            glycemicLoad:         s.totalGL,
-            absorptionSpeedClass: s.totalGL > 20 ? "FAST" : s.totalGL > 10 ? "MEDIUM" : "SLOW",
-            normalizedFoods:      s.components.map(\.label),
-            foodMassBreakdown:    nil,
-            patternName:          nil,
-            bolusStrategy:        nil,
-            suggestedDurationHours: nil,
-            mealSequencingPriority: nil,
-            curveDescription:     nil,
-            preBolusPauseMinutes: 15
-        )
     }
 }
 

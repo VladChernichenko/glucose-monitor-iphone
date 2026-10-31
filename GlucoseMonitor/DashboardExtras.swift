@@ -111,6 +111,13 @@ enum PreBolusTimer {
         let seconds = elapsed % 60
         return (true, String(format: "%d:%02d", minutes, seconds))
     }
+
+    /// Remaining pre-bolus wait as "mm:ss" (the chat plan card's countdown); nil once `until` is reached.
+    static func countdownLabel(until: Date, now: Date) -> String? {
+        let remaining = Int(until.timeIntervalSince(now).rounded(.up))
+        guard remaining > 0 else { return nil }
+        return String(format: "%02d:%02d", remaining / 60, remaining % 60)
+    }
 }
 
 // MARK: - Glucose chart + prediction + notes
@@ -536,162 +543,3 @@ private struct TrianglePointer: Shape {
         return p
     }
 }
-
-// MARK: - Lightweight markdown renderer
-
-/// Renders a markdown string using SwiftUI primitives.
-/// Supports: # / ## / ### headers, **bold**, *italic*, `code`, bullet lists (- / *), horizontal rules (---).
-/// Inline bold/italic/code is handled via iOS 15 AttributedString markdown parsing.
-struct MarkdownTextView: View {
-    let text: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                lineView(for: line)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var lines: [String] { text.components(separatedBy: "\n") }
-
-    @ViewBuilder
-    private func lineView(for line: String) -> some View {
-        if line.hasPrefix("### ") {
-            inlineText(String(line.dropFirst(4))).font(.title3.bold())
-        } else if line.hasPrefix("## ") {
-            inlineText(String(line.dropFirst(3))).font(.title2.bold())
-        } else if line.hasPrefix("# ") {
-            inlineText(String(line.dropFirst(2))).font(.title.bold())
-        } else if line == "---" || line == "***" || line == "___" {
-            Divider()
-        } else if line.hasPrefix("- ") || line.hasPrefix("* ") {
-            HStack(alignment: .top, spacing: 6) {
-                Text("•").font(.body)
-                inlineText(String(line.dropFirst(2))).font(.body)
-            }
-        } else if line.isEmpty {
-            Spacer().frame(height: 4)
-        } else {
-            inlineText(line).font(.body)
-        }
-    }
-
-    /// Parses inline markdown (bold, italic, code) via AttributedString.
-    private func inlineText(_ raw: String) -> Text {
-        if let attributed = try? AttributedString(markdown: raw) {
-            return Text(attributed)
-        }
-        return Text(raw)
-    }
-}
-
-// MARK: - AI insights
-
-struct AIInsightsSheet: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var isStreaming = false
-    @State private var streamedMarkdown = ""
-    @State private var errorMessage: String?
-    @State private var streamTask: Task<Void, Never>?
-    @State private var selectedProvider: String = UserDefaults.standard.string(forKey: "ai_provider") ?? "auto"
-
-    private let providerOptions: [(label: String, value: String)] = [
-        ("Auto", "auto"),
-        ("Qwen", "qwen"),
-        ("Ollama", "ollama"),
-    ]
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if isStreaming && streamedMarkdown.isEmpty {
-                    ProgressView("Analyzing last 12 hours...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let err = errorMessage {
-                    ScrollView {
-                        Text(err)
-                            .foregroundColor(.red)
-                            .padding()
-                    }
-                } else if !streamedMarkdown.isEmpty {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            MarkdownTextView(text: streamedMarkdown)
-                                .textSelection(.enabled)
-                            if isStreaming {
-                                HStack(spacing: 4) {
-                                    ProgressView()
-                                        .scaleEffect(0.7)
-                                    Text("Generating...")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                                .padding(.top, 8)
-                            }
-                        }
-                        .padding()
-                    }
-                } else {
-                    Text("Run an analysis to see AI insights for your recent glucose and notes.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .padding()
-                }
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar(content: { insightsToolbar })
-            .task { startStream() }
-            .onDisappear { streamTask?.cancel() }
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var insightsToolbar: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("Close") {
-                streamTask?.cancel()
-                dismiss()
-            }
-        }
-        ToolbarItem(placement: .principal) {
-            Picker("", selection: $selectedProvider) {
-                ForEach(providerOptions, id: \.value) { option in
-                    Text(option.label).tag(option.value)
-                }
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 210)
-            .onChange(of: selectedProvider) { newValue in
-                UserDefaults.standard.set(newValue, forKey: "ai_provider")
-            }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            Button("Run") { startStream() }
-                .disabled(isStreaming)
-        }
-    }
-
-    private func startStream() {
-        streamTask?.cancel()
-        streamedMarkdown = ""
-        errorMessage = nil
-        isStreaming = true
-
-        let provider = selectedProvider
-        streamTask = Task {
-            do {
-                try await BackendAPI.streamAiRetrospective(windowHours: 12, provider: provider) { token in
-                    streamedMarkdown += token
-                }
-            } catch is CancellationError {
-                // dismissed - no error message needed
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-            isStreaming = false
-        }
-    }
-}
-
