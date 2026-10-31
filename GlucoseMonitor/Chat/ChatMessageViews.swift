@@ -10,6 +10,8 @@ struct ChatMessageRow: View {
     var mealPlan: ((MealPlanCard) -> MealPlanActions)?
     /// Actions for an event proposal row (Confirm / No).
     var proposal: ((EventProposalCard) -> EventProposalActions)?
+    /// Actions for a removal proposal row (Remove / Keep).
+    var removal: ((NoteRemovalCard) -> NoteRemovalActions)?
 
     var body: some View {
         switch item.kind {
@@ -61,6 +63,10 @@ struct ChatMessageRow: View {
         case .eventProposal(let card):
             if let proposal {
                 EventProposalBubble(card: card, actions: proposal(card))
+            }
+        case .noteRemoval(let card):
+            if let removal {
+                NoteRemovalBubble(card: card, actions: removal(card))
             }
         case .error(let message):
             Label(message, systemImage: "exclamationmark.triangle")

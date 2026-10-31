@@ -22,9 +22,21 @@ protocol AssistantChatService {
                      timezone: String) async throws -> BackendAPI.DoseRecheck
     /// Confirm on a proposed event: saves the note.
     func confirmEvent(messageId: String, clientTime: String, timezone: String) async throws -> BackendAPI.EventConfirmResult
+    /// Remove on a proposed removal: deletes the note.
+    func confirmRemoval(messageId: String) async throws -> BackendAPI.NoteRemovalResult
+}
+
+extension AssistantChatService {
+    func confirmRemoval(messageId: String) async throws -> BackendAPI.NoteRemovalResult {
+        throw URLError(.unsupportedURL)
+    }
 }
 
 struct BackendAssistantService: AssistantChatService {
+    func confirmRemoval(messageId: String) async throws -> BackendAPI.NoteRemovalResult {
+        try await BackendAPI.postRemovalConfirm(messageId: messageId)
+    }
+
     func confirmEvent(messageId: String, clientTime: String, timezone: String) async throws -> BackendAPI.EventConfirmResult {
         try await BackendAPI.postEventConfirm(messageId: messageId, clientTime: clientTime, timezone: timezone)
     }
@@ -185,6 +197,8 @@ extension BackendAPI {
         case citations([AssistantCitation])
         /// A free-text event proposed as a note (assistant message `messageId`); saved only on Confirm.
         case proposal(messageId: String, tags: [String], comment: String?)
+        /// A logged note proposed for removal (assistant message `messageId`); deleted only on Remove.
+        case removal(NoteRemovalCard)
     }
 
     private struct AssistantEventEnvelope: Decodable {
@@ -253,6 +267,11 @@ extension BackendAPI {
             return (try? decoder.decode(ProposalEventBody.self, from: data)).map {
                 .proposal(messageId: $0.messageId, tags: $0.tags ?? [], comment: $0.comment)
             }
+        case "removal":
+            return (try? decoder.decode(RemovalEventBody.self, from: data)).map {
+                .removal(NoteRemovalCard(messageId: $0.messageId, at: $0.at, insulin: $0.insulin, carbs: $0.carbs,
+                                         label: $0.label))
+            }
         default:
             return nil
         }
@@ -298,13 +317,15 @@ extension BackendAPI {
         let mealPlan: MealPlanPayload?
         /// The same `payload` read as an event proposal, for intent `event_proposal` rows.
         let eventProposal: EventProposalPayload?
+        /// The same `payload` read as a removal proposal, for intent `removal_proposal` rows.
+        let noteRemoval: NoteRemovalPayload?
 
         init(id: String, createdAt: Date, role: String, text: String?, intent: String?,
              hasPhoto: Bool, noteIds: [String], payload: ChatMessagePayload?, mealPlan: MealPlanPayload? = nil,
-             eventProposal: EventProposalPayload? = nil) {
+             eventProposal: EventProposalPayload? = nil, noteRemoval: NoteRemovalPayload? = nil) {
             self.id = id; self.createdAt = createdAt; self.role = role; self.text = text
             self.intent = intent; self.hasPhoto = hasPhoto; self.noteIds = noteIds; self.payload = payload
-            self.mealPlan = mealPlan; self.eventProposal = eventProposal
+            self.mealPlan = mealPlan; self.eventProposal = eventProposal; self.noteRemoval = noteRemoval
         }
 
         private enum CodingKeys: String, CodingKey {
@@ -324,6 +345,8 @@ extension BackendAPI {
             mealPlan = intent == "meal_plan" ? (try? c.decodeIfPresent(MealPlanPayload.self, forKey: .payload)) ?? nil : nil
             eventProposal = intent == "event_proposal"
                 ? (try? c.decodeIfPresent(EventProposalPayload.self, forKey: .payload)) ?? nil : nil
+            noteRemoval = intent == "removal_proposal"
+                ? (try? c.decodeIfPresent(NoteRemovalPayload.self, forKey: .payload)) ?? nil : nil
         }
     }
 

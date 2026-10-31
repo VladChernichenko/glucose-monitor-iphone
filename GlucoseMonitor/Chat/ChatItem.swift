@@ -25,6 +25,8 @@ struct ChatItem: Identifiable, Equatable {
         case citations([BackendAPI.AssistantCitation])
         /// A free-text event ("hot shower") proposed as a note: Confirm saves it, No dismisses it locally.
         case eventProposal(EventProposalCard)
+        /// A logged note proposed for removal ("remove the 1 U"): Remove deletes it, Keep dismisses locally.
+        case noteRemoval(NoteRemovalCard)
     }
 
     let id: String
@@ -47,6 +49,7 @@ struct ChatItem: Identifiable, Equatable {
         case .episodes, .citations: return ""
         case .mealPlan(let card): return "Meal plan: \(MealPlanRules.midText(card.plan.carbs)) carbs"
         case .eventProposal(let card): return card.text
+        case .noteRemoval(let card): return card.text
         }
     }
 }

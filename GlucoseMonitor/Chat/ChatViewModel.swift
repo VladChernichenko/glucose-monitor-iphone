@@ -18,6 +18,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var bannerStates: [String: HistoryBannerState] = [:]
     /// Event proposals with a Confirm in flight; their buttons are disabled (double-tap protection).
     @Published private(set) var busyProposalIds: Set<String> = []
+    /// Removal cards with a Remove in flight; their buttons are disabled (double-tap protection).
+    @Published private(set) var busyRemovalIds: Set<String> = []
 
     /// Called after a quick log is written or undone, so the dashboard reloads notes, IOB and COB.
     var onNotesChanged: (() -> Void)?
@@ -151,6 +153,10 @@ final class ChatViewModel: ObservableObject {
                 let card = EventProposalCard(messageId: row.id, payload: payload, text: row.text)
                 return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .eventProposal(card))]
             }
+            if row.role != "USER", let payload = row.noteRemoval {
+                let card = NoteRemovalCard(messageId: row.id, payload: payload)
+                return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .noteRemoval(card))]
+            }
             if let payload = row.mealPlan, let card = MealPlanCard(messageId: row.id, payload: payload) {
                 var out = [ChatItem(id: row.id, createdAt: row.createdAt, kind: .mealPlan(card))]
                 if let text = row.text, !text.isEmpty {
@@ -277,6 +283,9 @@ final class ChatViewModel: ObservableObject {
             // No tokens follow a proposal: the bubble (with Confirm / No) takes the reply's place.
             let card = EventProposalCard(messageId: messageId, tags: tags, comment: comment)
             items[i] = ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .eventProposal(card))
+        case .removal(let card):
+            // No tokens follow a removal proposal: the bubble (with Remove / Keep) takes the reply's place.
+            items[i] = ChatItem(id: card.messageId, createdAt: items[i].createdAt, kind: .noteRemoval(card))
         }
     }
 
@@ -390,6 +399,63 @@ final class ChatViewModel: ObservableObject {
         guard let i = index(of: messageId), case .eventProposal(var card) = items[i].kind else { return }
         card.state = state
         items[i].kind = .eventProposal(card)
+    }
+
+    // MARK: Note removal
+
+    /// Remove: deletes the note once (a second tap while in flight, or on a removed card, does nothing).
+    func confirmRemoval(messageId: String) async {
+        guard !busyRemovalIds.contains(messageId), removal(messageId)?.state == .proposed else { return }
+        busyRemovalIds.insert(messageId)
+        defer { busyRemovalIds.remove(messageId) }
+        do {
+            _ = try await service.confirmRemoval(messageId: messageId)
+            setRemovalState(messageId, .removed)
+            onNotesChanged?()
+            await refreshLoggedUndoState()
+        } catch {
+            switch MealPlanRules.classify(error) {
+            case .conflict:
+                // Already removed (another device, or a reload raced the tap): the note is gone either way.
+                setRemovalState(messageId, .removed)
+                onNotesChanged?()
+            case .rejected(let message), .failed(let message):
+                items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(), kind: .error(message)))
+            }
+        }
+    }
+
+    /// "Keep": nothing is deleted; the backend keeps the proposal, so it shows again after a reload.
+    func keepRemoval(messageId: String) {
+        guard !busyRemovalIds.contains(messageId), removal(messageId)?.state == .proposed else { return }
+        setRemovalState(messageId, .kept)
+    }
+
+    /// The backend marks the quick log that wrote a removed note undone; re-read the newest page so that
+    /// log's Undo turns off (matched by its undo message id: streamed rows carry local ids).
+    private func refreshLoggedUndoState() async {
+        guard let page = try? await service.fetchHistory(before: nil, limit: pageSize) else { return }
+        let undoneIds = Set(Self.items(fromNewestFirst: page).compactMap { item -> String? in
+            guard case .logged(let entry) = item.kind, entry.undone else { return nil }
+            return entry.undoMessageId
+        })
+        for i in items.indices {
+            guard case .logged(var entry) = items[i].kind, !entry.undone,
+                  let id = entry.undoMessageId, undoneIds.contains(id) else { continue }
+            entry.undone = true
+            items[i].kind = .logged(entry)
+        }
+    }
+
+    private func removal(_ messageId: String) -> NoteRemovalCard? {
+        guard let i = index(of: messageId), case .noteRemoval(let card) = items[i].kind else { return nil }
+        return card
+    }
+
+    private func setRemovalState(_ messageId: String, _ state: NoteRemovalCard.State) {
+        guard let i = index(of: messageId), case .noteRemoval(var card) = items[i].kind else { return }
+        card.state = state
+        items[i].kind = .noteRemoval(card)
     }
 
     // MARK: History banner

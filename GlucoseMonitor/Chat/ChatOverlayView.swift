@@ -104,6 +104,14 @@ struct ChatOverlayView: View {
             onDismiss: { model.dismissProposal(messageId: id) })
     }
 
+    private func removalActions(_ card: NoteRemovalCard) -> NoteRemovalActions {
+        let id = card.messageId
+        return NoteRemovalActions(
+            isBusy: model.busyRemovalIds.contains(id),
+            onRemove: { Task { await model.confirmRemoval(messageId: id) } },
+            onKeep: { model.keepRemoval(messageId: id) })
+    }
+
     private func syncPrompt() {
         model.setPendingPrompt(appState.visibleGlycemicPrompt, displayUnit: appState.preferredGlucoseUnit)
     }
@@ -262,7 +270,8 @@ struct ChatOverlayView: View {
                                        onUndo: { Task { await model.undo(itemId: item.id) } },
                                        prompt: promptActions,
                                        mealPlan: mealPlanActions,
-                                       proposal: proposalActions)
+                                       proposal: proposalActions,
+                                       removal: removalActions)
                         .id(item.id)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomId)
