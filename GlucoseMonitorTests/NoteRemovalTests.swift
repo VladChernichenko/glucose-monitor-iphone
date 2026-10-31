@@ -101,6 +101,15 @@ final class NoteRemovalTests: XCTestCase {
         XCTAssertTrue(fake.removals.isEmpty)
     }
 
+    func testAnUndoneLogIsNotThePeekLine() {
+        let entry = ChatLoggedEntry(summary: "Logged 1 U. IOB 1 U, lowest 6.4 in the next 4 h.", forecastMin: 6.4,
+                                    undoMessageId: "u1", undone: true)
+        XCTAssertEqual(ChatItem(id: "l1", createdAt: Date(), kind: .logged(entry)).previewText, "")
+        var live = entry
+        live.undone = false
+        XCTAssertEqual(ChatItem(id: "l1", createdAt: Date(), kind: .logged(live)).previewText, entry.summary)
+    }
+
     func testHistoryRowBecomesARemovedCard() throws {
         let json = #"""
         [{"id":"r1","createdAt":"2026-11-01T00:58:00Z","role":"ASSISTANT","text":"Remove this entry: 01:56 · 1 U · insulin? Tap Remove.",

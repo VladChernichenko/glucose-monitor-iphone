@@ -431,9 +431,10 @@ final class ChatViewModel: ObservableObject {
         setRemovalState(messageId, .kept)
     }
 
-    /// The backend marks the quick log that wrote a removed note undone; re-read the newest page so that
-    /// log's Undo turns off (matched by its undo message id: streamed rows carry local ids).
-    private func refreshLoggedUndoState() async {
+    /// The backend marks a quick log undone once its notes are deleted (chat Remove, Notes tab, dashboard);
+    /// re-read the newest page so that log's Undo turns off and the peek stops showing it (matched by its
+    /// undo message id: streamed rows carry local ids).
+    func refreshLoggedUndoState() async {
         guard let page = try? await service.fetchHistory(before: nil, limit: pageSize) else { return }
         let undoneIds = Set(Self.items(fromNewestFirst: page).compactMap { item -> String? in
             guard case .logged(let entry) = item.kind, entry.undone else { return nil }

@@ -43,7 +43,8 @@ struct ChatItem: Identifiable, Equatable {
         switch kind {
         case .user(let text, let hasPhoto): return text.isEmpty && hasPhoto ? "Photo" : text
         case .assistant(let text): return text
-        case .logged(let entry): return entry.summary
+        // An undone log (its notes deleted) is history, not news: the peek falls back to the line before it.
+        case .logged(let entry): return entry.undone ? "" : entry.summary
         case .error(let message): return message
         case .glycemicPrompt(_, let text): return text
         case .episodes, .citations: return ""
