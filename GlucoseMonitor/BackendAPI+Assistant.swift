@@ -112,17 +112,18 @@ extension BackendAPI {
         let ids: [String]?
     }
 
+    /// One episode that decodes to nil instead of failing the whole list.
+    private struct LossyEpisode: Decodable {
+        let value: AssistantEpisode?
+        init(from decoder: Decoder) throws { value = try? AssistantEpisode(from: decoder) }
+    }
+
     private struct EpisodesEventBody: Decodable {
         let episodes: [AssistantEpisode]
 
-        private struct Lossy: Decodable {
-            let value: AssistantEpisode?
-            init(from decoder: Decoder) throws { value = try? AssistantEpisode(from: decoder) }
-        }
-
         init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
-            let items = (try? c.decodeIfPresent([Lossy].self, forKey: .episodes)) ?? nil
+            let items = (try? c.decodeIfPresent([LossyEpisode].self, forKey: .episodes)) ?? nil
             episodes = (items ?? []).compactMap(\.value)
         }
 
@@ -177,6 +178,18 @@ extension BackendAPI {
         let userMessageId: String?
         let undone: Bool?
         let hypoEventId: String?
+        /// Question replies store the cards they were shown with (plan replies do not).
+        var episodes: [AssistantEpisode]? = nil
+
+        fileprivate enum CodingKeys: String, CodingKey {
+            case type, noteIds, summary, iob, forecastMin, userMessageId, undone, hypoEventId, episodes
+        }
+    }
+
+    /// Hand-written so malformed `episodes` are dropped without losing the rest of the payload.
+    fileprivate static func decodeLossyEpisodes(_ c: KeyedDecodingContainer<ChatMessagePayload.CodingKeys>) -> [AssistantEpisode]? {
+        guard let items = (try? c.decodeIfPresent([LossyEpisode].self, forKey: .episodes)) ?? nil else { return nil }
+        return items.compactMap(\.value)
     }
 
     struct ChatMessageDTO: Decodable, Equatable {
@@ -346,5 +359,20 @@ extension BackendAPI {
             try checkStatus(resp, data: data)
             return try GlucoseMonitorAPI.jsonDecoder().decode(AssistantHitRate.self, from: data)
         }
+    }
+}
+
+extension BackendAPI.ChatMessagePayload {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        type = try c.decodeIfPresent(String.self, forKey: .type)
+        noteIds = try c.decodeIfPresent([String].self, forKey: .noteIds)
+        summary = try c.decodeIfPresent(String.self, forKey: .summary)
+        iob = try c.decodeIfPresent(Double.self, forKey: .iob)
+        forecastMin = try c.decodeIfPresent(Double.self, forKey: .forecastMin)
+        userMessageId = try c.decodeIfPresent(String.self, forKey: .userMessageId)
+        undone = try c.decodeIfPresent(Bool.self, forKey: .undone)
+        hypoEventId = try c.decodeIfPresent(String.self, forKey: .hypoEventId)
+        episodes = BackendAPI.decodeLossyEpisodes(c)
     }
 }

@@ -20,7 +20,7 @@ struct ChatItem: Identifiable, Equatable {
         case glycemicPrompt(BackendAPI.GlycemicEvent, text: String)
         /// Meal prep plan card (Took it / Eating now / Not eating).
         case mealPlan(MealPlanCard)
-        /// Past events behind a reply, listed above it. Live only: history rows carry none.
+        /// Past events behind a reply, listed above it. Question replies carry them in history too; plan replies do not.
         case episodes([BackendAPI.AssistantEpisode])
     }
 
@@ -196,7 +196,11 @@ final class ChatViewModel: ObservableObject {
                 }
                 return out
             }
-            return [item(from: row, undoneUserIds: undoneUserIds)]
+            var out = [item(from: row, undoneUserIds: undoneUserIds)]
+            if row.role != "USER", let episodes = row.payload?.episodes, !episodes.isEmpty {
+                out.insert(ChatItem(id: "episodes-\(row.id)", createdAt: row.createdAt, kind: .episodes(episodes)), at: 0)
+            }
+            return out
         }
     }
 

@@ -271,6 +271,27 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.lastMessageLine, "Because of the soup.")
     }
 
+    private func historyRow(_ payloadJSON: String) throws -> BackendAPI.ChatMessageDTO {
+        let json = #"{"id":"a1","createdAt":"2026-10-30T10:00:00Z","role":"ASSISTANT","text":"Answer","intent":"question","hasPhoto":false,"noteIds":[],"payload":"# + payloadJSON + "}"
+        return try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.ChatMessageDTO.self, from: Data(json.utf8))
+    }
+
+    func testHistoryQuestionReplyShowsEpisodesRowBeforeIt() throws {
+        let r = try historyRow(#"{"type":"question","episodes":[{"id":"e1","kind":"MEAL","at":"2026-10-12T13:00","text":"soup"},{"id":"bad","kind":"SLEEP","at":"x"}]}"#)
+        let items = ChatViewModel.items(fromNewestFirst: [r])
+        XCTAssertEqual(items.count, 2)
+        guard case .episodes(let list) = items[0].kind else { return XCTFail("expected episodes first") }
+        XCTAssertEqual(list.map(\.id), ["e1"])
+        XCTAssertEqual(items[1].kind, .assistant(text: "Answer"))
+    }
+
+    func testHistoryMalformedEpisodesStillShowTheReply() throws {
+        for payload in [#"{"episodes":"oops"}"#, #"{"episodes":[{"nope":1}]}"#, #"{"episodes":[]}"#, #"{"type":"question"}"#] {
+            let items = ChatViewModel.items(fromNewestFirst: [try historyRow(payload)])
+            XCTAssertEqual(items.map(\.kind), [.assistant(text: "Answer")], payload)
+        }
+    }
+
     func testEmptyEpisodesAddNoRow() async {
         let fake = FakeAssistantService()
         fake.scriptedEvents = [.episodes([]), .token("ok")]
