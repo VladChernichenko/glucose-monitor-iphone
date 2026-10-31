@@ -54,6 +54,9 @@ struct ChatOverlayView: View {
             model.onNotesChanged = { [weak appState] in
                 Task { await appState?.refreshAfterChatNotesChanged() }
             }
+            model.onDoseLogged = { [weak appState] noteIds in
+                Task { await appState?.refreshAfterChatNotesChanged(askSiteFor: noteIds) }
+            }
             model.onAnswerPrompt = { [weak appState] event, category, carbs, insulin in
                 await appState?.answerGlycemicEvent(event, category: category, carbs: carbs, insulin: insulin) ?? false
             }

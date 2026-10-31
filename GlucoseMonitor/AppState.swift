@@ -520,8 +520,13 @@ final class AppState: ObservableObject {
     }
 
     /// After the chat wrote or undid notes on the server: reload notes, then IOB/COB and the forecast.
-    func refreshAfterChatNotesChanged() async {
+    /// - Parameter askSiteFor: notes the chat just wrote; the first insulin dose among them gets the
+    ///   "Where did you inject?" question, as a dose logged from the Notes tab does.
+    func refreshAfterChatNotesChanged(askSiteFor noteIds: [String] = []) async {
         await fetchNotes()
+        if !noteIds.isEmpty, let dose = notes.first(where: { noteIds.contains($0.id) && $0.insulin > 0 }) {
+            askForInjectionSite(dose)
+        }
         await refreshCalculations()
     }
 

@@ -101,6 +101,23 @@ final class NoteRemovalTests: XCTestCase {
         XCTAssertTrue(fake.removals.isEmpty)
     }
 
+    func testAQuickLogDoseIsReportedForTheInjectionSiteQuestion() async {
+        let fake = FakeService()
+        fake.scriptedEvents = [
+            .logged(BackendAPI.AssistantLogged(noteIds: ["n7"], summary: "Logged 2 U.", iob: 2, forecastMin: 6.1)),
+            .done(BackendAPI.AssistantDone(userMessageId: "u7", assistantMessageId: "a7", intent: "quick_log"))]
+        let vm = makeVM(fake)
+        var reported: [[String]] = []
+        var plainRefreshes = 0
+        vm.onDoseLogged = { reported.append($0) }
+        vm.onNotesChanged = { plainRefreshes += 1 }
+
+        _ = await vm.send(text: "2u", photoJPEG: nil)
+
+        XCTAssertEqual(reported, [["n7"]])
+        XCTAssertEqual(plainRefreshes, 0)
+    }
+
     func testAnUndoneLogIsNotThePeekLine() {
         let entry = ChatLoggedEntry(summary: "Logged 1 U. IOB 1 U, lowest 6.4 in the next 4 h.", forecastMin: 6.4,
                                     undoMessageId: "u1", undone: true)

@@ -23,6 +23,9 @@ final class ChatViewModel: ObservableObject {
 
     /// Called after a quick log is written or undone, so the dashboard reloads notes, IOB and COB.
     var onNotesChanged: (() -> Void)?
+    /// Called instead of `onNotesChanged` when the chat wrote dose notes (quick log, plan Took), so the
+    /// dashboard can ask where the dose was injected.
+    var onDoseLogged: ((_ noteIds: [String]) -> Void)?
 
     private let service: AssistantChatService
     private let pageSize: Int
@@ -255,7 +258,7 @@ final class ChatViewModel: ObservableObject {
         case .logged(let logged):
             items[i].kind = .logged(ChatLoggedEntry(summary: logged.summary, forecastMin: logged.forecastMin,
                                                     undoMessageId: nil, undone: false))
-            onNotesChanged?()
+            notesWritten(logged.noteIds)
         case .done(let done):
             if case .logged(var entry) = items[i].kind {
                 entry.undoMessageId = done.userMessageId ?? done.assistantMessageId
@@ -297,6 +300,10 @@ final class ChatViewModel: ObservableObject {
         } else {
             items.append(ChatItem(id: "local-\(UUID().uuidString)", createdAt: now(), kind: .error(message)))
         }
+    }
+
+    private func notesWritten(_ noteIds: [String]) {
+        if let onDoseLogged { onDoseLogged(noteIds) } else { onNotesChanged?() }
     }
 
     // MARK: Undo
@@ -506,7 +513,7 @@ final class ChatViewModel: ObservableObject {
                 messageId: messageId, action: action,
                 clientTime: BackendAPI.assistantClientTime(at, timeZone: timeZone), timezone: timeZone.identifier)
             setPlanPayload(messageId: messageId, result.payload)
-            if result.noteId != nil { onNotesChanged?() }
+            if let noteId = result.noteId { notesWritten([noteId]) }
         } catch {
             switch MealPlanRules.classify(error) {
             case .conflict:
