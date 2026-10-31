@@ -774,6 +774,9 @@ struct EditNoteSheet: View {
                 title: "Units (u)", unit: "u",
                 value: $insulin, range: 0...10, step: 0.5
             )
+            if let site = InjectionZone.label(for: note.siteZone) {
+                LabeledContent("Injection site", value: site)
+            }
         }
         Section("Time") {
             DatePicker("Date & time", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
@@ -913,6 +916,9 @@ struct LongActingInsulinSheet: View {
                         }
                     }
                     DatePicker("Time", selection: $time, displayedComponents: [.hourAndMinute])
+                    if let site = InjectionZone.label(for: editing?.siteZone) {
+                        LabeledContent("Injection site", value: site)
+                    }
                 }
             }
             .navigationTitle(editing == nil ? "Log long-acting" : "Edit long-acting")
