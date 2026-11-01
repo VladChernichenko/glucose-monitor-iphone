@@ -88,6 +88,8 @@
 		70000000000000000000004C /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004D /* OnboardingFlowTests.swift */; };
 		700000000000000000000D11 /* CarbAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D11 /* CarbAdvice.swift */; };
 		700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D12 /* CarbAdviceCardView.swift */; };
+		700000000000000000000F01 /* WatchStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F01 /* WatchStrip.swift */; };
+		700000000000000000000F02 /* WatchStripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F02 /* WatchStripTests.swift */; };
 		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
 		700000000000000000000D14 /* MealPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D14 /* MealPlan.swift */; };
 		700000000000000000000D15 /* MealPlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D15 /* MealPlanCardView.swift */; };
@@ -232,6 +234,8 @@
 		60000000000000000000004D /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D11 /* CarbAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdvice.swift; sourceTree = "<group>"; };
 		600000000000000000000D12 /* CarbAdviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceCardView.swift; sourceTree = "<group>"; };
+		600000000000000000000F01 /* WatchStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStrip.swift; sourceTree = "<group>"; };
+		600000000000000000000F02 /* WatchStripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D14 /* MealPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlan.swift; sourceTree = "<group>"; };
 		600000000000000000000D15 /* MealPlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardView.swift; sourceTree = "<group>"; };
@@ -299,6 +303,7 @@
 			children = (
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
+				600000000000000000000F01 /* WatchStrip.swift */,
 				F5B001002FCC7001001AB224 /* DashboardCache.swift */,
 				F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */,
 				600000000000000000000050 /* GlucoseUnit.swift */,
@@ -438,6 +443,7 @@
 				600000000000000000000DA5 /* NoteRemovalTests.swift */,
 				600000000000000000000D06 /* ChatViewModelTests.swift */,
 				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
+				600000000000000000000F02 /* WatchStripTests.swift */,
 				600000000000000000000D17 /* MealPlanCardTests.swift */,
 				600000000000000000000E03 /* HistoryBannerTests.swift */,
 				600000000000000000000095 /* BackendAPIHovorkaTests.swift */,
@@ -605,6 +611,7 @@
 				F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */,
 				700000000000000000000001 /* GlucoseMonitorApp.swift in Sources */,
 				70000000000000000000000A /* AppState.swift in Sources */,
+				700000000000000000000F01 /* WatchStrip.swift in Sources */,
 				F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */,
 				F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */,
 				700000000000000000000050 /* GlucoseUnit.swift in Sources */,
@@ -684,6 +691,7 @@
 				700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */,
 				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
 				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
+				700000000000000000000F02 /* WatchStripTests.swift in Sources */,
 				700000000000000000000D17 /* MealPlanCardTests.swift in Sources */,
 				700000000000000000000E03 /* HistoryBannerTests.swift in Sources */,
 				700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */,
