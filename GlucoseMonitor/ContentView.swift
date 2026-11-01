@@ -147,12 +147,15 @@ struct DashboardView: View {
                                 if appState.libreDataStale && scenePhase == .active {
                                     libreStaleBanner
                                 }
-                                if let strip = appState.visibleWatchStrip {
-                                    WatchStripView(strip: strip, unit: appState.preferredGlucoseUnit) {
-                                        if strip.state == .urgentLow, appState.calculations?.carbAdvice != nil {
-                                            chatExpanded = true
-                                        } else {
-                                            withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
+                                // Re-evaluated on a timer so an expired dose strip leaves without waiting for a refresh.
+                                TimelineView(.periodic(from: .now, by: 15)) { context in
+                                    if let strip = appState.watchStrip(at: context.date) {
+                                        WatchStripView(strip: strip, unit: appState.preferredGlucoseUnit) {
+                                            if appState.watchStripTapOpensChat(strip) {
+                                                chatExpanded = true
+                                            } else {
+                                                withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
+                                            }
                                         }
                                     }
                                 }

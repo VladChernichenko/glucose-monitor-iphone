@@ -16,9 +16,11 @@ struct WatchStripView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(headline)
                         .font(.subheadline.bold())
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if !detail.isEmpty {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 Spacer(minLength: 0)
             }
@@ -33,6 +35,6 @@ struct WatchStripView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(headline). \(detail)")
+        .accessibilityLabel(detail.isEmpty ? headline : "\(headline). \(detail)")
     }
 }

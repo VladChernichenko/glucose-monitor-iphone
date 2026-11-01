@@ -22,6 +22,9 @@ final class AppState: ObservableObject {
     /// since. Separate from `calculationsStale` so the dashboard's "Stale" badge is unchanged. The carb advice
     /// card is hidden while this is true.
     @Published var calculationsFromCache: Bool = false
+    /// When a calculations fetch last succeeded (never set from the launch cache). The watch strip is hidden
+    /// once this is older than `watchStripMaxAge`.
+    @Published var calculationsFetchedAt: Date?
     /// Identity of the carb advice the user already acted on ("Took N g"); that advice stays hidden.
     @Published var tookCarbAdviceIdentity: String?
     @Published var notes: [BackendAPI.GlucoseNote] = []
@@ -185,6 +188,7 @@ final class AppState: ObservableObject {
         calculations = nil
         calculationsStale = false
         calculationsFromCache = false
+        calculationsFetchedAt = nil
         tookCarbAdviceIdentity = nil
         notes = []
         isLoadingNotes = false
@@ -552,6 +556,7 @@ final class AppState: ObservableObject {
             calculations = nil
             calculationsStale = false
             calculationsFromCache = false
+            calculationsFetchedAt = nil
             persistWidgetSnapshot()
             return
         }
@@ -565,6 +570,7 @@ final class AppState: ObservableObject {
             lastCalculationsResponseJSON = fetched.rawData
             calculationsStale = false
             calculationsFromCache = false
+            calculationsFetchedAt = Date()
         } catch {
             do {
                 let fetched = try await BackendAPI.fetchGlucoseCalculationsWithRawResponse(
@@ -576,6 +582,7 @@ final class AppState: ObservableObject {
                 lastCalculationsResponseJSON = fetched.rawData
                 calculationsStale = false
                 calculationsFromCache = false
+                calculationsFetchedAt = Date()
             } catch {
                 guard generation == authGeneration else { return }
                 // Keep showing the last-known COB/IOB instead of blanking the dashboard to "--" -

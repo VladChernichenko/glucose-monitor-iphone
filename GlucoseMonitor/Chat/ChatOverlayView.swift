@@ -244,13 +244,7 @@ struct ChatOverlayView: View {
 
     // MARK: Carb advice
 
-    private var carbAdvice: BackendAPI.CarbAdvice? {
-        BackendAPI.CarbAdvice.visible(appState.calculations?.carbAdvice,
-                                      calculationsStale: appState.calculationsStale,
-                                      calculationsFromCache: appState.calculationsFromCache,
-                                      hypoPromptOpen: appState.openHypoEvent != nil,
-                                      tookIdentity: appState.tookCarbAdviceIdentity)
-    }
+    private var carbAdvice: BackendAPI.CarbAdvice? { appState.visibleCarbAdvice }
 
     /// The advice headline (red) takes over the peek line while advice is showing.
     private var peekText: String {

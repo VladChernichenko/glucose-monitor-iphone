@@ -64,6 +64,7 @@ final class WatchStripTests: XCTestCase {
         app.calculations = try response(watch: """
         {"state":"SOMETHING_NEW","reason":"WATCHING","nextCheckAt":"2026-10-31T19:15:00"}
         """)
+        app.calculationsFetchedAt = Date()
         XCTAssertNotNil(app.calculations?.watch)
         XCTAssertNil(app.visibleWatchStrip)
     }
@@ -109,6 +110,28 @@ final class WatchStripTests: XCTestCase {
         XCTAssertEqual(try detail("WHATEVER"), "No dose: can't calculate" + tail)
     }
 
+    func testRefusalText_readingMismatch() throws {
+        let s = try strip(state: "URGENT_HIGH", reason: "HIGH_FORECAST",
+                          suggestion: #"{"kind":"REFUSED","refusalCode":"READING_MISMATCH"}"#, landing: landing)
+        XCTAssertEqual(WatchStripText.detail(s, unit: "mmol/L"),
+                       "No dose: sensor and app readings disagree \u{00B7} recheck \(at("2026-10-31T19:15:00"))")
+    }
+
+    func testCorrectionText_mgdlConvertsTargetAndIsf() throws {
+        let s = try strip(state: "URGENT_HIGH", reason: "HIGH_FORECAST",
+                          suggestion: #"{"kind":"INSULIN","grams":null,"units":1.5,"refusalCode":null,"targetMmol":5.55,"isf":2.2,"minWithCarbs":null}"#,
+                          landing: landing)
+        XCTAssertEqual(WatchStripText.detail(s, unit: "mg/dL"),
+                       "Correction 1.5 U (target 100, ISF 40) \u{00B7} recheck \(at("2026-10-31T19:15:00"))")
+    }
+
+    func testWatchingWithoutLanding_noDetailLine() throws {
+        let learned = try strip(reason: "WATCHING", activity: "LEARNED")
+        XCTAssertEqual(WatchStripText.detail(learned, unit: "mmol/L"), "")
+        let rough = try strip(reason: "WATCHING", activity: "DEFAULT")
+        XCTAssertEqual(WatchStripText.detail(rough, unit: "mmol/L"), "")
+    }
+
     func testRoughActivitySuffix_onlyWhenDefault() throws {
         let rough = " \u{00B7} activity estimate still rough"
         let watching = try strip(reason: "WATCHING", landing: landing, activity: "DEFAULT")
@@ -130,7 +153,108 @@ final class WatchStripTests: XCTestCase {
         a.calculations = try response(watch: watch ? """
         {"state":"CALM","reason":"WATCHING","nextCheckAt":"2026-10-31T19:15:00","activityEstimate":"LEARNED"}
         """ : nil)
+        a.calculationsFetchedAt = Date()
         return a
+    }
+
+    /// An app whose strip has the given suggestion kind and nextCheckAt, fetched `fetchedAgo` before `now`.
+    private func app(kind: String, state: String = "URGENT_HIGH", reason: String = "HIGH_FORECAST",
+                     nextCheckAt: Date, fetchedAgo: TimeInterval, now: Date) throws -> AppState {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let a = AppState()
+        a.calculations = try response(watch: """
+        {"state":"\(state)","reason":"\(reason)","suggestion":{"kind":"\(kind)","units":1.0,"grams":15},
+         "nextCheckAt":"\(f.string(from: nextCheckAt))","activityEstimate":"LEARNED"}
+        """)
+        a.calculationsFetchedAt = now.addingTimeInterval(-fetchedAgo)
+        return a
+    }
+
+    func testHiddenWhenFetchedOverTenMinutesAgo() throws {
+        let now = Date()
+        let a = try app(kind: "NO_ACTION", nextCheckAt: now.addingTimeInterval(3600), fetchedAgo: 11 * 60, now: now)
+        XCTAssertNil(a.watchStrip(at: now))
+    }
+
+    func testShownWhenFetchedAMinuteAgo() throws {
+        let now = Date()
+        let a = try app(kind: "NO_ACTION", nextCheckAt: now.addingTimeInterval(3600), fetchedAgo: 60, now: now)
+        XCTAssertNotNil(a.watchStrip(at: now))
+    }
+
+    func testHiddenWhenNeverFetched() throws {
+        let a = try app()
+        a.calculationsFetchedAt = nil
+        XCTAssertNil(a.visibleWatchStrip)
+    }
+
+    func testInsulinStripHiddenOnceNextCheckPassed() throws {
+        let now = Date()
+        let a = try app(kind: "INSULIN", nextCheckAt: now.addingTimeInterval(-60), fetchedAgo: 60, now: now)
+        XCTAssertNil(a.watchStrip(at: now))
+        let fresh = try app(kind: "INSULIN", nextCheckAt: now.addingTimeInterval(600), fetchedAgo: 60, now: now)
+        XCTAssertNotNil(fresh.watchStrip(at: now))
+    }
+
+    func testCarbsStripHiddenOnceNextCheckPassed() throws {
+        let now = Date()
+        let a = try app(kind: "CARBS", state: "URGENT_LOW", reason: "LOW_NOW",
+                        nextCheckAt: now.addingTimeInterval(-60), fetchedAgo: 60, now: now)
+        XCTAssertNil(a.watchStrip(at: now))
+    }
+
+    func testNoActionStripShownAfterNextCheckPassed() throws {
+        let now = Date()
+        let a = try app(kind: "NO_ACTION", nextCheckAt: now.addingTimeInterval(-60), fetchedAgo: 60, now: now)
+        XCTAssertNotNil(a.watchStrip(at: now))
+    }
+
+    // MARK: tap target
+
+    private func carbAdviceResponse(watch: String) throws -> BackendAPI.GlucoseCalculationsResponse {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        let recheck = f.string(from: Date().addingTimeInterval(600))
+        let lowAt = f.string(from: Date().addingTimeInterval(1800))
+        let json = """
+        {"activeCarbsOnBoard":0,"activeInsulinOnBoard":1.2,"twoHourPrediction":5.0,"predictionTrend":"falling",
+         "confidence":0.8,"watch":\(watch),
+         "carbAdvice":{"state":"TAKE_NOW","grams":15,"minWithout":3.6,"minWithoutAt":"\(lowAt)","minWith":4.6,
+                       "pathWithout":[],"pathWith":[],"recheckAt":"\(recheck)"}}
+        """.data(using: .utf8)!
+        return try JSONDecoder().decode(BackendAPI.GlucoseCalculationsResponse.self, from: json)
+    }
+
+    func testUrgentLowTap_opensChatOnlyWhenCarbCardVisible() throws {
+        let lowStrip = #"{"state":"URGENT_LOW","reason":"FORECAST_LOW","suggestion":{"kind":"CARBS","grams":15},"nextCheckAt":"2026-10-31T19:15:00"}"#
+        let a = AppState()
+        a.calculations = try carbAdviceResponse(watch: lowStrip)
+        a.calculationsFetchedAt = Date()
+        let strip = try XCTUnwrap(a.calculations?.watch)
+        let advice = try XCTUnwrap(a.visibleCarbAdvice)
+        XCTAssertTrue(a.watchStripTapOpensChat(strip))
+
+        a.tookCarbAdviceIdentity = advice.identity
+        XCTAssertNil(a.visibleCarbAdvice)
+        XCTAssertFalse(a.watchStripTapOpensChat(strip))
+    }
+
+    func testUrgentLowTap_withoutCarbAdvice_scrollsToChart() throws {
+        let a = AppState()
+        a.calculations = try response(watch: #"{"state":"URGENT_LOW","reason":"LOW_NOW","nextCheckAt":"2026-10-31T19:15:00"}"#)
+        let strip = try XCTUnwrap(a.calculations?.watch)
+        XCTAssertFalse(a.watchStripTapOpensChat(strip))
+    }
+
+    func testHighTap_neverOpensChat() throws {
+        let highStrip = #"{"state":"URGENT_HIGH","reason":"SMALL_RISE","nextCheckAt":"2026-10-31T19:15:00"}"#
+        let a = AppState()
+        a.calculations = try carbAdviceResponse(watch: highStrip)
+        let strip = try XCTUnwrap(a.calculations?.watch)
+        XCTAssertFalse(a.watchStripTapOpensChat(strip))
     }
 
     func testVisibleWhenFreshAndKnown() throws {
