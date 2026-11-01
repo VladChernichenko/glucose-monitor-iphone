@@ -141,10 +141,20 @@ struct DashboardView: View {
                     notSignedInPlaceholder
                 } else {
                     ZStack(alignment: .bottom) {
+                        ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 16) {
                                 if appState.libreDataStale && scenePhase == .active {
                                     libreStaleBanner
+                                }
+                                if let strip = appState.visibleWatchStrip {
+                                    WatchStripView(strip: strip, unit: appState.preferredGlucoseUnit) {
+                                        if strip.state == .urgentLow, appState.calculations?.carbAdvice != nil {
+                                            chatExpanded = true
+                                        } else {
+                                            withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
+                                        }
+                                    }
                                 }
                                 if let suggestion = isfSuggestion, shouldShowIsfBanner(suggestion) {
                                     isfSuggestionBanner(suggestion)
@@ -153,6 +163,7 @@ struct DashboardView: View {
                                     compactGlucoseCard(at: context.date)
                                 }
                                 extendedChartSection
+                                    .id("forecastChart")
                                 recentNotesSection
                                 if appState.dataSource == "libre" {
                                     sensorAlarmsBar
@@ -171,6 +182,7 @@ struct DashboardView: View {
                             .padding(.bottom, Self.chatPeekClearance)
                         }
                         .refreshable { await appState.refreshAll() }
+                        }
 
                         // Bottom layer of the dashboard, not a sheet: the sheets below present above it.
                         ChatOverlayView(isExpanded: $chatExpanded)
