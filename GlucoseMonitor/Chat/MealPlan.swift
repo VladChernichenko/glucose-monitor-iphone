@@ -240,6 +240,8 @@ enum MealPlanRules {
             return "No dose advice \u{2014} your insulin settings look incomplete. Check them in Settings."
         case "GLUCOSE_IMPLAUSIBLE_UNIT":
             return "No dose advice \u{2014} the glucose reading looks implausible. Check the sensor or do a fingerstick."
+        case "FORECAST_LOW":
+            return "No dose advice \u{2014} with this dose the forecast goes low. Eat or treat first, then plan again."
         default:
             return "No dose advice for this meal."
         }
@@ -325,12 +327,24 @@ enum MealPlanRules {
     }
 
     /// Why no dose is shown, or nil when a dose is advised.
-    static func noDoseExplanation(_ card: MealPlanCard, now: Date) -> String? {
+    static func noDoseExplanation(_ card: MealPlanCard, now: Date, unit: String = "mmol/L") -> String? {
         let plan = card.plan
         if plan.stale { return staleText }
+        if plan.refusalCode == "FORECAST_LOW", let low = plan.pause?.min { return forecastLowText(low, unit: unit) }
         if plan.refusalCode != nil || plan.doseUnits == nil { return refusalText(plan.refusalCode) }
         if isExpired(card, now: now) { return expiredText }
         return nil
+    }
+
+    /// The low line the backend withholds a dose at (HypoThresholds.HYPO_MMOL).
+    static let hypoMmol = 3.9
+
+    /// A dose withheld because, with insulin already on board, its forecast falls below the low line.
+    static func forecastLowText(_ lowestMmol: Double, unit: String) -> String {
+        let low = ChatFormatting.glucose(mmol: lowestMmol, unit: unit)
+        let line = ChatFormatting.glucose(mmol: hypoMmol, unit: unit)
+        return "No dose advice \u{2014} with this dose the forecast drops to \(low) \(ChatFormatting.unitLabel(unit)), "
+            + "below \(line). Eat or treat first, then plan again."
     }
 
     static func peakLine(_ pause: BackendAPI.MealPlanPause, unit: String) -> String? {

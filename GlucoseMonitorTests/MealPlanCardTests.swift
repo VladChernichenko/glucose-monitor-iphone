@@ -183,6 +183,22 @@ final class MealPlanCardTests: XCTestCase {
                        MealPlanRules.refusalText("GLUCOSE_BELOW_SAFE_THRESHOLD"))
     }
 
+    func testDoseWithheldForALowForecastSaysHowLow() throws {
+        let plan = """
+        {"carbs":{"low":45,"mid":51.6,"high":58},"fat":{"low":0,"mid":0,"high":0},"protein":{"low":0,"mid":0,"high":0},
+         "fiber":{"low":0,"mid":0,"high":0},"gi":55,"patternLabel":"Slow Climb","doseUnits":null,
+         "refusalCode":"FORECAST_LOW","pause":{"pauseMinutes":null,"curve":[],"peak":8.2,"min":1.0,
+         "reason":"pre-bolus in flight","inFlight":true},"stale":false}
+        """
+        let c = try card(payloadJSON(state: "PLANNED", plan: plan))
+        let now = local("2026-10-31T12:01:00")
+        XCTAssertNil(MealPlanRules.advisedDose(c, now: now))
+        XCTAssertEqual(MealPlanRules.noDoseExplanation(c, now: now, unit: "mmol/L"),
+                       "No dose advice \u{2014} with this dose the forecast drops to 1.0 mmol/L, below 3.9. Eat or treat first, then plan again.")
+        XCTAssertEqual(MealPlanRules.noDoseExplanation(c, now: now, unit: "mg/dL"),
+                       "No dose advice \u{2014} with this dose the forecast drops to 18 mg/dL, below 70. Eat or treat first, then plan again.")
+    }
+
     func testDoseExpiresAfterDoseValidUntil() throws {
         let c = try card(payloadJSON(state: "PLANNED"))
         XCTAssertEqual(MealPlanRules.advisedDose(c, now: local("2026-10-31T12:15:00")), 4.5, "valid up to the instant")

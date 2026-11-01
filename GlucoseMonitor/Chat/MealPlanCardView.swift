@@ -129,7 +129,7 @@ struct MealPlanCardView: View {
                     Text(reason).font(.caption).foregroundStyle(.secondary)
                 }
             }
-        } else if let why = MealPlanRules.noDoseExplanation(card, now: now) {
+        } else if let why = MealPlanRules.noDoseExplanation(card, now: now, unit: unit) {
             Text(why)
                 .font(.subheadline)
                 .padding(10)
