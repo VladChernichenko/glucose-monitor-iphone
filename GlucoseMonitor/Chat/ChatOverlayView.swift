@@ -39,7 +39,9 @@ struct ChatOverlayView: View {
                 contentArea(height: height, maxContent: maxContent, progress: progress)
                 Divider()
                 inputBar
-                    .readHeight { inputBarHeight = $0 }
+                    .readHeight(InputBarHeightKey.self) { h in
+                        if abs(h - inputBarHeight) > 0.5 { inputBarHeight = h }
+                    }
             }
             .frame(maxWidth: .infinity)
             .background(
@@ -161,7 +163,9 @@ struct ChatOverlayView: View {
 
             peekLine
                 .fixedSize(horizontal: false, vertical: true)
-                .readHeight { if $0 > 0 { peekHeight = $0 } }
+                .readHeight(PeekHeightKey.self) { h in
+                    if h > 0, abs(h - peekHeight) > 0.5 { peekHeight = h }
+                }
                 .opacity(Double(1 - min(1, progress * 2.5)))
                 .allowsHitTesting(!isExpanded)
                 .accessibilityHidden(isExpanded)
@@ -422,15 +426,20 @@ struct ChatOverlayView: View {
     }
 }
 
-private struct HeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
+/// One key per measured view, so the peek's and the input bar's heights never reach each other's reader.
+private protocol HeightKey: PreferenceKey where Value == CGFloat {}
+extension HeightKey {
+    static var defaultValue: CGFloat { 0 }
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
 }
+private enum PeekHeightKey: HeightKey {}
+private enum InputBarHeightKey: HeightKey {}
 
 private extension View {
-    /// Reports this view's laid-out height whenever it changes.
-    func readHeight(_ onChange: @escaping (CGFloat) -> Void) -> some View {
-        background(GeometryReader { Color.clear.preference(key: HeightKey.self, value: $0.size.height) })
-            .onPreferenceChange(HeightKey.self, perform: onChange)
+    /// Reports this view's laid-out height whenever it changes. Callers ignore sub-point changes, so a
+    /// height that depends on layout cannot feed back into another update within the same frame.
+    func readHeight<K: HeightKey>(_ key: K.Type, _ onChange: @escaping (CGFloat) -> Void) -> some View {
+        background(GeometryReader { Color.clear.preference(key: K.self, value: $0.size.height) })
+            .onPreferenceChange(K.self, perform: onChange)
     }
 }
