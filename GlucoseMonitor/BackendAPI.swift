@@ -195,6 +195,10 @@ enum BackendAPI {
         var isfDinner: Double? = nil
         /// Manual ISF override for 22:00-05:00 (mmol/L per unit). Nil = use autotuned `isf`.
         var isfNight: Double? = nil
+        /// Glucose target in mmol/L (4.4-10.0). Nil = not sent, so the backend keeps its stored value (default 5.55).
+        var targetGlucoseMmol: Double? = nil
+        /// Rescue carbs in grams (5-40). Nil = not sent, so the backend keeps its stored value (default 15).
+        var rescueCarbsG: Int? = nil
     }
 
     struct PredictionFactors: Decodable {

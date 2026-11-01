@@ -76,6 +76,8 @@ struct SettingsView: View {
     @State private var cobSettings = BackendAPI.COBSettings(
         carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
     )
+    @State private var targetText = ""
+    @State private var rescueText = ""
     @State private var calculationStatus = ""
     @State private var isSavingCalculations = false
 
@@ -120,6 +122,7 @@ struct SettingsView: View {
                                 forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit
                             )
                             appState.setPreferredGlucoseUnit(newValue)
+                            syncTargetFields()  // re-show the stored target in the new unit
                         }
 
                         SettingsNumericRow(
@@ -165,10 +168,31 @@ struct SettingsView: View {
                             fractionDigits: 0...1
                         )
 
+                        SettingsTextRow(
+                            label: "Target Glucose",
+                            subtitle: "\(appState.preferredGlucoseUnit) * \(targetRangeLabel)",
+                            placeholder: targetPlaceholder,
+                            text: $targetText,
+                            keyboard: .decimalPad
+                        )
+                        if let message = targetError {
+                            Text(message).font(.footnote).foregroundStyle(.red)
+                        }
+                        SettingsTextRow(
+                            label: "Rescue Carbs",
+                            subtitle: "g * \(TargetGlucoseInput.rescueRange.lowerBound)-\(TargetGlucoseInput.rescueRange.upperBound)",
+                            placeholder: "\(TargetGlucoseInput.defaultRescueCarbs)",
+                            text: $rescueText,
+                            keyboard: .numberPad
+                        )
+                        if let message = rescueError {
+                            Text(message).font(.footnote).foregroundStyle(.red)
+                        }
+
                         Button("Save") {
                             Task { await saveCalculationSettings() }
                         }
-                        .disabled(isSavingCalculations)
+                        .disabled(isSavingCalculations || targetError != nil || rescueError != nil)
 
                         if !calculationStatus.isEmpty {
                             Text(calculationStatus)
@@ -247,7 +271,46 @@ struct SettingsView: View {
     private func loadCalculationSettings() async {
         if let settings = try? await BackendAPI.fetchCOBSettings() {
             cobSettings = settings
+            syncTargetFields()
         }
+    }
+
+    /// Shows the stored values in the display unit; empty when the backend sent none.
+    private func syncTargetFields() {
+        let unit = appState.preferredGlucoseUnit
+        targetText = cobSettings.targetGlucoseMmol.map {
+            TargetGlucoseInput.format(TargetGlucoseInput.display(mmol: $0, unit: unit), unit: unit)
+        } ?? ""
+        rescueText = cobSettings.rescueCarbsG.map(String.init) ?? ""
+    }
+
+    private var targetRangeLabel: String {
+        GlucoseUnit.isMgdl(appState.preferredGlucoseUnit) ? "79 - 180" : "4.4 - 10.0"
+    }
+
+    private var targetPlaceholder: String {
+        let unit = appState.preferredGlucoseUnit
+        return TargetGlucoseInput.format(
+            TargetGlucoseInput.display(mmol: TargetGlucoseInput.defaultMmol, unit: unit), unit: unit)
+    }
+
+    /// Empty input is valid: nothing is sent and the backend keeps its stored value.
+    private var targetError: String? {
+        guard let v = TargetGlucoseInput.parse(targetText) else {
+            return targetText.trimmingCharacters(in: .whitespaces).isEmpty ? nil : "Enter a number."
+        }
+        let unit = appState.preferredGlucoseUnit
+        return TargetGlucoseInput.mmol(fromDisplay: v, unit: unit) == nil
+            ? "Target must be \(targetRangeLabel) \(unit)." : nil
+    }
+
+    private var rescueError: String? {
+        let t = rescueText.trimmingCharacters(in: .whitespaces)
+        if t.isEmpty { return nil }
+        guard let g = Int(t), TargetGlucoseInput.rescueRange.contains(g) else {
+            return "Rescue carbs must be \(TargetGlucoseInput.rescueRange.lowerBound)-\(TargetGlucoseInput.rescueRange.upperBound) g."
+        }
+        return nil
     }
 
     private func saveCalculationSettings() async {
@@ -255,7 +318,14 @@ struct SettingsView: View {
         calculationStatus = ""
         defer { isSavingCalculations = false }
         do {
-            cobSettings = try await BackendAPI.saveCOBSettings(cobSettings)
+            // Empty/invalid fields stay nil: the backend only overwrites non-null values.
+            var toSave = cobSettings
+            toSave.targetGlucoseMmol = TargetGlucoseInput.parse(targetText).flatMap {
+                TargetGlucoseInput.mmol(fromDisplay: $0, unit: appState.preferredGlucoseUnit)
+            } ?? cobSettings.targetGlucoseMmol
+            toSave.rescueCarbsG = Int(rescueText.trimmingCharacters(in: .whitespaces)) ?? cobSettings.rescueCarbsG
+            cobSettings = try await BackendAPI.saveCOBSettings(toSave)
+            syncTargetFields()
             calculationStatus = "OK: settings saved."
         } catch {
             calculationStatus = error.localizedDescription
@@ -730,6 +800,67 @@ private struct SettingsNumericRow: View {
             .multilineTextAlignment(.trailing)
             .frame(width: 72)
         }
+    }
+}
+
+private struct SettingsTextRow: View {
+    let label: String
+    var subtitle: String?
+    let placeholder: String
+    @Binding var text: String
+    var keyboard: UIKeyboardType = .decimalPad
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            TextField(placeholder, text: $text)
+                .keyboardType(keyboard)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 72)
+        }
+    }
+}
+
+/// Target glucose is typed in the display unit and stored in mmol/L (backend range 4.4-10.0).
+enum TargetGlucoseInput {
+    static let mmolRange: ClosedRange<Double> = 4.4...10.0
+    /// 79-180 mg/dL, the whole-number mirror of `mmolRange`.
+    static let mgdlRange: ClosedRange<Double> = 79...180
+    static let rescueRange: ClosedRange<Int> = 5...40
+    static let defaultMmol = 5.55
+    static let defaultRescueCarbs = 15
+
+    /// mmol/L to store for a value typed in `unit`, or nil when outside the accepted range.
+    static func mmol(fromDisplay value: Double, unit: String) -> Double? {
+        if GlucoseUnit.isMgdl(unit) {
+            let mgdl = value.rounded()
+            guard mgdlRange.contains(mgdl) else { return nil }
+            // 79 mg/dL is 4.38 mmol/L; clamp so the backend's 4.4 floor never rejects an accepted value.
+            return min(max(GlucoseUnit.mgdlToMmol(mgdl), mmolRange.lowerBound), mmolRange.upperBound)
+        }
+        guard mmolRange.contains(value) else { return nil }
+        return value
+    }
+
+    /// Stored mmol/L value expressed in `unit` (whole mg/dL).
+    static func display(mmol: Double, unit: String) -> Double {
+        GlucoseUnit.isMgdl(unit) ? GlucoseUnit.mmolToMgdl(mmol).rounded() : mmol
+    }
+
+    static func parse(_ text: String) -> Double? {
+        Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+    }
+
+    static func format(_ value: Double, unit: String) -> String {
+        GlucoseUnit.isMgdl(unit) ? String(Int(value)) : String(format: "%.1f", value)
     }
 }
 

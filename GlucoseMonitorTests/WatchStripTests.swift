@@ -155,4 +155,52 @@ final class WatchStripTests: XCTestCase {
         a.libreDataStale = true
         XCTAssertNil(a.visibleWatchStrip)
     }
+
+    // MARK: - Target and rescue-carb settings
+
+    private func cobJSON(extra: String = "") -> Data {
+        """
+        {"carbRatio":2.0,"isf":2.5,"carbHalfLife":60,"maxCOBDuration":240\(extra)}
+        """.data(using: .utf8)!
+    }
+
+    func cobSettings_encodesTargetAndRescue() throws {
+        var s = try JSONDecoder().decode(BackendAPI.COBSettings.self, from: cobJSON())
+        s.targetGlucoseMmol = 5.6
+        s.rescueCarbsG = 20
+        let obj = try JSONSerialization.jsonObject(with: JSONEncoder().encode(s)) as? [String: Any]
+        XCTAssertEqual(obj?["targetGlucoseMmol"] as? Double, 5.6)
+        XCTAssertEqual(obj?["rescueCarbsG"] as? Int, 20)
+    }
+
+    func cobSettings_decodesWithoutNewFields() throws {
+        let s = try JSONDecoder().decode(BackendAPI.COBSettings.self, from: cobJSON())
+        XCTAssertNil(s.targetGlucoseMmol)
+        XCTAssertNil(s.rescueCarbsG)
+    }
+
+    func target_mgdl100_is555() throws {
+        let mmol = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 100, unit: "mg/dL"))
+        XCTAssertEqual(mmol, 5.55, accuracy: 0.01)
+    }
+
+    func target_outOfRange_nil() {
+        XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 78, unit: "mg/dL"))
+        XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 10.1, unit: "mmol/L"))
+    }
+
+    func target_rangeEdges_acceptedAndWithinBackendBounds() throws {
+        let low = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 79, unit: "mg/dL"))
+        XCTAssertGreaterThanOrEqual(low, 4.4)
+        let high = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 180, unit: "mg/dL"))
+        XCTAssertLessThanOrEqual(high, 10.0)
+        XCTAssertNotNil(TargetGlucoseInput.mmol(fromDisplay: 4.4, unit: "mmol/L"))
+        XCTAssertNotNil(TargetGlucoseInput.mmol(fromDisplay: 10.0, unit: "mmol/L"))
+        XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 4.3, unit: "mmol/L"))
+    }
+
+    func target_displayRoundTrip() {
+        XCTAssertEqual(TargetGlucoseInput.display(mmol: 5.6, unit: "mmol/L"), 5.6, accuracy: 0.001)
+        XCTAssertEqual(TargetGlucoseInput.display(mmol: 5.55, unit: "mg/dL"), 100, accuracy: 0.001)
+    }
 }
