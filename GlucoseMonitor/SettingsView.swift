@@ -320,9 +320,8 @@ struct SettingsView: View {
         do {
             // Empty/invalid fields stay nil: the backend only overwrites non-null values.
             var toSave = cobSettings
-            toSave.targetGlucoseMmol = TargetGlucoseInput.parse(targetText).flatMap {
-                TargetGlucoseInput.mmol(fromDisplay: $0, unit: appState.preferredGlucoseUnit)
-            } ?? cobSettings.targetGlucoseMmol
+            toSave.targetGlucoseMmol = TargetGlucoseInput.valueToSave(
+                text: targetText, stored: cobSettings.targetGlucoseMmol, unit: appState.preferredGlucoseUnit)
             toSave.rescueCarbsG = Int(rescueText.trimmingCharacters(in: .whitespaces)) ?? cobSettings.rescueCarbsG
             cobSettings = try await BackendAPI.saveCOBSettings(toSave)
             syncTargetFields()
@@ -859,8 +858,19 @@ enum TargetGlucoseInput {
         Double(text.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
     }
 
+    /// mg/dL as a whole number, mmol/L to 0.1 rounded half-up (so 5.55 shows "5.6", not "5.5").
     static func format(_ value: Double, unit: String) -> String {
-        GlucoseUnit.isMgdl(unit) ? String(Int(value)) : String(format: "%.1f", value)
+        if GlucoseUnit.isMgdl(unit) { return String(Int(value.rounded())) }
+        return String(format: "%.1f", (value * 10 + 1e-9).rounded() / 10)
+    }
+
+    /// mmol/L to send on Save. Empty or untouched text keeps `stored` bit-for-bit, so saving other
+    /// settings never rewrites the target with its rounded display value; edited text is converted.
+    static func valueToSave(text: String, stored: Double?, unit: String) -> Double? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        if t.isEmpty { return stored }
+        if let stored, t == format(display(mmol: stored, unit: unit), unit: unit) { return stored }
+        return parse(t).flatMap { mmol(fromDisplay: $0, unit: unit) } ?? stored
     }
 }
 

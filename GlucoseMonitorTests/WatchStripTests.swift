@@ -164,7 +164,7 @@ final class WatchStripTests: XCTestCase {
         """.data(using: .utf8)!
     }
 
-    func cobSettings_encodesTargetAndRescue() throws {
+    func testCobSettings_encodesTargetAndRescue() throws {
         var s = try JSONDecoder().decode(BackendAPI.COBSettings.self, from: cobJSON())
         s.targetGlucoseMmol = 5.6
         s.rescueCarbsG = 20
@@ -173,23 +173,23 @@ final class WatchStripTests: XCTestCase {
         XCTAssertEqual(obj?["rescueCarbsG"] as? Int, 20)
     }
 
-    func cobSettings_decodesWithoutNewFields() throws {
+    func testCobSettings_decodesWithoutNewFields() throws {
         let s = try JSONDecoder().decode(BackendAPI.COBSettings.self, from: cobJSON())
         XCTAssertNil(s.targetGlucoseMmol)
         XCTAssertNil(s.rescueCarbsG)
     }
 
-    func target_mgdl100_is555() throws {
+    func testTarget_mgdl100_is555() throws {
         let mmol = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 100, unit: "mg/dL"))
         XCTAssertEqual(mmol, 5.55, accuracy: 0.01)
     }
 
-    func target_outOfRange_nil() {
+    func testTarget_outOfRange_nil() {
         XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 78, unit: "mg/dL"))
         XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 10.1, unit: "mmol/L"))
     }
 
-    func target_rangeEdges_acceptedAndWithinBackendBounds() throws {
+    func testTarget_rangeEdges_acceptedAndWithinBackendBounds() throws {
         let low = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 79, unit: "mg/dL"))
         XCTAssertGreaterThanOrEqual(low, 4.4)
         let high = try XCTUnwrap(TargetGlucoseInput.mmol(fromDisplay: 180, unit: "mg/dL"))
@@ -199,8 +199,31 @@ final class WatchStripTests: XCTestCase {
         XCTAssertNil(TargetGlucoseInput.mmol(fromDisplay: 4.3, unit: "mmol/L"))
     }
 
-    func target_displayRoundTrip() {
+    func testTarget_displayRoundTrip() {
         XCTAssertEqual(TargetGlucoseInput.display(mmol: 5.6, unit: "mmol/L"), 5.6, accuracy: 0.001)
         XCTAssertEqual(TargetGlucoseInput.display(mmol: 5.55, unit: "mg/dL"), 100, accuracy: 0.001)
+    }
+
+    func testTarget_defaultDisplaysRoundedHalfUp() {
+        let mmol = TargetGlucoseInput.format(TargetGlucoseInput.display(mmol: 5.55, unit: "mmol/L"), unit: "mmol/L")
+        XCTAssertEqual(mmol, "5.6")
+        let mgdl = TargetGlucoseInput.format(TargetGlucoseInput.display(mmol: 5.55, unit: "mg/dL"), unit: "mg/dL")
+        XCTAssertEqual(mgdl, "100")
+    }
+
+    func testTarget_valueToSave_unchangedTextKeepsStoredExactly() {
+        for unit in ["mmol/L", "mg/dL"] {
+            let shown = TargetGlucoseInput.format(TargetGlucoseInput.display(mmol: 5.55, unit: unit), unit: unit)
+            XCTAssertEqual(TargetGlucoseInput.valueToSave(text: shown, stored: 5.55, unit: unit), 5.55)
+        }
+        XCTAssertEqual(TargetGlucoseInput.valueToSave(text: "", stored: 5.55, unit: "mmol/L"), 5.55)
+        XCTAssertNil(TargetGlucoseInput.valueToSave(text: "", stored: nil, unit: "mmol/L"))
+    }
+
+    func testTarget_valueToSave_editedTextIsConverted() throws {
+        let v = try XCTUnwrap(TargetGlucoseInput.valueToSave(text: "7.0", stored: 5.55, unit: "mmol/L"))
+        XCTAssertEqual(v, 7.0, accuracy: 0.0001)
+        let g = try XCTUnwrap(TargetGlucoseInput.valueToSave(text: "126", stored: 5.55, unit: "mg/dL"))
+        XCTAssertEqual(g, 126 / 18.018, accuracy: 0.001)
     }
 }
