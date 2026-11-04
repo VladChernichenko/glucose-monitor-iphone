@@ -1,0 +1,488 @@
+From 15d8b18651035e382f7bd4c9ad8c84b777b65e42 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 4 Nov 2026 07:19:07 +0000
+Subject: [PATCH 1/2] fix(ai): prefer OPENAI_API_KEY for chat gateway
+
+Chat LLM (app.ai.qwen) now resolves api-key from OPENAI_API_KEY first,
+with QWEN_API_KEY as DashScope override. Logs use [OpenAI] when the
+base URL is api.openai.com so local debugging matches the real provider.
+Embeddings continue to use OPENAI_API_KEY unchanged.
+---
+ .../ai/LlmGatewayService.java                 |  8 ++-
+ .../ai/QwenGatewayService.java                | 55 +++++++++++--------
+ .../resources/application-local.yml.example   |  1 +
+ src/main/resources/application.yml            |  8 ++-
+ 4 files changed, 43 insertions(+), 29 deletions(-)
+
+diff --git a/src/main/java/che/glucosemonitorbe/ai/LlmGatewayService.java b/src/main/java/che/glucosemonitorbe/ai/LlmGatewayService.java
+index e3060b3..88855f1 100644
+--- a/src/main/java/che/glucosemonitorbe/ai/LlmGatewayService.java
++++ b/src/main/java/che/glucosemonitorbe/ai/LlmGatewayService.java
+@@ -81,7 +81,8 @@ public class LlmGatewayService {
+                 return qwenGatewayService.streamMarkdown(prompt, null, sink);
+             } catch (Exception e) {
+                 sink.rethrowIfAborted();
+-                log.warn("[Qwen] chat reply failed, falling back to Ollama. reason={}", e.getMessage());
++                log.warn("{} chat reply failed, falling back to Ollama. reason={}",
++                        qwenGatewayService.providerTag(), e.getMessage());
+             }
+         }
+         if (ollamaEnabled) {
+@@ -113,7 +114,7 @@ public class LlmGatewayService {
+     }
+ 
+     /**
+-     * One non-streaming completion asking for a JSON object, from the configured provider (Qwen when
++     * One non-streaming completion asking for a JSON object, from the configured provider (OpenAI/Qwen when
+      * available, else Ollama with {@code format: json}). The text is returned as-is: callers must
+      * treat it as untrusted input.
+      *
+@@ -124,7 +125,8 @@ public class LlmGatewayService {
+             try {
+                 return qwenGatewayService.completeSync(prompt);
+             } catch (Exception e) {
+-                log.warn("[Qwen] JSON completion failed, falling back to Ollama. reason={}", e.getMessage());
++                log.warn("{} JSON completion failed, falling back to Ollama. reason={}",
++                        qwenGatewayService.providerTag(), e.getMessage());
+             }
+         }
+         if (ollamaEnabled) {
+diff --git a/src/main/java/che/glucosemonitorbe/ai/QwenGatewayService.java b/src/main/java/che/glucosemonitorbe/ai/QwenGatewayService.java
+index 5ed074d..ea78e45 100644
+--- a/src/main/java/che/glucosemonitorbe/ai/QwenGatewayService.java
++++ b/src/main/java/che/glucosemonitorbe/ai/QwenGatewayService.java
+@@ -49,16 +49,23 @@ public class QwenGatewayService {
+ 
+     @PostConstruct
+     void logStartup() {
+-        log.info("[Qwen] enabled={} apiKeySet={} model={} visionModel={}",
+-                qwenEnabled, qwenApiKey != null && !qwenApiKey.isBlank(), qwenModel, qwenVisionModel);
++        log.info("{} enabled={} apiKeySet={} url={} model={} visionModel={}",
++                providerTag(), qwenEnabled, qwenApiKey != null && !qwenApiKey.isBlank(),
++                qwenBaseUrl, qwenModel, qwenVisionModel);
+     }
+ 
+     public boolean isAvailable() {
+         return qwenEnabled && qwenApiKey != null && !qwenApiKey.isBlank();
+     }
+ 
++    /** Log tag: [OpenAI] when using api.openai.com, else [Qwen] (DashScope / other). */
++    public String providerTag() {
++        String url = qwenBaseUrl == null ? "" : qwenBaseUrl.toLowerCase();
++        return url.contains("api.openai.com") ? "[OpenAI]" : "[Qwen]";
++    }
++
+     /**
+-     * Stream markdown from Qwen (DashScope OpenAI-compatible API).
++     * Stream markdown from the configured OpenAI-compatible chat API.
+      * Returns accumulated content + token usage.
+      */
+     public LlmGatewayService.GatewayResult streamMarkdown(
+@@ -69,13 +76,14 @@ public class QwenGatewayService {
+         long start = System.currentTimeMillis();
+         String model = resolveModel(modelHint);
+         String payload = buildChatPayload(prompt, model, true);
++        String tag = providerTag();
+ 
+-        log.info("[Qwen] REQUEST model={} url={}/chat/completions promptChars={}",
+-                model, qwenBaseUrl, prompt.length());
+-        log.debug("[Qwen] PROMPT:\n{}", prompt);
++        log.info("{} REQUEST model={} url={}/chat/completions promptChars={}",
++                tag, model, qwenBaseUrl, prompt.length());
++        log.debug("{} PROMPT:\n{}", tag, prompt);
+ 
+         HttpResponse<java.io.InputStream> response = sendRequest(payload);
+-        log.info("[Qwen] RESPONSE httpStatus={}", response.statusCode());
++        log.info("{} RESPONSE httpStatus={}", tag, response.statusCode());
+         StringBuilder fullContent = new StringBuilder();
+         Integer promptTokens = null;
+         Integer completionTokens = null;
+@@ -113,9 +121,9 @@ public class QwenGatewayService {
+ 
+         String preview = fullContent.length() > 200
+                 ? fullContent.substring(0, 200) + "..." : fullContent.toString();
+-        log.info("[Qwen] DONE model={} promptTokens={} completionTokens={} latencyMs={} responsePreview={}",
+-                model, promptTokens, completionTokens, System.currentTimeMillis() - start, preview);
+-        log.debug("[Qwen] FULL RESPONSE:\n{}", fullContent);
++        log.info("{} DONE model={} promptTokens={} completionTokens={} latencyMs={} responsePreview={}",
++                tag, model, promptTokens, completionTokens, System.currentTimeMillis() - start, preview);
++        log.debug("{} FULL RESPONSE:\n{}", tag, fullContent);
+ 
+         return LlmGatewayService.GatewayResult.builder()
+                 .modelId("qwen:" + model)
+@@ -130,21 +138,22 @@ public class QwenGatewayService {
+     /** One non-streaming chat completion; returns the message content (untrusted text). */
+     public String completeSync(String prompt) throws Exception {
+         String payload = buildChatPayload(prompt, qwenModel, false);
+-        log.info("[Qwen] SYNC REQUEST model={} promptChars={}", qwenModel, prompt.length());
++        log.info("{} SYNC REQUEST model={} promptChars={}", providerTag(), qwenModel, prompt.length());
+         JsonNode root = objectMapper.readTree(sendRequestSync(payload).body());
+         JsonNode choices = root.get("choices");
+         if (choices == null || !choices.isArray() || choices.isEmpty()) {
+-            throw new RuntimeException("Qwen returned no choices");
++            throw new RuntimeException(providerTag() + " returned no choices");
+         }
+         return choices.get(0).path("message").path("content").asText("");
+     }
+ 
+     /**
+-     * Analyze a base64-encoded image with qwen-vl (vision model).
++     * Analyze a base64-encoded image with the configured vision model.
+      * Returns the model's text response (expected JSON nutrition data).
+      */
+     public String analyzeImageSync(String base64Image, String mimeType, String prompt) throws Exception {
+         String model = qwenVisionModel;
++        String tag = providerTag().replace("]", "Vision]");
+         String contentArray = objectMapper.createArrayNode()
+                 .add(objectMapper.createObjectNode()
+                         .put("type", "image_url")
+@@ -164,19 +173,19 @@ public class QwenGatewayService {
+                                 .set("content", objectMapper.readTree(contentArray))))
+                 .toString();
+ 
+-        log.info("[QwenVision] REQUEST model={} url={}/chat/completions mimeType={}",
+-                model, qwenBaseUrl, mimeType);
++        log.info("{} REQUEST model={} url={}/chat/completions mimeType={}",
++                tag, model, qwenBaseUrl, mimeType);
+         HttpResponse<String> response = sendRequestSync(payload);
+-        log.info("[QwenVision] RESPONSE httpStatus={} bodyChars={}", response.statusCode(), response.body().length());
+-        log.debug("[QwenVision] RESPONSE BODY:\n{}", response.body());
++        log.info("{} RESPONSE httpStatus={} bodyChars={}", tag, response.statusCode(), response.body().length());
++        log.debug("{} RESPONSE BODY:\n{}", tag, response.body());
+         JsonNode root = objectMapper.readTree(response.body());
+         JsonNode choices = root.get("choices");
+         if (choices == null || !choices.isArray() || choices.isEmpty()) {
+-            throw new RuntimeException("Qwen vision returned no choices");
++            throw new RuntimeException(tag + " returned no choices");
+         }
+         String content = choices.get(0).path("message").path("content").asText("{}");
+         String contentPreview = content.length() > 300 ? content.substring(0, 300) + "..." : content;
+-        log.info("[QwenVision] CONTENT preview={}", contentPreview);
++        log.info("{} CONTENT preview={}", tag, contentPreview);
+         return content;
+     }
+ 
+@@ -190,8 +199,8 @@ public class QwenGatewayService {
+         // Read as String first so we can log the error body on failure
+         HttpResponse<String> strResponse = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+         if (strResponse.statusCode() >= 400) {
+-            log.error("[Qwen] HTTP error status={} body={}", strResponse.statusCode(), strResponse.body());
+-            throw new RuntimeException("Qwen API error status=" + strResponse.statusCode());
++            log.error("{} HTTP error status={} body={}", providerTag(), strResponse.statusCode(), strResponse.body());
++            throw new RuntimeException(providerTag() + " API error status=" + strResponse.statusCode());
+         }
+         // Re-wrap as InputStream for the streaming reader
+         byte[] bodyBytes = strResponse.body().getBytes(StandardCharsets.UTF_8);
+@@ -207,8 +216,8 @@ public class QwenGatewayService {
+                 .build();
+         HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+         if (response.statusCode() >= 400) {
+-            log.error("[QwenVision] HTTP error status={} body={}", response.statusCode(), response.body());
+-            throw new RuntimeException("Qwen API error status=" + response.statusCode() + " body=" + response.body());
++            log.error("{} HTTP error status={} body={}", providerTag(), response.statusCode(), response.body());
++            throw new RuntimeException(providerTag() + " API error status=" + response.statusCode() + " body=" + response.body());
+         }
+         return response;
+     }
+diff --git a/src/main/resources/application-local.yml.example b/src/main/resources/application-local.yml.example
+index 7b15092..411b980 100644
+--- a/src/main/resources/application-local.yml.example
++++ b/src/main/resources/application-local.yml.example
+@@ -45,6 +45,7 @@ management:
+ 
+ app:
+   ai:
++    # Chat uses OpenAI by default — export OPENAI_API_KEY=sk-... (and unset QWEN_URL if it points at DashScope).
+     ollama:
+       # Local Ollama; override with OLLAMA_URL for cloud
+       url: ${OLLAMA_URL:http://localhost:11434/api/generate}
+diff --git a/src/main/resources/application.yml b/src/main/resources/application.yml
+index 9e2dac2..f13e9f1 100644
+--- a/src/main/resources/application.yml
++++ b/src/main/resources/application.yml
+@@ -104,14 +104,16 @@ app:
+       vision-model: ${OLLAMA_VISION_MODEL:llava:latest}
+       api-key: ${OLLAMA_API_KEY:}
+       num-ctx: ${OLLAMA_NUM_CTX:8192}
+-    # OpenAI-compatible chat API ("qwen" is historical: switched from DashScope to OpenAI in 8616583).
+-    # For DashScope set QWEN_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1 and QWEN_MODEL=qwen-plus.
++    # Chat LLM: OpenAI by default (set OPENAI_API_KEY). Property path "qwen" is historical.
++    # DashScope override: QWEN_URL=https://dashscope-intl.aliyuncs.com/compatible-mode/v1,
++    # QWEN_MODEL=qwen-plus, and optionally QWEN_API_KEY (else OPENAI_API_KEY is used).
++    # Unset QWEN_URL if it still points at DashScope while using an OpenAI key.
+     qwen:
+       enabled: ${QWEN_ENABLED:true}
+       url: ${QWEN_URL:https://api.openai.com/v1}
+       model: ${QWEN_MODEL:gpt-4o-mini}
+       vision-model: ${QWEN_VISION_MODEL:gpt-4o-mini}
+-      api-key: ${QWEN_API_KEY:}
++      api-key: ${OPENAI_API_KEY:${QWEN_API_KEY:}}
+     embeddings:
+       url: ${OPENAI_EMBEDDINGS_URL:https://api.openai.com/v1}
+       model: ${OPENAI_EMBEDDINGS_MODEL:text-embedding-3-small}
+-- 
+2.43.0
+
+
+From 5daed3941f41d8e6c34e54cb7c97efb0d80b7238 Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 4 Nov 2026 07:21:32 +0000
+Subject: [PATCH 2/2] fix(assistant): qualitative chat no longer hits
+ reliability template
+
+Prompt the question path to acknowledge context (underestimated carbs,
+protein delay) with zero invented numbers; keep NumberGuard/DosingPhraseGuard
+unchanged. Soften questionTemplate for qualitative statements; add coverage
+that safe acks pass and invent/imperative doses still regenerate then template.
+---
+ .../assistant/chat/AssistantPrompts.java      | 36 +++++++++++++
+ .../assistant/chat/AssistantService.java      |  2 +-
+ .../assistant/chat/IntentClassifier.java      |  8 +--
+ .../assistant/chat/AssistantPromptsTest.java  | 51 +++++++++++++++++++
+ .../assistant/chat/AssistantServiceTest.java  | 31 +++++++++++
+ .../chat/GuardedReplyServiceTest.java         | 26 ++++++++++
+ 6 files changed, 150 insertions(+), 4 deletions(-)
+ create mode 100644 src/test/java/che/glucosemonitorbe/assistant/chat/AssistantPromptsTest.java
+
+diff --git a/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantPrompts.java b/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantPrompts.java
+index 409a61c..395b04a 100644
+--- a/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantPrompts.java
++++ b/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantPrompts.java
+@@ -3,6 +3,7 @@ package che.glucosemonitorbe.assistant.chat;
+ import com.fasterxml.jackson.core.JsonProcessingException;
+ import com.fasterxml.jackson.databind.ObjectMapper;
+ import java.util.List;
++import java.util.regex.Pattern;
+ 
+ /**
+  * Prompts that hand the LLM a {@link FactsPayload}, and the plain templates used when a reply fails the
+@@ -24,6 +25,10 @@ final class AssistantPrompts {
+                 + "use them for background and cite one by writing its marker, e.g. [1] for ref 1, at the end of "
+                 + "the sentence. A number from a passage may appear only in a sentence that carries that passage's "
+                 + "marker, and never as an insulin dose in units. "
++                + "When the user is sharing context or an acknowledgment rather than asking for a dose or a numeric "
++                + "answer (for example underestimated carbs, protein or fat delaying a rise, sushi digestion notes): "
++                + "acknowledge their observation in plain language with ZERO numbers unless you quote a number from "
++                + "the facts JSON; do not invent delays, hours, grams or insulin units. "
+                 + "Never issue imperative dosing commands; give cautious decision-support wording. "
+                 + "You cannot add, change or remove notes, doses or settings: never say you did. If the user "
+                 + "asks to remove an entry, tell them to write e.g. 'remove the 1 U' to get a Remove button, "
+@@ -54,9 +59,24 @@ final class AssistantPrompts {
+     }
+ 
+     static String questionTemplate(FactsPayload f) {
++        return questionTemplate(f, null);
++    }
++
++    /**
++     * Fallback after two guard failures. When {@code userMessage} looks like qualitative context (not a
++     * question for numbers/dosing), prefer a short acknowledgment over the "check the details" close.
++     */
++    static String questionTemplate(FactsPayload f, String userMessage) {
+         boolean ru = "ru".equals(f.language());
+         FactsPayload.State s = f.state() == null ? FactsPayload.State.builder().build() : f.state();
++        boolean qualitative = isQualitativeContext(userMessage);
+         StringBuilder sb = new StringBuilder();
++        if (qualitative) {
++            sb.append(ru
++                    ? "Понял, учту. Не буду выдумывать цифры — следите за трендом в приложении."
++                    : "Got it — noted. I will not invent numbers; watch the trend in the app.");
++            return sb.toString();
++        }
+         if (s.glucose() != null) {
+             sb.append(ru ? "Сейчас: глюкоза " : "Right now: glucose ").append(fmt(s.glucose()))
+                     .append(ru ? " ммоль/л" : " mmol/L");
+@@ -82,6 +102,22 @@ final class AssistantPrompts {
+         return sb.toString();
+     }
+ 
++    /**
++     * True for short context/acknowledgment messages that are not asking for a dose or numeric answer.
++     * Conservative: any {@code ?} or dosing/how/why cue keeps the numeric reliability template.
++     */
++    static boolean isQualitativeContext(String userMessage) {
++        if (userMessage == null) return false;
++        String t = userMessage.strip();
++        if (t.isEmpty() || t.length() > 280) return false;
++        if (t.indexOf('?') >= 0 || t.indexOf('？') >= 0) return false;
++        return !ASKING.matcher(t).find();
++    }
++
++    private static final Pattern ASKING = Pattern.compile(
++            "(?iu)\\b(what|how|why|when|should|dose|bolus|inject|take|units?|iob|cob|"
++                    + "что|как|почему|когда|сколько|доз|укол|введ|единиц)\\b");
++
+     static String planTemplate(FactsPayload f) {
+         boolean ru = "ru".equals(f.language());
+         FactsPayload.PlanFacts p = f.plan();
+diff --git a/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantService.java b/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantService.java
+index 90d8c73..920e033 100644
+--- a/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantService.java
++++ b/src/main/java/che/glucosemonitorbe/assistant/chat/AssistantService.java
+@@ -208,7 +208,7 @@ public class AssistantService {
+                 tracked.accept(new AssistantEvent.Citations(chips));
+             }
+             result = guardedReply.reply(userId, facts, offending -> AssistantPrompts.question(facts, question, offending),
+-                    () -> AssistantPrompts.questionTemplate(facts), language, tracked::gone);
++                    () -> AssistantPrompts.questionTemplate(facts, question), language, tracked::gone);
+             tracked.accept(new AssistantEvent.Token(result.text()));
+             seen.append(result.text()); // only what actually reached the client
+         } catch (RuntimeException e) {
+diff --git a/src/main/java/che/glucosemonitorbe/assistant/chat/IntentClassifier.java b/src/main/java/che/glucosemonitorbe/assistant/chat/IntentClassifier.java
+index 09e5071..085691d 100644
+--- a/src/main/java/che/glucosemonitorbe/assistant/chat/IntentClassifier.java
++++ b/src/main/java/che/glucosemonitorbe/assistant/chat/IntentClassifier.java
+@@ -106,11 +106,13 @@ public class IntentClassifier {
+                 + "\"eventKind\": \"MEAL\" | \"CORRECTION\" | \"ACTIVITY\" | \"LOW\"}, "
+                 + "\"remove\": {\"insulin\": number, \"carbs\": number}}. "
+                 + "MEAL_PREP: the user is about to eat or asks to prepare for a meal; list each food item. "
+-                + "EVENT: the user reports something that happened (not food); tags may only be from: "
+-                + TAG_NAMES + ". "
++                + "EVENT: the user reports a situational factor that happened (not food) and should be logged; "
++                + "tags may only be from: " + TAG_NAMES + ". "
+                 + "REMOVE: the user asks to remove, delete or undo something they logged (a dose, carbs, a "
+                 + "note); remove holds the insulin units and/or carb grams they name, omitted when not stated. "
+-                + "QUESTION: anything else. Items are empty unless MEAL_PREP; tags are empty unless EVENT. "
++                + "QUESTION: anything else, including qualitative diabetes chat and acknowledgments "
++                + "(underestimated carbs, protein or fat delaying a rise, digestion notes) that are not asking "
++                + "to log a tagged situation. Items are empty unless MEAL_PREP; tags are empty unless EVENT. "
+                 + "filters only for a QUESTION about past events and only what the question states: a date "
+                 + "range it mentions, food words it names, and the kind of past event it asks about; omit "
+                 + "unknown fields, and omit filters entirely when the message is not about the past. "
+diff --git a/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantPromptsTest.java b/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantPromptsTest.java
+new file mode 100644
+index 0000000..8cca25c
+--- /dev/null
++++ b/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantPromptsTest.java
+@@ -0,0 +1,51 @@
++package che.glucosemonitorbe.assistant.chat;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++import org.junit.jupiter.api.Test;
++
++class AssistantPromptsTest {
++
++    @Test
++    void qualitativeContextDetection() {
++        assertTrue(AssistantPrompts.isQualitativeContext("I underestimated carbs"));
++        assertTrue(AssistantPrompts.isQualitativeContext(
++                "Sushi has lots of protein, so it has delayed rising"));
++        assertFalse(AssistantPrompts.isQualitativeContext("What should I do?"));
++        assertFalse(AssistantPrompts.isQualitativeContext("How is my IOB"));
++        assertFalse(AssistantPrompts.isQualitativeContext(null));
++    }
++
++    @Test
++    void questionPromptInstructsZeroNumbersForAcknowledgments() {
++        String prompt = AssistantPrompts.question(
++                FactsPayload.builder().language("en").build(),
++                "I underestimated carbs",
++                java.util.List.of());
++        assertTrue(prompt.contains("ZERO numbers"), prompt);
++        assertTrue(prompt.contains("underestimated carbs"), prompt);
++        assertTrue(prompt.contains("Never issue imperative dosing commands"), prompt);
++    }
++
++    @Test
++    void qualitativeTemplateAcknowledgesWithoutReliabilityDump() {
++        FactsPayload facts = FactsPayload.builder().language("en")
++                .state(FactsPayload.State.builder().glucose(7.2).glucoseAt("12:05").iob(1.0).cob(10.0).build())
++                .build();
++        String text = AssistantPrompts.questionTemplate(facts, "I underestimated carbs");
++        assertTrue(text.contains("Got it"), text);
++        assertFalse(text.contains("Right now: glucose"), text);
++        assertFalse(text.contains("I could not answer this reliably"), text);
++        assertTrue(che.glucosemonitorbe.ai.NumberGuard.check(text, facts).ok());
++    }
++
++    @Test
++    void doseQuestionStillGetsReliabilityTemplate() {
++        FactsPayload facts = FactsPayload.builder().language("en")
++                .state(FactsPayload.State.builder().glucose(7.2).glucoseAt("12:05").iob(1.0).cob(10.0).build())
++                .build();
++        String text = AssistantPrompts.questionTemplate(facts, "What should I do?");
++        assertTrue(text.contains("Right now: glucose"), text);
++        assertTrue(text.contains("I could not answer this reliably"), text);
++    }
++}
+diff --git a/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantServiceTest.java b/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantServiceTest.java
+index d6575b6..c60d324 100644
+--- a/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantServiceTest.java
++++ b/src/test/java/che/glucosemonitorbe/assistant/chat/AssistantServiceTest.java
+@@ -219,6 +219,37 @@ class AssistantServiceTest {
+                 && t.getUserId().equals(user)));
+     }
+ 
++    @Test
++    void qualitativeAckWithoutNumbersIsAccepted() {
++        String ack = "Got it — protein-heavy meals can delay the rise; worth watching.";
++        llmReplies(ack);
++        when(llm.completeJson(anyString())).thenReturn("{\"intent\":\"QUESTION\",\"items\":[],\"tags\":[]}");
++
++        service.handle(user, text("Sushi has lots of protein, so it has delayed rising"), sink);
++
++        verify(llm).streamPromptReply(argThat(p -> p.contains("ZERO numbers")
++                && p.contains("Sushi has lots of protein, so it has delayed rising")), eq("en"), any());
++        assertEquals(List.of(ack), tokens());
++        assertEquals(ack, saved.get(1).getText());
++        verify(traces).save(argThat((AiAnalysisTrace t) -> t.getConfidence() == 1.0));
++    }
++
++    @Test
++    void qualitativeInventedNumberFallsBackToAckTemplate() {
++        llmReplies("Protein often delays glucose by 3 hours.", "Expect a rise after about 2 hours.");
++        when(llm.completeJson(anyString())).thenReturn("{\"intent\":\"QUESTION\",\"items\":[],\"tags\":[]}");
++
++        service.handle(user, text("I underestimated carbs"), sink);
++
++        verify(llm, times(2)).streamPromptReply(anyString(), eq("en"), any());
++        String template = saved.get(1).getText();
++        assertFalse(template.contains("3 hours"), template);
++        assertFalse(template.contains("Right now: glucose"), template);
++        assertTrue(template.contains("Got it"), template);
++        assertEquals(List.of(template), tokens());
++        assertTrue(che.glucosemonitorbe.ai.NumberGuard.check(template, FactsPayload.builder().build()).ok());
++    }
++
+     @Test
+     void inventedNumberRegeneratedOnceThenAccepted() {
+         llmReplies("Take 6 U now.", "IOB is 5.3 U.");
+diff --git a/src/test/java/che/glucosemonitorbe/assistant/chat/GuardedReplyServiceTest.java b/src/test/java/che/glucosemonitorbe/assistant/chat/GuardedReplyServiceTest.java
+index 2b896f0..7410d01 100644
+--- a/src/test/java/che/glucosemonitorbe/assistant/chat/GuardedReplyServiceTest.java
++++ b/src/test/java/che/glucosemonitorbe/assistant/chat/GuardedReplyServiceTest.java
+@@ -73,4 +73,30 @@ class GuardedReplyServiceTest {
+         assertEquals(1.0, r.confidence());
+         verify(llm, times(1)).streamPromptReply(anyString(), anyString(), any());
+     }
++
++    @Test
++    void qualitativeAckWithoutInventedNumbersIsAccepted() {
++        String ack = "Got it — protein can slow the rise; worth watching the trend.";
++        llmSays(ack);
++
++        GuardedReplyService.Result r = service.reply(UUID.randomUUID(), facts,
++                off -> "prompt", () -> "template", "en", () -> false);
++
++        assertEquals(ack, r.text());
++        assertEquals(1.0, r.confidence());
++        verify(llm, times(1)).streamPromptReply(anyString(), anyString(), any());
++    }
++
++    @Test
++    void inventedNumberStillRegeneratedThenTemplated() {
++        llmSays("Protein often delays the rise by 3 hours.");
++
++        GuardedReplyService.Result r = service.reply(UUID.randomUUID(), facts,
++                off -> "prompt " + off, () -> "template", "en", () -> false);
++
++        assertEquals("template", r.text());
++        assertEquals(0.0, r.confidence());
++        verify(llm, times(2)).streamPromptReply(anyString(), anyString(), any());
++        verify(llm).streamPromptReply(contains("3"), anyString(), any());
++    }
+ }
+-- 
+2.43.0
+
