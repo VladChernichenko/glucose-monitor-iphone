@@ -39,8 +39,7 @@ enum ForecastAnchoring {
     }
 
     /// The dashed series: the path capped to `horizonEnd`, prefixed with an anchor at the
-    /// path's own origin carrying the reading the backend started from. The band is pinched
-    /// shut at the anchor so the confidence cone fans out from it.
+    /// path's own origin carrying the reading the backend started from.
     ///
     /// Points already in the past are deliberately kept: when a response is stale the dashed
     /// line visibly reaches back to where the model started, which is honest about its age
@@ -261,20 +260,6 @@ struct GlucoseHistoryChart: View {
                     yEnd: .value("targetHigh", Self.targetHighMmol)
                 )
                 .foregroundStyle(Color.green.opacity(0.14))
-            }
-
-            // Confidence band (digital-twin uncertainty) - a widening cone around the forecast.
-            // Only the points that carry both edges contribute; the anchor pinches it shut at "now".
-            ForEach(futurePrediction) { p in
-                if let lo = p.lower, let hi = p.upper {
-                    AreaMark(
-                        x: .value("Time", p.time),
-                        yStart: .value("Lower", lo),
-                        yEnd: .value("Upper", hi)
-                    )
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(Color.blue.opacity(0.12))
-                }
             }
 
             ForEach(bridgedHistory) { p in

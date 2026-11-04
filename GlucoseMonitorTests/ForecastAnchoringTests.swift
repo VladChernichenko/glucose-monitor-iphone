@@ -87,15 +87,13 @@ final class ForecastAnchoringTests: XCTestCase {
 
     // MARK: - series(path:anchorMmol:horizonEnd:)
 
-    func testSeries_anchorCarriesCurrentGlucoseWithBandPinchedShut() {
+    func testSeries_anchorCarriesCurrentGlucose() {
         let p = path(from: Date(), step: step, values: [8.0, 8.2])
 
         let series = ForecastAnchoring.series(path: p, anchorMmol: 7.8,
                                               horizonEnd: Date().addingTimeInterval(4 * 3600))
 
         XCTAssertEqual(series[0].mmol, 7.8, accuracy: 0.0001)
-        XCTAssertEqual(series[0].lower ?? .nan, 7.8, accuracy: 0.0001)
-        XCTAssertEqual(series[0].upper ?? .nan, 7.8, accuracy: 0.0001)
     }
 
     func testSeries_dropsPointsBeyondTheHorizon() {
