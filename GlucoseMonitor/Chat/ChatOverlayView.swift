@@ -77,7 +77,7 @@ struct ChatOverlayView: View {
                 .environmentObject(appState)
         }
         .onChange(of: appState.visibleGlycemicPrompt) { _ in syncPrompt() }
-        // A note deleted outside the chat (Notes tab, dashboard) may undo a quick log shown here.
+        // A note saved or deleted outside the chat (Notes tab, dashboard) is a caption in this transcript.
         .onChange(of: appState.notes.map(\.id)) { _ in Task { await model.refreshLoggedUndoState() } }
         .onChange(of: appState.preferredGlucoseUnit) { _ in syncPrompt() }
         .sheet(isPresented: $showFoodCapture) {

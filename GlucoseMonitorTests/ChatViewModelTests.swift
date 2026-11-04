@@ -59,9 +59,10 @@ final class ChatViewModelTests: XCTestCase {
     }
 
     private func row(_ id: String, _ t: TimeInterval, role: String = "USER", text: String? = nil,
+                     intent: String? = nil,
                      payload: BackendAPI.ChatMessagePayload? = nil) -> BackendAPI.ChatMessageDTO {
         BackendAPI.ChatMessageDTO(id: id, createdAt: Date(timeIntervalSince1970: t), role: role,
-                                  text: text ?? id, intent: nil, hasPhoto: false, noteIds: [], payload: payload)
+                                  text: text ?? id, intent: intent, hasPhoto: false, noteIds: [], payload: payload)
     }
 
     private let fixedNow = Date(timeIntervalSince1970: 1_793_358_000) // 2026-10-30T11:00:00Z
@@ -273,6 +274,45 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.items[3].kind, .citations([citation(1), citation(2)]))
         XCTAssertEqual(vm.items[5].kind, .assistant(text: "Second."))
         XCTAssertEqual(vm.lastMessageLine, "Second.")
+    }
+
+    func testDeletionReplacesThePeekWithTheDeletionRecord() async {
+        let fake = FakeAssistantService()
+        fake.pages = [[row("u1", 100, text: "2u")]]
+        let vm = makeVM(fake, pageSize: 50)
+        await vm.loadInitial()
+        XCTAssertEqual(vm.lastMessageLine, "2u")
+
+        let deletion = "Deleted note at 22:48: meal Correction, insulin 2 U."
+        fake.pages = [[row("d1", 200, text: deletion, intent: "note_deleted"),
+                       row("u1", 100, text: "2u")]]
+        await vm.refreshLoggedUndoState()
+        XCTAssertEqual(vm.lastMessageLine, deletion)
+        XCTAssertEqual(vm.items.map(\.kind), [
+            .user(text: "2u", hasPhoto: false),
+            .noteDeleted(deletion)
+        ])
+
+        fake.pages = [[row("d1", 200, text: deletion, intent: "note_deleted"),
+                       row("u1", 100, text: "2u")]]
+        await vm.refreshLoggedUndoState()
+        XCTAssertEqual(vm.items.filter {
+            if case .noteDeleted = $0.kind { return true }
+            return false
+        }.count, 1)
+    }
+
+    func testLoggedAndDeletedNotesAreCaptions() throws {
+        let json = #"""
+        [{"id":"d1","createdAt":"2026-11-04T19:12:00Z","role":"USER","text":"Deleted note at 23:12: carbs 40 g.","intent":"note_deleted","hasPhoto":false,"noteIds":[],"payload":null},
+         {"id":"l1","createdAt":"2026-11-04T19:10:00Z","role":"USER","text":"Logged note at 23:10: insulin 2 U.","intent":"note_logged","hasPhoto":false,"noteIds":[],"payload":null}]
+        """#
+        let rows = try GlucoseMonitorAPI.jsonDecoder().decode([BackendAPI.ChatMessageDTO].self, from: Data(json.utf8))
+        let items = ChatViewModel.items(fromNewestFirst: rows)
+        XCTAssertEqual(items.map(\.kind), [
+            .noteLogged("Logged note at 23:10: insulin 2 U."),
+            .noteDeleted("Deleted note at 23:12: carbs 40 g.")
+        ])
     }
 
     func testDeletedNoteIsACaptionNotAUserBubble() throws {

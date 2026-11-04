@@ -64,7 +64,7 @@ struct ChatMessageRow: View {
             if let proposal {
                 EventProposalBubble(card: card, actions: proposal(card))
             }
-        case .noteDeleted(let text):
+        case .noteLogged(let text), .noteDeleted(let text):
             Text(text)
                 .font(.footnote)
                 .foregroundStyle(.secondary)

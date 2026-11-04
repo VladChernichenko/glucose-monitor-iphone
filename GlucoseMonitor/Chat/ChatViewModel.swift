@@ -117,13 +117,16 @@ final class ChatViewModel: ObservableObject {
 
     func loadInitial() async {
         await loadHitRate()
-        guard !historyLoaded else { return }
         do {
             let page = try await service.fetchHistory(before: nil, limit: pageSize)
-            let fresh = Self.items(fromNewestFirst: page).filter { item in !items.contains { $0.id == item.id } }
-            items = fresh + items
-            hasMoreHistory = page.count >= pageSize
-            historyLoaded = true
+            if historyLoaded {
+                appendNoteCaptions(Self.items(fromNewestFirst: page))
+            } else {
+                let fresh = Self.items(fromNewestFirst: page).filter { item in !items.contains { $0.id == item.id } }
+                items = fresh + items
+                hasMoreHistory = page.count >= pageSize
+                historyLoaded = true
+            }
         } catch {
             // Leave history empty; the input still works and the next appearance retries.
         }
@@ -155,6 +158,9 @@ final class ChatViewModel: ObservableObject {
             if row.role != "USER", let payload = row.eventProposal {
                 let card = EventProposalCard(messageId: row.id, payload: payload, text: row.text)
                 return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .eventProposal(card))]
+            }
+            if row.role == "USER", row.intent == "note_logged" {
+                return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .noteLogged(row.text ?? ""))]
             }
             if row.role == "USER", row.intent == "note_deleted" {
                 return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .noteDeleted(row.text ?? ""))]
@@ -441,12 +447,14 @@ final class ChatViewModel: ObservableObject {
         setRemovalState(messageId, .kept)
     }
 
-    /// The backend marks a quick log undone once its notes are deleted (chat Remove, Notes tab, dashboard);
-    /// re-read the newest page so that log's Undo turns off and the peek stops showing it (matched by its
-    /// undo message id: streamed rows carry local ids).
+    /// A note saved or deleted outside this transcript (Notes tab, dashboard Del) is already a chat row.
+    /// Pull those captions in, and turn off Undo on a quick log whose notes are gone. The deletion
+    /// caption is the line the peek shows; the original "2u" stays in the history under it.
     func refreshLoggedUndoState() async {
-        guard let page = try? await service.fetchHistory(before: nil, limit: pageSize) else { return }
-        let undoneIds = Set(Self.items(fromNewestFirst: page).compactMap { item -> String? in
+        guard historyLoaded, let page = try? await service.fetchHistory(before: nil, limit: pageSize) else { return }
+        let mapped = Self.items(fromNewestFirst: page)
+        appendNoteCaptions(mapped)
+        let undoneIds = Set(mapped.compactMap { item -> String? in
             guard case .logged(let entry) = item.kind, entry.undone else { return nil }
             return entry.undoMessageId
         })
@@ -456,6 +464,20 @@ final class ChatViewModel: ObservableObject {
             entry.undone = true
             items[i].kind = .logged(entry)
         }
+    }
+
+    /// Insulin and carb notes written outside the open transcript: the logged sentence and, on delete,
+    /// the deletion sentence. Other history rows are left alone so a local "2u" bubble is not copied.
+    private func appendNoteCaptions(_ mapped: [ChatItem]) {
+        let fresh = mapped.filter { item in
+            switch item.kind {
+            case .noteLogged, .noteDeleted:
+                return !items.contains { $0.id == item.id }
+            default:
+                return false
+            }
+        }
+        if !fresh.isEmpty { items.append(contentsOf: fresh) }
     }
 
     private func removal(_ messageId: String) -> NoteRemovalCard? {
