@@ -30,12 +30,7 @@
 		700000000000000000000016 /* GlucoseMonitorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000003 /* GlucoseMonitorAPI.swift */; };
 		700000000000000000000017 /* ClientVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000000E /* ClientVersion.swift */; };
 		700000000000000000000018 /* LockScreenWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000011 /* LockScreenWidgetSnapshot.swift */; };
-		700000000000000000000020 /* ARFoodScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000020 /* ARFoodScanner.swift */; };
-		700000000000000000000022 /* ARFoodScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000022 /* ARFoodScannerView.swift */; };
-		700000000000000000000023 /* ARKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000023 /* ARKit.framework */; };
 		700000000000000000000024 /* SceneKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 600000000000000000000024 /* SceneKit.framework */; };
-		700000000000000000000025 /* NutritionAPIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000025 /* NutritionAPIService.swift */; };
-		700000000000000000000026 /* FoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000026 /* FoodModels.swift */; };
 		700000000000000000000031 /* best.mlpackage in Resources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000031 /* best.mlpackage */; };
 		700000000000000000000040 /* TestHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000041 /* TestHelpers.swift */; };
 		700000000000000000000041 /* AppStateBugTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000042 /* AppStateBugTests.swift */; };
@@ -74,8 +69,6 @@
 		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
 		700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000091 /* ForecastAnchoringTests.swift */; };
 		700000000000000000000096 /* InsulinMarkerLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000096 /* InsulinMarkerLayoutTests.swift */; };
-		700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000049 /* NutritionAPIServiceTests.swift */; };
-		700000000000000000000049 /* FoodModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004A /* FoodModelsTests.swift */; };
 		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
@@ -174,12 +167,7 @@
 		600000000000000000000014 /* GlucoseMonitorWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlucoseMonitorWidget.entitlements; sourceTree = "<group>"; };
 		600000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		600000000000000000000016 /* GlucoseMonitorWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlucoseMonitorWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		600000000000000000000020 /* ARFoodScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScanner.swift; sourceTree = "<group>"; };
-		600000000000000000000022 /* ARFoodScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARFoodScannerView.swift; sourceTree = "<group>"; };
-		600000000000000000000023 /* ARKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ARKit.framework; path = System/Library/Frameworks/ARKit.framework; sourceTree = SDKROOT; };
 		600000000000000000000024 /* SceneKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SceneKit.framework; path = System/Library/Frameworks/SceneKit.framework; sourceTree = SDKROOT; };
-		600000000000000000000025 /* NutritionAPIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIService.swift; sourceTree = "<group>"; };
-		600000000000000000000026 /* FoodModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModels.swift; sourceTree = "<group>"; };
 		600000000000000000000031 /* best.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper.mlpackage; path = best.mlpackage; sourceTree = "<group>"; };
 		600000000000000000000040 /* GlucoseMonitorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = GlucoseMonitorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		600000000000000000000041 /* TestHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestHelpers.swift; sourceTree = "<group>"; };
@@ -219,8 +207,6 @@
 		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
 		600000000000000000000091 /* ForecastAnchoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastAnchoringTests.swift; sourceTree = "<group>"; };
 		600000000000000000000096 /* InsulinMarkerLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinMarkerLayoutTests.swift; sourceTree = "<group>"; };
-		600000000000000000000049 /* NutritionAPIServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionAPIServiceTests.swift; sourceTree = "<group>"; };
-		60000000000000000000004A /* FoodModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodModelsTests.swift; sourceTree = "<group>"; };
 		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
 		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
@@ -252,7 +238,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				700000000000000000000023 /* ARKit.framework in Frameworks */,
 				700000000000000000000024 /* SceneKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -320,10 +305,6 @@
 				60000000000000000000000D /* SettingsView.swift */,
 				60000000000000000000000F /* InsulinIOB.swift */,
 				600000000000000000000010 /* DashboardExtras.swift */,
-				600000000000000000000020 /* ARFoodScanner.swift */,
-				600000000000000000000022 /* ARFoodScannerView.swift */,
-				600000000000000000000025 /* NutritionAPIService.swift */,
-				600000000000000000000026 /* FoodModels.swift */,
 				F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */,
 				F5D833292FCC1CA30027C6BB /* SignInView.swift */,
 				600000000000000000000060 /* OnboardingViewModels.swift */,
@@ -403,7 +384,6 @@
 		800000000000000000000007 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				600000000000000000000023 /* ARKit.framework */,
 				600000000000000000000024 /* SceneKit.framework */,
 			);
 			name = Frameworks;
@@ -420,8 +400,6 @@
 				600000000000000000000048 /* PreBolusTimerTests.swift */,
 				600000000000000000000091 /* ForecastAnchoringTests.swift */,
 				600000000000000000000096 /* InsulinMarkerLayoutTests.swift */,
-				600000000000000000000049 /* NutritionAPIServiceTests.swift */,
-				60000000000000000000004A /* FoodModelsTests.swift */,
 				60000000000000000000004D /* OnboardingFlowTests.swift */,
 				60000000000000000000004E /* RefreshFlowTests.swift */,
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
@@ -646,10 +624,6 @@
 				70000000000000000000000E /* ClientVersion.swift in Sources */,
 				70000000000000000000000F /* InsulinIOB.swift in Sources */,
 				700000000000000000000010 /* DashboardExtras.swift in Sources */,
-				700000000000000000000020 /* ARFoodScanner.swift in Sources */,
-				700000000000000000000022 /* ARFoodScannerView.swift in Sources */,
-				700000000000000000000025 /* NutritionAPIService.swift in Sources */,
-				700000000000000000000026 /* FoodModels.swift in Sources */,
 				700000000000000000000011 /* LockScreenWidgetSnapshot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -666,8 +640,6 @@
 				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
 				700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */,
 				700000000000000000000096 /* InsulinMarkerLayoutTests.swift in Sources */,
-				700000000000000000000048 /* NutritionAPIServiceTests.swift in Sources */,
-				700000000000000000000049 /* FoodModelsTests.swift in Sources */,
 				70000000000000000000004C /* OnboardingFlowTests.swift in Sources */,
 				70000000000000000000004D /* RefreshFlowTests.swift in Sources */,
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
