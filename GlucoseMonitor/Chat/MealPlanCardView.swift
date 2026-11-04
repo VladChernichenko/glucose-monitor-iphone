@@ -82,52 +82,23 @@ struct MealPlanCardView: View {
 
     @ViewBuilder
     private func plannedSection(now: Date) -> some View {
-        let banner = HistoryBannerRules.activeBanner(card, now: now)
-        let dose = HistoryBannerRules.tookDose(card, state: actions.bannerState, now: now)
-        let awaiting = HistoryBannerRules.awaitingChoice(card, state: actions.bannerState, now: now)
+        let dose = MealPlanRules.advisedDose(card, now: now)
         let expired = MealPlanRules.isExpired(card, now: now)
-        HStack {
-            if let label = plan.patternLabel {
-                Text(label).font(.caption.weight(.semibold))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Color.blue.opacity(0.12), in: Capsule())
-            }
-            Spacer()
+        if let title = foodTitle {
+            Text(title).font(.subheadline.weight(.semibold))
+        }
+        if let mass = totalMassText {
+            Text(mass)
+                .font(.title3.weight(.bold))
+                .monospacedDigit()
         }
         macroGrid
-        if let banner {
-            HistoryBannerView(banner: banner, state: actions.bannerState, unit: unit, isBusy: actions.isBusy,
-                              onChoose: actions.onChooseDose, onConfirmRed: actions.onConfirmRed,
-                              onBack: actions.onBannerBack)
-        }
-        if awaiting {
-            // Nothing preselected: the dose is unknown until the user picks one and it passes the re-check.
-            HStack(alignment: .firstTextBaseline) {
-                Text("? U").font(.title2.weight(.bold)).monospacedDigit().foregroundStyle(.secondary)
-                Spacer()
-                if let pause = plan.pause?.pauseMinutes {
-                    Text(pause == 0 ? "no wait" : "wait \(pause) min").font(.title3.weight(.semibold))
-                }
-            }
-        } else if let dose {
-            HStack(alignment: .firstTextBaseline) {
-                Text(MealPlanRules.doseText(dose)).font(.title2.weight(.bold)).monospacedDigit()
-                Spacer()
-                if let pause = MealPlanRules.advisedPause(card, now: now) {
-                    Text(pause == 0 ? "no wait" : "wait \(pause) min").font(.title3.weight(.semibold))
-                }
-            }
-            if banner != nil, case .answered(_, let recheck, _) = actions.bannerState, !recheck.curve.isEmpty {
-                forecastChart(recheck.curve)
-            } else if banner == nil, let pause = plan.pause {
-                forecastChart(pause.curve)
-                if let line = MealPlanRules.peakLine(pause, unit: unit) {
-                    Text(line).font(.caption).foregroundStyle(.secondary)
-                }
-                // The backend's reason quotes mmol/L numbers; mg/dL users get the converted line above only.
-                if !GlucoseUnit.isMgdl(unit), let reason = pause.reason {
-                    Text(reason).font(.caption).foregroundStyle(.secondary)
-                }
+        if let dose {
+            Text(MealPlanRules.doseText(dose))
+                .font(.title2.weight(.bold))
+                .monospacedDigit()
+            if let curve = plan.pause?.curve, !curve.isEmpty {
+                forecastChart(curve)
             }
         } else if let why = MealPlanRules.noDoseExplanation(card, now: now, unit: unit) {
             Text(why)
@@ -138,11 +109,7 @@ struct MealPlanCardView: View {
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.orange.opacity(0.5), lineWidth: 1))
         }
         HStack(spacing: 8) {
-            if awaiting {
-                Button("Took it") {}
-                    .buttonStyle(.borderedProminent)
-                    .disabled(true)
-            } else if let dose, dose > 0 {
+            if let dose, dose > 0 {
                 Button("Took it") { actions.onTook(dose, MealPlanRules.advisedPause(card, now: now) ?? 0) }
                     .buttonStyle(.borderedProminent)
             } else {
@@ -155,7 +122,7 @@ struct MealPlanCardView: View {
                 .buttonStyle(.bordered)
         }
         .disabled(actions.isBusy)
-        if showDoseEntry && !awaiting && !((dose ?? 0) > 0) {
+        if showDoseEntry && !((dose ?? 0) > 0) {
             doseEntryRow
         }
         Button("Eating without insulin") { macroSheet = .withoutInsulin }
@@ -197,6 +164,54 @@ struct MealPlanCardView: View {
         guard let v = Double(doseText.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)),
               v > 0, v <= 100 else { return nil }
         return (v * 10).rounded() / 10
+    }
+
+    /// Food names without the gram amounts. The grams are the line under the name.
+    private var foodTitle: String? {
+        guard let raw = card.payload.description?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
+        }
+        let stripped = raw.replacingOccurrences(
+            of: #"\s*\d+(?:[.,]\d+)?\s*g\b"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        .replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .trimmingCharacters(in: CharacterSet(charactersIn: ",\u{00B7}"))
+        return stripped.isEmpty ? nil : stripped
+    }
+
+    /// Sum of the stated portion weights, labelled so it is not read as carbohydrate grams.
+    private var totalMassText: String? {
+        let grams: Double?
+        if let items = card.payload.items, items.contains(where: { $0.grams != nil }) {
+            grams = items.compactMap(\.grams).reduce(0, +)
+        } else {
+            grams = Self.grams(in: card.payload.description)
+        }
+        guard let grams, grams > 0 else { return nil }
+        let shown = grams == grams.rounded() ? String(Int(grams.rounded())) : String(format: "%.1f", grams)
+        return "\(shown) g total"
+    }
+
+    private static func grams(in text: String?) -> Double? {
+        guard let text else { return nil }
+        guard let regex = try? NSRegularExpression(pattern: #"(\d+(?:[.,]\d+)?)\s*g\b"#, options: [.caseInsensitive]) else {
+            return nil
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        var sum = 0.0
+        var any = false
+        regex.enumerateMatches(in: text, range: range) { match, _, _ in
+            guard let match, match.numberOfRanges > 1, let r = Range(match.range(at: 1), in: text) else { return }
+            let token = text[r].replacingOccurrences(of: ",", with: ".")
+            if let value = Double(token) {
+                sum += value
+                any = true
+            }
+        }
+        return any ? sum : nil
     }
 
     private var macroGrid: some View {

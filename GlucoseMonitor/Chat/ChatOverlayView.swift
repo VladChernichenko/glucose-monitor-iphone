@@ -86,12 +86,6 @@ struct ChatOverlayView: View {
                 case .photo(let image):
                     // Attached to the draft so the user can add "bread 40 g" before sending.
                     photo = image
-                case .arScan(let summary):
-                    if let text = FoodCaptureResult.mealPrepText(summary) {
-                        Task { await model.send(text: text, photoJPEG: nil) }
-                    } else {
-                        photo = summary.capturedImage // nothing recognised on device: let the backend look
-                    }
                 }
             }
         }

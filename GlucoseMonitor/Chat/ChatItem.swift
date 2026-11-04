@@ -27,6 +27,8 @@ struct ChatItem: Identifiable, Equatable {
         case eventProposal(EventProposalCard)
         /// A logged note proposed for removal ("remove the 1 U"): Remove deletes it, Keep dismisses locally.
         case noteRemoval(NoteRemovalCard)
+        /// The sentence told to the model after a note was deleted. Not a message the user typed.
+        case noteDeleted(String)
     }
 
     let id: String
@@ -51,6 +53,7 @@ struct ChatItem: Identifiable, Equatable {
         case .mealPlan(let card): return "Meal plan: \(MealPlanRules.midText(card.plan.carbs)) carbs"
         case .eventProposal(let card): return card.text
         case .noteRemoval(let card): return card.text
+        case .noteDeleted(let text): return text
         }
     }
 }

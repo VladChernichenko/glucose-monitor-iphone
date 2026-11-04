@@ -64,6 +64,11 @@ struct ChatMessageRow: View {
             if let proposal {
                 EventProposalBubble(card: card, actions: proposal(card))
             }
+        case .noteDeleted(let text):
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         case .noteRemoval(let card):
             if let removal {
                 NoteRemovalBubble(card: card, actions: removal(card))

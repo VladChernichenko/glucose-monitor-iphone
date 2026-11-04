@@ -17,6 +17,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose a meal photo from your library to analyze its nutrition.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save the meal photo to your photo library.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

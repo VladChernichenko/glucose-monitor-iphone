@@ -156,6 +156,9 @@ final class ChatViewModel: ObservableObject {
                 let card = EventProposalCard(messageId: row.id, payload: payload, text: row.text)
                 return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .eventProposal(card))]
             }
+            if row.role == "USER", row.intent == "note_deleted" {
+                return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .noteDeleted(row.text ?? ""))]
+            }
             if row.role != "USER", let payload = row.noteRemoval {
                 let card = NoteRemovalCard(messageId: row.id, payload: payload)
                 return [ChatItem(id: row.id, createdAt: row.createdAt, kind: .noteRemoval(card))]
@@ -273,8 +276,8 @@ final class ChatViewModel: ObservableObject {
             items.insert(ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
             streamedPlanId = messageId
         case .episodes(let episodes):
-            // Above the reply bubble (under a plan card, which was inserted earlier).
-            guard !episodes.isEmpty else { break }
+            // A meal plan does not list similar meals. Question replies still show their episodes.
+            guard streamedPlanId == nil, !episodes.isEmpty else { break }
             items.insert(ChatItem(id: "episodes-\(replyId)", createdAt: items[i].createdAt, kind: .episodes(episodes)), at: i)
         case .banner(let messageId, let banner):
             attachBanner(messageId: messageId, banner)

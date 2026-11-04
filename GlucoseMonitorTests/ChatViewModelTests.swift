@@ -275,6 +275,16 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(vm.lastMessageLine, "Second.")
     }
 
+    func testDeletedNoteIsACaptionNotAUserBubble() throws {
+        let json = #"""
+        [{"id":"d1","createdAt":"2026-11-04T19:10:00Z","role":"USER","text":"Deleted note at 23:10: meal Raffaello, carbs 17.4 g.","intent":"note_deleted","hasPhoto":false,"noteIds":[],"payload":null}]
+        """#
+        let rows = try GlucoseMonitorAPI.jsonDecoder().decode([BackendAPI.ChatMessageDTO].self, from: Data(json.utf8))
+        let items = ChatViewModel.items(fromNewestFirst: rows)
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items[0].kind, .noteDeleted("Deleted note at 23:10: meal Raffaello, carbs 17.4 g."))
+    }
+
     func testHistoryPutsCitationsAfterTheStoredReply() throws {
         let json = #"""
         [{"id":"a1","createdAt":"2026-10-30T11:00:00Z","role":"ASSISTANT","text":"Answer [1].","intent":"question","hasPhoto":false,"noteIds":[],"payload":{"citations":[{"ref":1,"title":"T1","source":"ADA","year":2024,"url":"https://a.org/1"}]}},

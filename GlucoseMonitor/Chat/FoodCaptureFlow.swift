@@ -1,23 +1,13 @@
 import AVFoundation
+import Photos
 import SwiftUI
 
-/// What the food capture produced: a photo for the backend to analyse, or an on-device AR volume scan.
+/// A photo for the backend to recognise. The catalog on the server supplies the nutrients.
 enum FoodCaptureResult {
     case photo(UIImage)
-    case arScan(NutrientSummary)
-
-    /// The AR scan as a meal-prep request with per-component weights, e.g. "prepare me for: rice 150 g";
-    /// nil when nothing was recognised.
-    static func mealPrepText(_ summary: NutrientSummary) -> String? {
-        let items = summary.components
-            .filter { !$0.label.trimmingCharacters(in: .whitespaces).isEmpty }
-            .map { BackendAPI.MealPlanItem(name: $0.label, grams: $0.massG) }
-        return items.isEmpty ? nil : MealPlanRules.replanMessage(items)
-    }
 }
 
-/// The capture part of the former Notes food scan, reused by the chat camera button: choose AR volume
-/// scan, camera or library, then hand the result back. Analysis happens in the chat (meal prep).
+/// Camera or library. Analysis happens after the photo is sent.
 struct FoodCaptureFlow: View {
     let onResult: (FoodCaptureResult) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -25,7 +15,6 @@ struct FoodCaptureFlow: View {
     @State private var showSourcePicker = true
     @State private var showCamera = false
     @State private var showLibrary = false
-    @State private var showARScanner = false
     @State private var captured: UIImage?
 
     var body: some View {
@@ -33,24 +22,7 @@ struct FoodCaptureFlow: View {
             Group {
                 if showCamera || showLibrary {
                     Color.black.ignoresSafeArea()
-                } else if showARScanner {
-                    // Segmentation -> LiDAR volume -> local nutrition lookup, all on device.
-                    ARFoodScannerView(
-                        onResult: { summary in
-                            Task { @MainActor in
-                                showARScanner = false
-                                onResult(.arScan(summary))
-                                dismiss()
-                            }
-                        },
-                        onDismiss: {
-                            showARScanner = false
-                            dismiss()
-                        }
-                    )
-                    .ignoresSafeArea()
                 } else {
-                    // fullScreenCover needs a non-empty hierarchy underneath while the dialog is up.
                     Color(.systemBackground).ignoresSafeArea()
                 }
             }
@@ -62,7 +34,6 @@ struct FoodCaptureFlow: View {
                 }
             }
             .confirmationDialog("Add food", isPresented: $showSourcePicker, titleVisibility: .visible) {
-                Button("AR Volume Scan") { showARScanner = true }
                 Button("Take Photo") { requestCameraAndOpen() }
                 Button("Choose from Library") { showLibrary = true }
                 Button("Cancel", role: .cancel) { dismiss() }
@@ -93,7 +64,6 @@ struct FoodCaptureFlow: View {
                 DispatchQueue.main.async { if granted { showCamera = true } else { dismiss() } }
             }
         default:
-            // Denied/restricted: open Settings so the user can re-enable it.
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
@@ -130,13 +100,27 @@ struct CameraPickerView: UIViewControllerRepresentable {
                 parent.isPresented = false
                 return
             }
-            // iOS-5 fix: never save food photos to the Camera Roll without consent.
+            if parent.sourceType == .camera {
+                MealPhotoLibrary.save(image)
+            }
             parent.onCapture(image)
             parent.isPresented = false
         }
 
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.isPresented = false
+        }
+    }
+}
+
+/// Writes a camera meal photo into the user's photo library. A picture chosen from the library is already there.
+enum MealPhotoLibrary {
+    static func save(_ image: UIImage) {
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized else { return }
+            PHPhotoLibrary.shared().performChanges {
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            }
         }
     }
 }

@@ -169,7 +169,7 @@ struct NotesView: View {
                 .foregroundColor(.secondary)
             Text("No notes yet")
                 .font(.title2.bold())
-            Text("Tap + to log a meal or insulin, or the run icon for activity. For a photo or AR scan, use the chat camera on the Dashboard.")
+            Text("Tap + to log a meal or insulin, or the run icon for activity. For a meal photo, use the chat camera on the Dashboard.")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -368,7 +368,6 @@ private struct NoteGlucoseSliderRow: View {
 struct NoteEditorSheet: View {
     var image: UIImage? = nil
     var snapshot: BackendAPI.NutritionSnapshot? = nil
-    var arVolumeReport: NutrientSummary? = nil
     let onCreate: (BackendAPI.NoteInput, UIImage?) async -> Void
 
     @EnvironmentObject private var appState: AppState
@@ -393,7 +392,7 @@ struct NoteEditorSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                // -- Image (food scan photo or AR frame) ---------------------
+                // -- Image (meal photo) -----------------------------------------
                 if let img = image {
                     Section {
                         Image(uiImage: img)
@@ -401,15 +400,6 @@ struct NoteEditorSheet: View {
                             .frame(maxHeight: 220).frame(maxWidth: .infinity)
                             .cornerRadius(10)
                             .listRowInsets(EdgeInsets())
-                    }
-                }
-
-                // -- AR volume scan card --------------------------------------
-                if let summary = arVolumeReport {
-                    Section {
-                        NutrientScanCard(summary: summary)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                            .listRowBackground(Color.clear)
                     }
                 }
 
