@@ -74,7 +74,8 @@ struct SettingsView: View {
     @State private var glucoseUnit = "mmol/L"
     @State private var insulinSummary = ""
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
+        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil,
+        gramsPerUnit: 5
     )
     @State private var targetText = ""
     @State private var rescueText = ""
@@ -126,10 +127,10 @@ struct SettingsView: View {
                         }
 
                         SettingsNumericRow(
-                            label: "Carb Ratio",
-                            subtitle: "mmol/L per 10 g",
-                            placeholder: "2.0",
-                            value: $cobSettings.carbRatio,
+                            label: "Insulin-to-carb ratio",
+                            subtitle: "grams per unit",
+                            placeholder: "5",
+                            value: gramsPerUnitBinding,
                             fractionDigits: 1...2
                         )
                         SettingsNumericRow(
@@ -227,6 +228,15 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    /// Bridges the optional insulin-to-carb ratio to the non-optional row. A missing value shows 5 g/U,
+    /// the same default a new settings row is created with. Editing stores the typed number.
+    private var gramsPerUnitBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.gramsPerUnit ?? 5 },
+            set: { cobSettings.gramsPerUnit = $0 }
+        )
     }
 
     /// Bridges the optional `bodyWeightKg` to the non-optional `Double` expected by `SettingsNumericRow`.

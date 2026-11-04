@@ -178,8 +178,9 @@ enum BackendAPI {
         return iso.date(from: s)
     }
 
-    /// COB tuning; `carbRatio` is mmol/L glucose rise per **10 g** carbs (no insulin), matching backend `(COB_g / 10) * carbRatio`.
-    /// `bodyWeightKg` is used by the Hovorka ODE model to scale glucose distribution volume (VG = 0.16 × kg)
+    /// COB tuning. `gramsPerUnit` is the insulin-to-carb ratio (grams per unit). `carbRatio` is the
+    /// legacy mmol/L rise per 10 g and is sent back unchanged so a save cannot overwrite it.
+    /// `bodyWeightKg` scales the Hovorka volume of distribution (VG = 0.16 * kg)
     /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil -> backend uses population default 70 kg.
     struct COBSettings: Codable {
         var carbRatio: Double
@@ -199,6 +200,9 @@ enum BackendAPI {
         var targetGlucoseMmol: Double? = nil
         /// Rescue carbs in grams (5-40). Nil = not sent, so the backend keeps its stored value (default 15).
         var rescueCarbsG: Int? = nil
+        /// Insulin-to-carb ratio, grams of carbohydrate per unit (3-30). Nil is omitted on encode,
+        /// so a save cannot clear a ratio the server already stored.
+        var gramsPerUnit: Double? = nil
     }
 
     struct PredictionFactors: Decodable {

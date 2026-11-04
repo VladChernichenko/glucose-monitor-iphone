@@ -118,6 +118,23 @@ final class BackendAPIHovorkaTests: XCTestCase {
             "bodyWeightKg must survive a full encode->decode round-trip")
     }
 
+    /// The insulin-to-carb ratio round-trips, and the legacy carbRatio is still on the payload.
+    func testCOBSettings_roundTrip_preservesGramsPerUnit() throws {
+        let original = BackendAPI.COBSettings(
+            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnit: 10
+        )
+        let data = try JSONEncoder().encode(original)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        XCTAssertEqual((json["carbRatio"] as? Double) ?? 0, 2.0, accuracy: 0.001,
+            "a save must still send the stored carbRatio")
+        XCTAssertEqual((json["gramsPerUnit"] as? Double) ?? 0, 10, accuracy: 0.001)
+
+        let decoded = try decoder.decode(BackendAPI.COBSettings.self, from: data)
+        XCTAssertEqual(decoded.gramsPerUnit ?? 0, 10, accuracy: 0.001)
+        XCTAssertEqual(decoded.carbRatio, 2.0, accuracy: 0.001)
+    }
+
     // ---
     // MARK: 2 - PredictionPathPoint: absorptionMode variations
     // ---
