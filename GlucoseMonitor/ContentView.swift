@@ -11,17 +11,24 @@ struct ContentView: View {
     @State private var siteNote: BackendAPI.GlucoseNote?
 
     private static let dashboardTab = 0
+    static let chatTab = 1
+    private static let settingsTab = 2
+    /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
+    @State private var dashboardScrollTopTick = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            DashboardView()
+            DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
-            NotesView(selectedTab: $selectedTab)
-                .tag(1)
-                .tabItem { Label("Notes", systemImage: "note.text") }
+            ChatOverlayView(onMealLogged: {
+                dashboardScrollTopTick += 1
+                selectedTab = Self.dashboardTab
+            })
+                .tag(Self.chatTab)
+                .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right") }
             SettingsView()
-                .tag(2)
+                .tag(Self.settingsTab)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .onChange(of: selectedTab) { newTab in
@@ -120,6 +127,8 @@ struct ContentView: View {
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @Binding var selectedTab: Int
+    @Binding var scrollTopTick: Int
     @State private var showAddNote = false
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
     @State private var showExtendedForecast = false
@@ -130,8 +139,6 @@ struct DashboardView: View {
     @State private var noteToEdit: BackendAPI.GlucoseNote?
     @State private var isfSuggestion: BackendAPI.IsfMealWindowSuggestion?
     @State private var isfSuggestionBusy = false
-    @State private var chatExpanded = false
-    private static let chatPeekClearance: CGFloat = 150
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -140,10 +147,10 @@ struct DashboardView: View {
                 if !appState.isAuthenticated {
                     notSignedInPlaceholder
                 } else {
-                    ZStack(alignment: .bottom) {
-                        ScrollViewReader { proxy in
+                    ScrollViewReader { proxy in
                         ScrollView {
                             VStack(spacing: 16) {
+                                Color.clear.frame(height: 0).id("dashboardTop")
                                 if appState.libreDataStale && scenePhase == .active {
                                     libreStaleBanner
                                 }
@@ -152,7 +159,7 @@ struct DashboardView: View {
                                     if let strip = appState.watchStrip(at: context.date) {
                                         WatchStripView(strip: strip, unit: appState.preferredGlucoseUnit) {
                                             if appState.watchStripTapOpensChat(strip) {
-                                                chatExpanded = true
+                                                selectedTab = ContentView.chatTab
                                             } else {
                                                 withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
                                             }
@@ -181,14 +188,15 @@ struct DashboardView: View {
                                 }
                             }
                             .padding()
-                            // Room for the chat peek so the last dashboard rows can scroll above it.
-                            .padding(.bottom, Self.chatPeekClearance)
                         }
                         .refreshable { await appState.refreshAll() }
+                        .onChange(of: scrollTopTick) { _ in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.easeOut(duration: 0.25)) {
+                                    proxy.scrollTo("dashboardTop", anchor: .top)
+                                }
+                            }
                         }
-
-                        // Bottom layer of the dashboard, not a sheet: the sheets below present above it.
-                        ChatOverlayView(isExpanded: $chatExpanded)
                     }
                 }
             }
@@ -960,7 +968,7 @@ private struct RecentNoteRow: View {
                 .frame(width: 8, height: 8)
                 .padding(.top, 6)
             VStack(alignment: .leading, spacing: 4) {
-                Text(note.meal.isEmpty ? "Note" : note.meal)
+                Text(note.displayTitle)
                     .font(.subheadline.weight(.medium))
                 if let ts = note.timestamp {
                     Text(ts, format: .dateTime.month(.abbreviated).day().hour().minute())

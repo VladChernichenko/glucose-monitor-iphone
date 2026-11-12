@@ -294,18 +294,41 @@ final class MealPlanCardTests: XCTestCase {
         return try GlucoseMonitorAPI.jsonDecoder().decode(BackendAPI.MealPlanActionResult.self, from: Data(json.utf8))
     }
 
-    func testEpisodesGoUnderThePlanCardAboveTheExplanation() async throws {
+    func testMealPlanEpisodesAreNotShownInChat() async throws {
         let fake = ChatViewModelTests.FakeAssistantService()
         let ep = try JSONDecoder().decode(BackendAPI.AssistantEpisode.self,
                                           from: Data(#"{"id":"e1","kind":"MEAL","at":"2026-10-12T13:00"}"#.utf8))
         fake.scriptedEvents = [.plan(messageId: "a1", plan: try decodePlan(planJSON), plannedAt: nil, doseValidUntil: nil),
-                               .episodes([ep]), .token("Explanation.")]
+                               .episodes([ep]), .token("Explanation."),
+                               .done(.init(userMessageId: "u1", assistantMessageId: "a1", intent: "meal_plan"))]
         let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))
         await vm.send(text: "prepare me", photoJPEG: nil)
-        guard vm.items.count == 4, case .mealPlan = vm.items[1].kind, case .episodes = vm.items[2].kind else {
-            return XCTFail("expected user, plan, episodes, reply; got \(vm.items.map(\.kind))")
+        guard vm.items.count == 3, case .mealPlan = vm.items[1].kind else {
+            return XCTFail("expected user, plan, reply; got \(vm.items.map(\.kind))")
         }
-        XCTAssertEqual(vm.items[3].kind, .assistant(text: "Explanation."))
+        XCTAssertEqual(vm.items[2].kind, .assistant(text: "Explanation."))
+    }
+
+    func testStreamedPlanAndExplanationAppearTogetherAfterDone() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))
+        var sawPlanBeforeDone = false
+        fake.afterEvent = {
+            if vm.items.contains(where: { if case .mealPlan = $0.kind { return true }; return false }) {
+                sawPlanBeforeDone = true
+            }
+        }
+        fake.scriptedEvents = [.plan(messageId: "a1", plan: try decodePlan(planJSON), plannedAt: nil, doseValidUntil: nil),
+                               .token("Bread is most of the carbs.")]
+        // afterEvent runs after each event; Done is not sent yet — card must still be held.
+        // Inject a probe: after plan+token, card should be absent; flush happens when send returns.
+        await vm.send(text: "prepare me for soup", photoJPEG: nil)
+        XCTAssertFalse(sawPlanBeforeDone, "plan card must not appear before the stream finishes")
+        XCTAssertEqual(vm.items.count, 3)
+        guard case .mealPlan(let c) = vm.items[1].kind else { return XCTFail("card missing") }
+        XCTAssertEqual(c.messageId, "a1")
+        XCTAssertEqual(c.payload.phase, .planned)
+        XCTAssertEqual(vm.items[2].kind, .assistant(text: "Bread is most of the carbs."))
     }
 
     func testStreamedPlanBecomesCardBeforeExplanation() async throws {
@@ -419,11 +442,27 @@ final class MealPlanCardTests: XCTestCase {
         try await streamPlan(vm, fake)
         fake.planResult = .success(try actionResult("EATEN", extra: tookExtra))
         let macros = BackendAPI.MealMacros(carbs: 50, fat: nil, protein: nil, fiber: nil, gi: nil)
+        var mealLogged = 0
+        vm.onMealLogged = { mealLogged += 1 }
 
         await vm.eatPlan(messageId: "a1", macros: macros, ateAt: nil)
 
         XCTAssertEqual(fake.planActions.first?.action, .eating(macros, ateAt: nil))
         XCTAssertEqual(planCard(vm)?.payload.phase, .eaten)
+        XCTAssertEqual(mealLogged, 1)
+    }
+
+    func testTookDoesNotNotifyMealLogged() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T12:02:00"))
+        try await streamPlan(vm, fake)
+        fake.planResult = .success(try actionResult("TOOK", extra: tookExtra))
+        var mealLogged = 0
+        vm.onMealLogged = { mealLogged += 1 }
+
+        await vm.tookPlan(messageId: "a1", doseUnits: 4.5, pauseMinutes: 15)
+
+        XCTAssertEqual(mealLogged, 0)
     }
 
     func testSkipSendsSkip() async throws {

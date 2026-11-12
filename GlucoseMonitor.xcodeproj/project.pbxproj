@@ -85,6 +85,7 @@
 		700000000000000000000F03 /* WatchStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F03 /* WatchStripView.swift */; };
 		700000000000000000000F02 /* WatchStripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F02 /* WatchStripTests.swift */; };
 		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
+		700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D99 /* NoteDisplayTitleTests.swift */; };
 		700000000000000000000D14 /* MealPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D14 /* MealPlan.swift */; };
 		700000000000000000000D15 /* MealPlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D15 /* MealPlanCardView.swift */; };
 		700000000000000000000D30 /* EpisodeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D30 /* EpisodeCardView.swift */; };
@@ -225,6 +226,7 @@
 		600000000000000000000F03 /* WatchStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripView.swift; sourceTree = "<group>"; };
 		600000000000000000000F02 /* WatchStripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
+		600000000000000000000D99 /* NoteDisplayTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDisplayTitleTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D14 /* MealPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlan.swift; sourceTree = "<group>"; };
 		600000000000000000000D15 /* MealPlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000D30 /* EpisodeCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpisodeCardView.swift; sourceTree = "<group>"; };
@@ -424,6 +426,7 @@
 				600000000000000000000DA5 /* NoteRemovalTests.swift */,
 				600000000000000000000D06 /* ChatViewModelTests.swift */,
 				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
+				600000000000000000000D99 /* NoteDisplayTitleTests.swift */,
 				600000000000000000000F02 /* WatchStripTests.swift */,
 				600000000000000000000D17 /* MealPlanCardTests.swift */,
 				600000000000000000000E03 /* HistoryBannerTests.swift */,
@@ -667,6 +670,7 @@
 				700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */,
 				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
 				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
+				700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */,
 				700000000000000000000F02 /* WatchStripTests.swift in Sources */,
 				700000000000000000000D17 /* MealPlanCardTests.swift in Sources */,
 				700000000000000000000E03 /* HistoryBannerTests.swift in Sources */,

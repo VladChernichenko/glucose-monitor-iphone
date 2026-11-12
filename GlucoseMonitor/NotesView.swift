@@ -169,7 +169,7 @@ struct NotesView: View {
                 .foregroundColor(.secondary)
             Text("No notes yet")
                 .font(.title2.bold())
-            Text("Tap + to log a meal or insulin, or the run icon for activity. For a meal photo, use the chat camera on the Dashboard.")
+            Text("Tap + to log a meal or insulin, or the run icon for activity. For a meal photo, use the Chat tab.")
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
@@ -262,7 +262,7 @@ struct NoteRowView: View {
            let kind = BackendAPI.ActivityKind(rawValue: raw) {
             return kind.title
         }
-        return note.meal.isEmpty ? "Note" : note.meal
+        return note.displayTitle
     }
 }
 

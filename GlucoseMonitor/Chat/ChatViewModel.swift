@@ -26,6 +26,8 @@ final class ChatViewModel: ObservableObject {
     /// Called instead of `onNotesChanged` when the chat wrote dose notes (quick log, plan Took), so the
     /// dashboard can ask where the dose was injected.
     var onDoseLogged: ((_ noteIds: [String]) -> Void)?
+    /// Called after a meal plan is eaten (carb note saved): collapse chat and show the dashboard.
+    var onMealLogged: (() -> Void)?
 
     private let service: AssistantChatService
     private let pageSize: Int
@@ -229,7 +231,11 @@ final class ChatViewModel: ObservableObject {
                                           timezone: timeZone.identifier) { [weak self] event in
                 self?.apply(event, to: replyId)
             }
+            // Meal-prep streams plan before the explanation; reveal card + text together when the
+            // stream ends (Done may be missing on older fixtures).
+            flushHeldReply(replyId)
         } catch {
+            clearHeldReply()
             // A 4xx carries the server's reason (e.g. the phone clock is off); show it as-is.
             appendError(MealPlanRules.serverRejection(error)
                         ?? "Couldn't reach the assistant. \(error.localizedDescription)", replacing: replyId)
@@ -250,6 +256,13 @@ final class ChatViewModel: ObservableObject {
 
     private var sendFailed = false
     private var streamedPlanId: String?
+    /// Meal plan (+ its explanation) is held until the stream finishes so the card does not appear
+    /// before the AI text.
+    private var holdMealReply = false
+    private var heldPlan: (messageId: String, plan: BackendAPI.MealPlan, plannedAt: Date?, doseValidUntil: Date?)?
+    private var heldBanner: (messageId: String, banner: BackendAPI.HistoryBanner)?
+    private var heldText = ""
+    private var heldCitations: [BackendAPI.AssistantCitation]?
 
     /// "Took N g" on the carb advice card: logs fast sugar through the normal chat send path,
     /// where the backend quick-log parser attaches it to an open low.
@@ -263,34 +276,47 @@ final class ChatViewModel: ObservableObject {
         guard let i = index(of: replyId) else { return }
         switch event {
         case .token(let piece):
-            if case .assistant(let text) = items[i].kind { items[i].kind = .assistant(text: text + piece) }
+            if holdMealReply {
+                heldText += piece
+            } else if case .assistant(let text) = items[i].kind {
+                items[i].kind = .assistant(text: text + piece)
+            }
         case .logged(let logged):
             items[i].kind = .logged(ChatLoggedEntry(summary: logged.summary, forecastMin: logged.forecastMin,
                                                     undoMessageId: nil, undone: false))
             notesWritten(logged.noteIds)
         case .done(let done):
+            flushHeldReply(replyId)
             if case .logged(var entry) = items[i].kind {
                 entry.undoMessageId = done.userMessageId ?? done.assistantMessageId
                 items[i].kind = .logged(entry)
             }
         case .error(let message):
+            clearHeldReply()
             appendError(message, replacing: replyId)
         case .plan(let messageId, let plan, let plannedAt, let doseValidUntil):
-            // The card goes above the reply bubble, which keeps streaming the explanation.
-            let card = MealPlanCard(messageId: messageId, plan: plan, plannedAt: plannedAt,
-                                    doseValidUntil: doseValidUntil)
-            items.insert(ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
+            // Hold until Done/stream end so the nutrition card does not appear before the explanation.
+            holdMealReply = true
+            heldPlan = (messageId, plan, plannedAt, doseValidUntil)
             streamedPlanId = messageId
         case .episodes(let episodes):
             // A meal plan does not list similar meals. Question replies still show their episodes.
-            guard streamedPlanId == nil, !episodes.isEmpty else { break }
+            guard streamedPlanId == nil, !holdMealReply, !episodes.isEmpty else { break }
             items.insert(ChatItem(id: "episodes-\(replyId)", createdAt: items[i].createdAt, kind: .episodes(episodes)), at: i)
         case .banner(let messageId, let banner):
-            attachBanner(messageId: messageId, banner)
+            if holdMealReply {
+                heldBanner = (messageId, banner)
+            } else {
+                attachBanner(messageId: messageId, banner)
+            }
         case .citations(let citations):
-            // Under the reply bubble it belongs to (the event arrives before the first token).
             guard !citations.isEmpty else { break }
-            items.insert(ChatItem(id: "citations-\(replyId)", createdAt: items[i].createdAt, kind: .citations(citations)), at: i + 1)
+            if holdMealReply {
+                heldCitations = citations
+            } else {
+                // Under the reply bubble it belongs to (the event arrives before the first token).
+                items.insert(ChatItem(id: "citations-\(replyId)", createdAt: items[i].createdAt, kind: .citations(citations)), at: i + 1)
+            }
         case .proposal(let messageId, let tags, let comment):
             // No tokens follow a proposal: the bubble (with Confirm / No) takes the reply's place.
             let card = EventProposalCard(messageId: messageId, tags: tags, comment: comment)
@@ -299,6 +325,31 @@ final class ChatViewModel: ObservableObject {
             // No tokens follow a removal proposal: the bubble (with Remove / Keep) takes the reply's place.
             items[i] = ChatItem(id: card.messageId, createdAt: items[i].createdAt, kind: .noteRemoval(card))
         }
+    }
+
+    private func flushHeldReply(_ replyId: String) {
+        guard holdMealReply, let i = index(of: replyId) else { return }
+        if let pending = heldPlan {
+            let card = MealPlanCard(messageId: pending.messageId, plan: pending.plan,
+                                    plannedAt: pending.plannedAt, doseValidUntil: pending.doseValidUntil)
+            items.insert(ChatItem(id: pending.messageId, createdAt: items[i].createdAt, kind: .mealPlan(card)), at: i)
+            if let b = heldBanner { attachBanner(messageId: b.messageId, b.banner) }
+        }
+        if !heldText.isEmpty, let j = index(of: replyId), case .assistant(let text) = items[j].kind {
+            items[j].kind = .assistant(text: text + heldText)
+        }
+        if let citations = heldCitations, !citations.isEmpty, let j = index(of: replyId) {
+            items.insert(ChatItem(id: "citations-\(replyId)", createdAt: items[j].createdAt, kind: .citations(citations)), at: j + 1)
+        }
+        clearHeldReply()
+    }
+
+    private func clearHeldReply() {
+        holdMealReply = false
+        heldPlan = nil
+        heldBanner = nil
+        heldText = ""
+        heldCitations = nil
     }
 
     /// Turns an empty reply placeholder into the error row, or appends one after partial text.
@@ -539,6 +590,7 @@ final class ChatViewModel: ObservableObject {
                 clientTime: BackendAPI.assistantClientTime(at, timeZone: timeZone), timezone: timeZone.identifier)
             setPlanPayload(messageId: messageId, result.payload)
             if let noteId = result.noteId { notesWritten([noteId]) }
+            if case .eating = action { onMealLogged?() }
         } catch {
             switch MealPlanRules.classify(error) {
             case .conflict:

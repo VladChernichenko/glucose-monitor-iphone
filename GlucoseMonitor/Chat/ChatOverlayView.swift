@@ -1,56 +1,33 @@
 import SwiftUI
 
-/// The always-present chat at the bottom of the Dashboard. Collapsed it is a peek (last message line +
-/// input bar); dragging the handle up (or tapping the peek) expands it to a full-height history.
-/// It sits in a `ZStack` under `DashboardView`'s content, so the dashboard's sheets present above it.
-///
-/// Open/close is one continuous height: the content area between the handle and the input bar runs from
-/// the peek's height to the full height, follows the finger while dragging, and springs to the nearer
-/// end on release. The history list is always laid out at full height and only revealed, so nothing is
-/// built, torn down or re-scrolled during the animation.
+/// Full-screen Chat tab: glucose header, transcript, and composer. Always open (no peek / collapse).
 struct ChatOverlayView: View {
     @EnvironmentObject private var appState: AppState
     @StateObject private var model = ChatViewModel()
-    @Binding var isExpanded: Bool
+    /// After a meal is logged from a plan card: parent switches to the dashboard and scrolls up.
+    var onMealLogged: (() -> Void)? = nil
 
     @State private var draft = ""
     @State private var photo: UIImage?
-    @State private var showFoodCapture = false
-    /// Live drag distance (positive = down) while the panel follows the finger.
-    @State private var dragTranslation: CGFloat = 0
-    @State private var peekHeight: CGFloat = 44
-    @State private var inputBarHeight: CGFloat = 56
+    @State private var showFoodCamera = false
+    @State private var showFoodLibrary = false
     @State private var pagingEnabled = false
     @State private var showTwinForecast = false
     @FocusState private var inputFocused: Bool
 
-    private static let handleHeight: CGFloat = 21
-    private static let topGap: CGFloat = 8
-    private static let spring = Animation.spring(response: 0.38, dampingFraction: 0.86)
-
     var body: some View {
-        GeometryReader { geo in
-            let maxContent = max(peekHeight, geo.size.height - Self.handleHeight - inputBarHeight - 1 - Self.topGap)
-            let height = contentHeight(maxContent: maxContent)
-            let progress = maxContent > peekHeight
-                ? min(1, max(0, (height - peekHeight) / (maxContent - peekHeight))) : (isExpanded ? 1 : 0)
+        NavigationStack {
             VStack(spacing: 0) {
-                handle
-                contentArea(height: height, maxContent: maxContent, progress: progress)
+                header
+                Divider()
+                carbAdviceCard
+                messageList
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
                 inputBar
-                    .readHeight(InputBarHeightKey.self) { h in
-                        if abs(h - inputBarHeight) > 0.5 { inputBarHeight = h }
-                    }
             }
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
-                    .ignoresSafeArea(edges: .bottom)
-            )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .background(Color(.systemBackground))
+            .navigationBarHidden(true)
         }
         .task {
             model.onNotesChanged = { [weak appState] in
@@ -59,6 +36,7 @@ struct ChatOverlayView: View {
             model.onDoseLogged = { [weak appState] noteIds in
                 Task { await appState?.refreshAfterChatNotesChanged(askSiteFor: noteIds) }
             }
+            model.onMealLogged = { onMealLogged?() }
             model.onAnswerPrompt = { [weak appState] event, category, carbs, insulin in
                 await appState?.answerGlycemicEvent(event, category: category, carbs: carbs, insulin: insulin) ?? false
             }
@@ -77,17 +55,19 @@ struct ChatOverlayView: View {
                 .environmentObject(appState)
         }
         .onChange(of: appState.visibleGlycemicPrompt) { _ in syncPrompt() }
-        // A note saved or deleted outside the chat (Notes tab, dashboard) is a caption in this transcript.
         .onChange(of: appState.notes.map(\.id)) { _ in Task { await model.refreshLoggedUndoState() } }
         .onChange(of: appState.preferredGlucoseUnit) { _ in syncPrompt() }
-        .sheet(isPresented: $showFoodCapture) {
-            FoodCaptureFlow { result in
-                switch result {
-                case .photo(let image):
-                    // Attached to the draft so the user can add "bread 40 g" before sending.
-                    photo = image
-                }
+        .fullScreenCover(isPresented: $showFoodCamera) {
+            CameraPickerView(isPresented: $showFoodCamera, sourceType: .camera) { image in
+                photo = image
             }
+            .ignoresSafeArea()
+        }
+        .fullScreenCover(isPresented: $showFoodLibrary) {
+            CameraPickerView(isPresented: $showFoodLibrary, sourceType: .photoLibrary) { image in
+                photo = image
+            }
+            .ignoresSafeArea()
         }
     }
 
@@ -136,115 +116,9 @@ struct ChatOverlayView: View {
             onNothing: { Task { await model.dismissPrompt() } })
     }
 
-    // MARK: Open / close
-
-    /// The peek at the bottom fades out and the history (header, advice, messages) fades in as the area
-    /// grows. The history is laid out at its full height and pinned to the bottom, so growing the area
-    /// reveals the newest messages first, like a panel sliding up.
-    private func contentArea(height: CGFloat, maxContent: CGFloat, progress: CGFloat) -> some View {
-        ZStack(alignment: .bottom) {
-            VStack(spacing: 0) {
-                header
-                Divider()
-                carbAdviceCard
-                messageList
-                    .frame(maxHeight: .infinity)
-            }
-            .frame(height: maxContent)
-            .opacity(Double(progress))
-            .allowsHitTesting(isExpanded && dragTranslation == 0)
-            .accessibilityHidden(!isExpanded)
-
-            peekLine
-                .fixedSize(horizontal: false, vertical: true)
-                .readHeight(PeekHeightKey.self) { h in
-                    if h > 0, abs(h - peekHeight) > 0.5 { peekHeight = h }
-                }
-                .opacity(Double(1 - min(1, progress * 2.5)))
-                .allowsHitTesting(!isExpanded)
-                .accessibilityHidden(isExpanded)
-        }
-        .frame(height: height, alignment: .bottom)
-        .clipped()
-    }
-
-    /// The resting height for the state, moved by the finger while dragging (clamped to the two ends,
-    /// with a little rubber band past them).
-    private func contentHeight(maxContent: CGFloat) -> CGFloat {
-        let base = isExpanded ? maxContent : peekHeight
-        let raw = base - dragTranslation
-        if raw > maxContent { return maxContent + (raw - maxContent) * 0.15 }
-        if raw < peekHeight { return peekHeight - (peekHeight - raw) * 0.15 }
-        return raw
-    }
-
-    // MARK: Handle and drag
-
-    private var handle: some View {
-        Capsule()
-            .fill(Color.secondary.opacity(0.4))
-            .frame(width: 36, height: 5)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
-            .gesture(dragGesture)
-            .onTapGesture { setExpanded(!isExpanded) }
-            .accessibilityLabel(isExpanded ? "Collapse chat" : "Expand chat")
-            .accessibilityAddTraits(.isButton)
-    }
-
-    private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 6, coordinateSpace: .global)
-            .onChanged { value in
-                if value.translation.height != 0, inputFocused { inputFocused = false }
-                dragTranslation = value.translation.height
-            }
-            .onEnded { value in
-                // Decide by where the fling would end, so a quick flick works as well as a long drag.
-                let predicted = value.predictedEndTranslation.height
-                let open = isExpanded ? predicted < 120 : predicted < -60
-                setExpanded(open)
-            }
-    }
-
-    private func setExpanded(_ expanded: Bool) {
-        if !expanded { inputFocused = false }
-        withAnimation(Self.spring) {
-            isExpanded = expanded
-            dragTranslation = 0
-        }
-    }
-
-    // MARK: Peek
-
-    private var peekLine: some View {
-        HStack(spacing: 8) {
-            if model.isSending {
-                ProgressView().controlSize(.small)
-            }
-            Text(peekText)
-                .font(.subheadline)
-                .foregroundStyle(carbAdvice != nil ? Color.red : (model.lastMessageLine == nil ? .secondary : .primary))
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            hitRatePill
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .contentShape(Rectangle())
-        .onTapGesture { setExpanded(true) }
-        .gesture(dragGesture)
-    }
-
     // MARK: Carb advice
 
     private var carbAdvice: BackendAPI.CarbAdvice? { appState.visibleCarbAdvice }
-
-    /// The advice headline (red) takes over the peek line while advice is showing.
-    private var peekText: String {
-        if let advice = carbAdvice { return ChatFormatting.carbAdviceHeadline(advice, unit: appState.preferredGlucoseUnit) }
-        return model.lastMessageLine ?? "Ask about your glucose or log a dose, like \"5u 40g\""
-    }
 
     @ViewBuilder
     private var carbAdviceCard: some View {
@@ -262,7 +136,7 @@ struct ChatOverlayView: View {
         }
     }
 
-    // MARK: Expanded
+    // MARK: Header
 
     private var header: some View {
         let unit = appState.preferredGlucoseUnit
@@ -275,17 +149,11 @@ struct ChatOverlayView: View {
             Text(ChatFormatting.iobCob(iob: appState.displayedIOB, cob: appState.calculations?.activeCarbsOnBoard))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Spacer()
+            Spacer(minLength: 0)
             hitRatePill
-            Button { setExpanded(false) } label: {
-                Image(systemName: "chevron.down")
-            }
-            .accessibilityLabel("Collapse chat")
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .contentShape(Rectangle())
-        .gesture(dragGesture)
+        .padding(.vertical, 10)
     }
 
     @ViewBuilder
@@ -335,22 +203,28 @@ struct ChatOverlayView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .onAppear {
-                proxy.scrollTo(Self.bottomId, anchor: .bottom)
-                // Only page older history once the list has settled at the bottom; otherwise the
-                // top sentinel is visible on first layout and would load a page immediately.
+                scrollToBottom(proxy)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { pagingEnabled = true }
             }
             .onDisappear { pagingEnabled = false }
             .onChange(of: model.scrollAnchorId) { anchor in
                 if let anchor { proxy.scrollTo(anchor, anchor: .top) }
             }
-            .onChange(of: model.bubbles.last) { _ in
-                withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
-            }
+            .onChange(of: model.bubbles.last?.id) { _ in scrollToBottom(proxy) }
+            .onChange(of: model.lastMessageLine) { _ in scrollToBottom(proxy) }
+            .onChange(of: model.isSending) { _ in scrollToBottom(proxy) }
         }
     }
 
     private static let bottomId = "chat-bottom"
+
+    private func scrollToBottom(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.async {
+            withAnimation(.easeOut(duration: 0.2)) {
+                proxy.scrollTo(Self.bottomId, anchor: .bottom)
+            }
+        }
+    }
 
     // MARK: Input
 
@@ -385,7 +259,11 @@ struct ChatOverlayView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
-                Button { showFoodCapture = true } label: {
+                Button {
+                    FoodSourcePicker.present(
+                        onCamera: { FoodCameraAuth.requestAndRun { showFoodCamera = true } },
+                        onLibrary: { showFoodLibrary = true })
+                } label: {
                     Image(systemName: "camera")
                         .font(.title3)
                         .padding(.bottom, 6)
@@ -411,23 +289,5 @@ struct ChatOverlayView: View {
         draft = ""
         photo = nil
         Task { await model.send(text: text, photo: image) }
-    }
-}
-
-/// One key per measured view, so the peek's and the input bar's heights never reach each other's reader.
-private protocol HeightKey: PreferenceKey where Value == CGFloat {}
-extension HeightKey {
-    static var defaultValue: CGFloat { 0 }
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
-}
-private enum PeekHeightKey: HeightKey {}
-private enum InputBarHeightKey: HeightKey {}
-
-private extension View {
-    /// Reports this view's laid-out height whenever it changes. Callers ignore sub-point changes, so a
-    /// height that depends on layout cannot feed back into another update within the same frame.
-    func readHeight<K: HeightKey>(_ key: K.Type, _ onChange: @escaping (CGFloat) -> Void) -> some View {
-        background(GeometryReader { Color.clear.preference(key: K.self, value: $0.size.height) })
-            .onPreferenceChange(K.self, perform: onChange)
     }
 }

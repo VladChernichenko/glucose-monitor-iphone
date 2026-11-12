@@ -91,6 +91,47 @@ enum BackendAPI {
         var isLongActing: Bool { type == NoteType.longActing }
         /// True when this note logs physical activity for the glucose model.
         var isActivity: Bool { type == NoteType.activity }
+
+        /// Dashboard / Notes list title: food names when present, else the stored meal label.
+        var displayTitle: String {
+            let label = meal.trimmingCharacters(in: .whitespacesAndNewlines)
+            let generic = label.isEmpty || label.compare("Meal", options: .caseInsensitive) == .orderedSame
+                || label.compare("none", options: .caseInsensitive) == .orderedSame
+            if !generic { return label }
+            if let foods = decodedNutritionProfile?.normalizedFoods?
+                .map({ Self.stripPortionWeight($0) })
+                .filter({ !$0.isEmpty }), !foods.isEmpty {
+                return foods.joined(separator: ", ")
+            }
+            if let comment, let fromComment = Self.foodNames(fromDescription: comment), !fromComment.isEmpty {
+                return fromComment.joined(separator: ", ")
+            }
+            return label.isEmpty ? "Note" : label
+        }
+
+        private var decodedNutritionProfile: NutritionSnapshot? {
+            guard let nutritionProfile, let data = nutritionProfile.data(using: .utf8) else { return nil }
+            return try? JSONDecoder().decode(NutritionSnapshot.self, from: data)
+        }
+
+        /// "buckwheat 150 g" / "150 g buckwheat" → "buckwheat".
+        static func stripPortionWeight(_ part: String) -> String {
+            var s = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            s = s.replacingOccurrences(of: #"\s*\d+(?:\.\d+)?\s*g\b"#, with: "",
+                                       options: [.regularExpression, .caseInsensitive])
+            s = s.replacingOccurrences(of: #"^\d+(?:\.\d+)?\s*g\s+"#, with: "",
+                                       options: [.regularExpression, .caseInsensitive])
+            return s.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        static func foodNames(fromDescription description: String) -> [String]? {
+            let trimmed = description.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            let lower = trimmed.lowercased()
+            if lower == "meal" || lower == "meal photo" { return nil }
+            let names = trimmed.split(separator: ",").map { stripPortionWeight(String($0)) }.filter { !$0.isEmpty }
+            return names.isEmpty ? nil : names
+        }
     }
 
     struct NoteInput: Encodable {

@@ -1,74 +1,66 @@
 import AVFoundation
 import Photos
 import SwiftUI
+import UIKit
 
-/// A photo for the backend to recognise. The catalog on the server supplies the nutrients.
-enum FoodCaptureResult {
-    case photo(UIImage)
-}
-
-/// Camera or library. Analysis happens after the photo is sent.
-struct FoodCaptureFlow: View {
-    let onResult: (FoodCaptureResult) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var showSourcePicker = true
-    @State private var showCamera = false
-    @State private var showLibrary = false
-    @State private var captured: UIImage?
-
-    var body: some View {
-        NavigationStack {
-            Group {
-                if showCamera || showLibrary {
-                    Color.black.ignoresSafeArea()
-                } else {
-                    Color(.systemBackground).ignoresSafeArea()
-                }
-            }
-            .navigationTitle("Scan Food")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .confirmationDialog("Add food", isPresented: $showSourcePicker, titleVisibility: .visible) {
-                Button("Take Photo") { requestCameraAndOpen() }
-                Button("Choose from Library") { showLibrary = true }
-                Button("Cancel", role: .cancel) { dismiss() }
-            }
-            .fullScreenCover(isPresented: $showCamera, onDismiss: finishPicking) {
-                CameraPickerView(isPresented: $showCamera, sourceType: .camera) { captured = $0 }
-                    .ignoresSafeArea()
-            }
-            .fullScreenCover(isPresented: $showLibrary, onDismiss: finishPicking) {
-                CameraPickerView(isPresented: $showLibrary, sourceType: .photoLibrary) { captured = $0 }
-                    .ignoresSafeArea()
-            }
-        }
-    }
-
-    /// Runs after the picker cover is gone, so dismissing this sheet does not race the cover.
-    private func finishPicking() {
-        if let image = captured { onResult(.photo(image)) }
-        dismiss()
-    }
-
-    private func requestCameraAndOpen() {
+/// Camera permission gate used before opening the meal camera.
+enum FoodCameraAuth {
+    static func requestAndRun(onAuthorized: @escaping () -> Void, onDenied: @escaping () -> Void = {}) {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            showCamera = true
+            onAuthorized()
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async { if granted { showCamera = true } else { dismiss() } }
+                DispatchQueue.main.async {
+                    if granted { onAuthorized() } else { onDenied() }
+                }
             }
         default:
             if let url = URL(string: UIApplication.openSettingsURLString) {
                 UIApplication.shared.open(url)
             }
-            dismiss()
+            onDenied()
         }
+    }
+}
+
+/// Classic bottom action sheet. SwiftUI `confirmationDialog` presents as a top/center card on current iOS.
+enum FoodSourcePicker {
+    static func present(onCamera: @escaping () -> Void, onLibrary: @escaping () -> Void) {
+        guard let presenter = topViewController() else { return }
+        let sheet = UIAlertController(title: "Add food", message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(title: "Take Photo", style: .default) { _ in onCamera() })
+        sheet.addAction(UIAlertAction(title: "Choose from Library", style: .default) { _ in onLibrary() })
+        sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        if let popover = sheet.popoverPresentationController {
+            let view = presenter.view!
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.maxY - 1, width: 1, height: 1)
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(sheet, animated: true)
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .rootViewController
+        return root.map(topMost(from:))
+    }
+
+    private static func topMost(from controller: UIViewController) -> UIViewController {
+        if let presented = controller.presentedViewController {
+            return topMost(from: presented)
+        }
+        if let nav = controller as? UINavigationController, let visible = nav.visibleViewController {
+            return topMost(from: visible)
+        }
+        if let tab = controller as? UITabBarController, let selected = tab.selectedViewController {
+            return topMost(from: selected)
+        }
+        return controller
     }
 }
 
