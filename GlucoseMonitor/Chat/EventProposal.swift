@@ -52,7 +52,7 @@ extension BackendAPI {
 
     static func postEventConfirm(messageId: String, clientTime: String, timezone: String) async throws -> EventConfirmResult {
         // A rejected Confirm (409 already confirmed, 400 clock off) must never sign the user out.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             var req = try authorizedRequest(path: eventConfirmPath(messageId: messageId), method: "POST")
             req.httpBody = eventConfirmBody(clientTime: clientTime, timezone: timezone)
             let (data, resp) = try await URLSession.shared.data(for: req)

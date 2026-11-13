@@ -39,7 +39,7 @@ extension BackendAPI {
 
     static func postRemovalConfirm(messageId: String) async throws -> NoteRemovalResult {
         // A rejected Remove (409 already removed) must never sign the user out.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             let req = try authorizedRequest(path: removalConfirmPath(messageId: messageId), method: "POST")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
