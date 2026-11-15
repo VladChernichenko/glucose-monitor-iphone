@@ -868,6 +868,15 @@ enum BackendAPI {
 
         /// Windows with enough data to propose a new ISF.
         var proposalLines: [WindowProposal] { windows.filter { $0.hasData && $0.proposedIsf != nil } }
+
+        /// All four windows in display order, padding with any missing ones.
+        var allWindowsOrdered: [WindowProposal] {
+            let order = ["BREAKFAST", "LUNCH", "DINNER", "NIGHT"]
+            let byKey = Dictionary(uniqueKeysWithValues: windows.map { ($0.mealWindow, $0) })
+            return order.map { key in
+                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil)
+            }
+        }
     }
 
     static func fetchIsfMealWindowSuggestion() async throws -> IsfMealWindowSuggestion {

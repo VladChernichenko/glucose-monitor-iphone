@@ -288,6 +288,7 @@ struct ChatOverlayView: View {
         let image = photo
         draft = ""
         photo = nil
+        inputFocused = false
         Task { await model.send(text: text, photo: image) }
     }
 }
