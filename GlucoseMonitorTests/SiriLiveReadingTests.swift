@@ -130,6 +130,29 @@ final class SiriLiveReadingTests: XCTestCase {
         XCTAssertEqual(m.chartPoints.count, 1)
     }
 
+    func testMergedPropagatesTheReadingsStaleFlag() {
+        let r = SiriGlucoseReading(mmol: 7.2, time: t0, deltaMmol: nil, trendArrow: nil, flaggedStale: true)
+        XCTAssertEqual(SiriLiveReading.merged(r, into: snapshot(value: 5.0)).dataStale, true)
+    }
+
+    /// A forecast/IOB/COB computed hours ago must not be shown next to a fresh reading as if current.
+    func testMergedDropsForecastIobCobWhenReplacedSnapshotWasStale() {
+        let r = SiriGlucoseReading(mmol: 7.2, time: t0, deltaMmol: nil, trendArrow: nil, flaggedStale: false)
+        let m = SiriLiveReading.merged(r, into: snapshot(value: 5.0, savedAt: t0.addingTimeInterval(-3 * 3600)))
+        XCTAssertNil(m.twoHourPredictionMmol)
+        XCTAssertNil(m.iobUnits)
+        XCTAssertNil(m.cobGrams)
+        XCTAssertEqual(m.chartPoints.count, 1)
+    }
+
+    func testMergedKeepsForecastWhenReplacedSnapshotWasRecent() {
+        let r = SiriGlucoseReading(mmol: 7.2, time: t0, deltaMmol: nil, trendArrow: nil, flaggedStale: false)
+        let m = SiriLiveReading.merged(r, into: snapshot(value: 5.0, savedAt: t0.addingTimeInterval(-10 * 60)))
+        XCTAssertEqual(m.twoHourPredictionMmol, 6.2)
+        XCTAssertEqual(m.iobUnits, 1.5)
+        XCTAssertEqual(m.cobGrams, 12)
+    }
+
     func testMergedWritesInSnapshotUnit() {
         let r = SiriGlucoseReading(mmol: 7.2, time: t0, deltaMmol: 0.4, trendArrow: nil, flaggedStale: false)
         let m = SiriLiveReading.merged(r, into: snapshot(value: 90, unit: "mg/dL"))

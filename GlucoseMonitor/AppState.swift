@@ -219,6 +219,15 @@ final class AppState: ObservableObject {
             .first?.glucoseValue
     }
 
+    /// When the value `currentGlucoseMmolForAPI()` returns was measured. That value is the CGM reading while it
+    /// is under 30 min old, otherwise the latest logged fingerstick; dating a fingerstick with the CGM sample
+    /// time (or "now") would make the widget and Siri present it as a fresher reading than it is.
+    static func glucoseValueTime(cgmTimestamp: Date?, newestHistoryTime: Date?, manualTimestamp: Date?, now: Date) -> Date {
+        if let cgm = cgmTimestamp, cgm >= now.addingTimeInterval(-30 * 60) { return cgm }
+        if let manual = manualTimestamp { return manual }
+        return cgmTimestamp ?? newestHistoryTime ?? now
+    }
+
     /// CGM reading only if received within the last 4 hours; nil if stale.
     var freshCGMReading: GlucoseMonitorAPI.LibreGlucoseCurrent? {
         guard let r = currentReading, let ts = r.timestamp,
@@ -470,7 +479,12 @@ final class AppState: ObservableObject {
             .filter { $0.time >= chartCutoff }
             .sorted { $0.time < $1.time }
             .map { LockScreenWidgetSnapshot.ChartPoint(time: $0.time, mmol: $0.mmol) }
-        let readingAgeStart = currentReading?.timestamp ?? glucoseHistory.last?.time ?? Date()
+        let readingAgeStart = Self.glucoseValueTime(
+            cgmTimestamp: currentReading?.timestamp,
+            newestHistoryTime: glucoseHistory.last?.time,
+            manualTimestamp: latestManualGlucose?.timestamp,
+            now: Date()
+        )
         let snap = LockScreenWidgetSnapshot(
             savedAt: readingAgeStart,
             glucoseValue: displayVal,

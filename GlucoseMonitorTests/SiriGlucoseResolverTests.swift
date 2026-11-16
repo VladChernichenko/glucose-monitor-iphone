@@ -132,6 +132,41 @@ final class SiriGlucoseResolverTests: XCTestCase {
         XCTAssertTrue(calls.stored.isEmpty)
     }
 
+    /// The token-refresh path awaits an unstructured task, which ignores cancellation: the timeout must
+    /// still return on time, and the late result must be discarded, not stored.
+    func testNonCancellableFetchStillTimesOut() async {
+        let calls = Calls()
+        let cached = reading(mmol: 5.6, ageMinutes: 10)
+        let started = Date()
+        let result = await SiriGlucoseResolver.resolve(
+            source(cached: cached, calls: calls) {
+                await Task.detached { try? await Task.sleep(nanoseconds: 1_500_000_000) }.value
+                return self.reading(mmol: 7.1, ageMinutes: 0)
+            },
+            now: now,
+            timeout: 0.05
+        )
+        XCTAssertEqual(result, cached)
+        XCTAssertLessThan(Date().timeIntervalSince(started), 0.5)
+        XCTAssertTrue(calls.stored.isEmpty)
+    }
+
+    /// The cached value may be a fingerstick dated with the CGM time; the backend's CGM value at the
+    /// same sample time is the authority, and the app's "source is stale" flag is kept.
+    func testFetchedWithSameTimeAsCacheReplacesValueAndKeepsStaleFlag() async {
+        let calls = Calls()
+        let cached = reading(mmol: 8.0, ageMinutes: 10, flaggedStale: true)
+        let fetched = reading(mmol: 5.6, ageMinutes: 10)
+        let result = await SiriGlucoseResolver.resolve(
+            source(cached: cached, calls: calls) { fetched },
+            now: now
+        )
+        XCTAssertEqual(result?.mmol, 5.6)
+        XCTAssertEqual(result?.flaggedStale, true)
+        XCTAssertEqual(calls.stored.count, 1)
+        XCTAssertEqual(calls.stored.first, result)
+    }
+
     func testDefaultTimeoutIsFourSeconds() {
         XCTAssertEqual(SiriGlucoseResolver.fetchTimeout, 4)
     }

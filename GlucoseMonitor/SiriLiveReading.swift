@@ -45,8 +45,16 @@ enum SiriLiveReading {
         merged.glucoseValue = GlucoseUnit.fromMmol(reading.mmol, displayUnit: snapshot.glucoseUnit)
         merged.deltaValue = reading.deltaMmol.map { GlucoseUnit.fromMmol($0, displayUnit: snapshot.glucoseUnit) }
         merged.trendArrow = reading.trendArrow
+        // IOB, COB and the forecast were computed when the app last refreshed. If that was long before this
+        // reading, showing them beside it would present old numbers as current, so drop them (the app
+        // recomputes them on its next refresh). The chart is just history and stays.
+        if reading.time.timeIntervalSince(snapshot.savedAt) > LockScreenWidgetSnapshot.staleAfter {
+            merged.twoHourPredictionMmol = nil
+            merged.iobUnits = nil
+            merged.cobGrams = nil
+        }
         merged.savedAt = reading.time
-        merged.dataStale = false
+        merged.dataStale = reading.flaggedStale
         return merged
     }
 

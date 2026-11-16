@@ -88,6 +88,7 @@
 		518000000000000000000004 /* SiriGlucoseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000004 /* SiriGlucoseResolver.swift */; };
 		518000000000000000000002 /* SiriGlucoseAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000002 /* SiriGlucoseAnswer.swift */; };
 		700000000000000000000F02 /* WatchStripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F02 /* WatchStripTests.swift */; };
+		518000000000000000000008 /* WidgetValueTimeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000008 /* WidgetValueTimeTests.swift */; };
 		518000000000000000000005 /* SiriLiveReadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000005 /* SiriLiveReadingTests.swift */; };
 		518000000000000000000003 /* SiriGlucoseResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000003 /* SiriGlucoseResolverTests.swift */; };
 		518000000000000000000001 /* SiriGlucoseAnswerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000001 /* SiriGlucoseAnswerTests.swift */; };
@@ -236,6 +237,7 @@
 		517000000000000000000004 /* SiriGlucoseResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolver.swift; sourceTree = "<group>"; };
 		517000000000000000000002 /* SiriGlucoseAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswer.swift; sourceTree = "<group>"; };
 		600000000000000000000F02 /* WatchStripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripTests.swift; sourceTree = "<group>"; };
+		517000000000000000000008 /* WidgetValueTimeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetValueTimeTests.swift; sourceTree = "<group>"; };
 		517000000000000000000005 /* SiriLiveReadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriLiveReadingTests.swift; sourceTree = "<group>"; };
 		517000000000000000000003 /* SiriGlucoseResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolverTests.swift; sourceTree = "<group>"; };
 		517000000000000000000001 /* SiriGlucoseAnswerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswerTests.swift; sourceTree = "<group>"; };
@@ -446,6 +448,7 @@
 				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
 				600000000000000000000D99 /* NoteDisplayTitleTests.swift */,
 				600000000000000000000F02 /* WatchStripTests.swift */,
+				517000000000000000000008 /* WidgetValueTimeTests.swift */,
 				517000000000000000000005 /* SiriLiveReadingTests.swift */,
 				517000000000000000000003 /* SiriGlucoseResolverTests.swift */,
 				517000000000000000000001 /* SiriGlucoseAnswerTests.swift */,
@@ -697,6 +700,7 @@
 				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
 				700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */,
 				700000000000000000000F02 /* WatchStripTests.swift in Sources */,
+				518000000000000000000008 /* WidgetValueTimeTests.swift in Sources */,
 				518000000000000000000005 /* SiriLiveReadingTests.swift in Sources */,
 				518000000000000000000003 /* SiriGlucoseResolverTests.swift in Sources */,
 				518000000000000000000001 /* SiriGlucoseAnswerTests.swift in Sources */,
