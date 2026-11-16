@@ -83,8 +83,10 @@
 		700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D12 /* CarbAdviceCardView.swift */; };
 		700000000000000000000F01 /* WatchStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F01 /* WatchStrip.swift */; };
 		700000000000000000000F03 /* WatchStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F03 /* WatchStripView.swift */; };
+		518000000000000000000004 /* SiriGlucoseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000004 /* SiriGlucoseResolver.swift */; };
 		518000000000000000000002 /* SiriGlucoseAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000002 /* SiriGlucoseAnswer.swift */; };
 		700000000000000000000F02 /* WatchStripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F02 /* WatchStripTests.swift */; };
+		518000000000000000000003 /* SiriGlucoseResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000003 /* SiriGlucoseResolverTests.swift */; };
 		518000000000000000000001 /* SiriGlucoseAnswerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000001 /* SiriGlucoseAnswerTests.swift */; };
 		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
 		700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D99 /* NoteDisplayTitleTests.swift */; };
@@ -226,8 +228,10 @@
 		600000000000000000000D12 /* CarbAdviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000F01 /* WatchStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStrip.swift; sourceTree = "<group>"; };
 		600000000000000000000F03 /* WatchStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripView.swift; sourceTree = "<group>"; };
+		517000000000000000000004 /* SiriGlucoseResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolver.swift; sourceTree = "<group>"; };
 		517000000000000000000002 /* SiriGlucoseAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswer.swift; sourceTree = "<group>"; };
 		600000000000000000000F02 /* WatchStripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripTests.swift; sourceTree = "<group>"; };
+		517000000000000000000003 /* SiriGlucoseResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolverTests.swift; sourceTree = "<group>"; };
 		517000000000000000000001 /* SiriGlucoseAnswerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswerTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D99 /* NoteDisplayTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDisplayTitleTests.swift; sourceTree = "<group>"; };
@@ -298,6 +302,7 @@
 				60000000000000000000000A /* AppState.swift */,
 				600000000000000000000F01 /* WatchStrip.swift */,
 				600000000000000000000F03 /* WatchStripView.swift */,
+				517000000000000000000004 /* SiriGlucoseResolver.swift */,
 				517000000000000000000002 /* SiriGlucoseAnswer.swift */,
 				F5B001002FCC7001001AB224 /* DashboardCache.swift */,
 				F5B002012FCC7002001AB224 /* BackgroundRefreshService.swift */,
@@ -433,6 +438,7 @@
 				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
 				600000000000000000000D99 /* NoteDisplayTitleTests.swift */,
 				600000000000000000000F02 /* WatchStripTests.swift */,
+				517000000000000000000003 /* SiriGlucoseResolverTests.swift */,
 				517000000000000000000001 /* SiriGlucoseAnswerTests.swift */,
 				600000000000000000000D17 /* MealPlanCardTests.swift */,
 				600000000000000000000E03 /* HistoryBannerTests.swift */,
@@ -603,6 +609,7 @@
 				70000000000000000000000A /* AppState.swift in Sources */,
 				700000000000000000000F01 /* WatchStrip.swift in Sources */,
 				700000000000000000000F03 /* WatchStripView.swift in Sources */,
+				518000000000000000000004 /* SiriGlucoseResolver.swift in Sources */,
 				518000000000000000000002 /* SiriGlucoseAnswer.swift in Sources */,
 				F5B001012FCC7001001AB224 /* DashboardCache.swift in Sources */,
 				F5B002022FCC7002001AB224 /* BackgroundRefreshService.swift in Sources */,
@@ -679,6 +686,7 @@
 				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
 				700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */,
 				700000000000000000000F02 /* WatchStripTests.swift in Sources */,
+				518000000000000000000003 /* SiriGlucoseResolverTests.swift in Sources */,
 				518000000000000000000001 /* SiriGlucoseAnswerTests.swift in Sources */,
 				700000000000000000000D17 /* MealPlanCardTests.swift in Sources */,
 				700000000000000000000E03 /* HistoryBannerTests.swift in Sources */,
