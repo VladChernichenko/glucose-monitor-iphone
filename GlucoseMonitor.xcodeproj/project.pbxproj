@@ -83,6 +83,7 @@
 		700000000000000000000D12 /* CarbAdviceCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D12 /* CarbAdviceCardView.swift */; };
 		700000000000000000000F01 /* WatchStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F01 /* WatchStrip.swift */; };
 		700000000000000000000F03 /* WatchStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F03 /* WatchStripView.swift */; };
+		518000000000000000000007 /* CurrentGlucoseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000007 /* CurrentGlucoseIntent.swift */; };
 		518000000000000000000006 /* SiriLiveReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000006 /* SiriLiveReading.swift */; };
 		518000000000000000000004 /* SiriGlucoseResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000004 /* SiriGlucoseResolver.swift */; };
 		518000000000000000000002 /* SiriGlucoseAnswer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000002 /* SiriGlucoseAnswer.swift */; };
@@ -230,6 +231,7 @@
 		600000000000000000000D12 /* CarbAdviceCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000F01 /* WatchStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStrip.swift; sourceTree = "<group>"; };
 		600000000000000000000F03 /* WatchStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripView.swift; sourceTree = "<group>"; };
+		517000000000000000000007 /* CurrentGlucoseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrentGlucoseIntent.swift; sourceTree = "<group>"; };
 		517000000000000000000006 /* SiriLiveReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriLiveReading.swift; sourceTree = "<group>"; };
 		517000000000000000000004 /* SiriGlucoseResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolver.swift; sourceTree = "<group>"; };
 		517000000000000000000002 /* SiriGlucoseAnswer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswer.swift; sourceTree = "<group>"; };
@@ -306,6 +308,7 @@
 				60000000000000000000000A /* AppState.swift */,
 				600000000000000000000F01 /* WatchStrip.swift */,
 				600000000000000000000F03 /* WatchStripView.swift */,
+				517000000000000000000007 /* CurrentGlucoseIntent.swift */,
 				517000000000000000000006 /* SiriLiveReading.swift */,
 				517000000000000000000004 /* SiriGlucoseResolver.swift */,
 				517000000000000000000002 /* SiriGlucoseAnswer.swift */,
@@ -615,6 +618,7 @@
 				70000000000000000000000A /* AppState.swift in Sources */,
 				700000000000000000000F01 /* WatchStrip.swift in Sources */,
 				700000000000000000000F03 /* WatchStripView.swift in Sources */,
+				518000000000000000000007 /* CurrentGlucoseIntent.swift in Sources */,
 				518000000000000000000006 /* SiriLiveReading.swift in Sources */,
 				518000000000000000000004 /* SiriGlucoseResolver.swift in Sources */,
 				518000000000000000000002 /* SiriGlucoseAnswer.swift in Sources */,
