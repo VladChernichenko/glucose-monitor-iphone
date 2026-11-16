@@ -314,6 +314,8 @@ enum BackendAPI {
         let carbAdvice: CarbAdvice?
         /// Dashboard watch strip; nil when absent or malformed.
         let watch: WatchStrip?
+        /// Present only while sick mode is active; nil when absent or malformed (e.g. unknown severity).
+        let sickMode: SickModeStatus?
 
         struct Envelope: Decodable {
             let backendMode: Bool?
@@ -324,7 +326,7 @@ enum BackendAPI {
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
             case eightHourPrediction
-            case predictionTrend, confidence, factors, predictionPath, carbAdvice, watch
+            case predictionTrend, confidence, factors, predictionPath, carbAdvice, watch, sickMode
         }
 
         init(from decoder: Decoder) throws {
@@ -340,6 +342,7 @@ enum BackendAPI {
             predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
             carbAdvice = try? c.decodeIfPresent(CarbAdvice.self, forKey: .carbAdvice)
             watch = try? c.decodeIfPresent(WatchStrip.self, forKey: .watch)
+            sickMode = try? c.decodeIfPresent(SickModeStatus.self, forKey: .sickMode)
         }
 
         private static func decodeFlexible(
