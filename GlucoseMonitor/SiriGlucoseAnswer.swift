@@ -30,7 +30,7 @@ enum SiriGlucoseAnswer {
         if !reading.flaggedStale && age <= LockScreenWidgetSnapshot.staleAfter {
             return "Your blood sugar is \(value)."
         }
-        return "Your last reading was \(agePhrase(age)): \(value)."
+        return "The data is outdated; the last value was \(value), recorded \(agePhrase(age))."
     }
 
     /// Never negative: a phone clock slightly behind the backend must not read as "-1 minutes ago".

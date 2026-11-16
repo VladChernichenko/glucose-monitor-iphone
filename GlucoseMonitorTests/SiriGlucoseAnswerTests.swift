@@ -40,32 +40,32 @@ final class SiriGlucoseAnswerTests: XCTestCase {
     func testOldReadingSaysAge() {
         XCTAssertEqual(
             SiriGlucoseAnswer.spokenText(reading(ageMinutes: 16), displayUnit: "mmol/L", now: now),
-            "Your last reading was 16 minutes ago: 5.6 mmol/L."
+            "The data is outdated; the last value was 5.6 mmol/L, recorded 16 minutes ago."
         )
     }
 
     func testFlaggedStaleSaysAgeEvenWhenRecent() {
         XCTAssertEqual(
             SiriGlucoseAnswer.spokenText(reading(ageMinutes: 2, flaggedStale: true), displayUnit: "mmol/L", now: now),
-            "Your last reading was 2 minutes ago: 5.6 mmol/L."
+            "The data is outdated; the last value was 5.6 mmol/L, recorded 2 minutes ago."
         )
     }
 
     func testFlaggedStaleBrandNewReadingIsOneMinuteSingular() {
         XCTAssertEqual(
             SiriGlucoseAnswer.spokenText(reading(ageMinutes: 0, flaggedStale: true), displayUnit: "mmol/L", now: now),
-            "Your last reading was 1 minute ago: 5.6 mmol/L."
+            "The data is outdated; the last value was 5.6 mmol/L, recorded 1 minute ago."
         )
     }
 
     func testHoursPhrasing() {
         XCTAssertEqual(
             SiriGlucoseAnswer.spokenText(reading(ageMinutes: 60), displayUnit: "mmol/L", now: now),
-            "Your last reading was 1 hour ago: 5.6 mmol/L."
+            "The data is outdated; the last value was 5.6 mmol/L, recorded 1 hour ago."
         )
         XCTAssertEqual(
             SiriGlucoseAnswer.spokenText(reading(ageMinutes: 125), displayUnit: "mmol/L", now: now),
-            "Your last reading was 2 hours ago: 5.6 mmol/L."
+            "The data is outdated; the last value was 5.6 mmol/L, recorded 2 hours ago."
         )
     }
 
