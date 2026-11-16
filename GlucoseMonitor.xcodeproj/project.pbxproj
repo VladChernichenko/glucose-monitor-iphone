@@ -64,6 +64,8 @@
 		700000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */; };
 		700000000000000000000A07 /* GlycemicEventAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A07 /* GlycemicEventAppStateTests.swift */; };
 		700000000000000000000708 /* SickModeDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000707 /* SickModeDecodingTests.swift */; };
+		70000000000000000000070C /* SickModeTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000070B /* SickModeTextTests.swift */; };
+		700000000000000000000710 /* SickModeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000070F /* SickModeViews.swift */; };
 		70000000000000000000070A /* SickModeAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000709 /* SickModeAppStateTests.swift */; };
 		700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A06 /* GlycemicEventDecodingTests.swift */; };
 		700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000095 /* BackendAPIHovorkaTests.swift */; };
@@ -211,6 +213,8 @@
 		600000000000000000000A08 /* GlycemicEventMarkerLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventMarkerLayoutTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A07 /* GlycemicEventAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000707 /* SickModeDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeDecodingTests.swift; sourceTree = "<group>"; };
+		60000000000000000000070B /* SickModeTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeTextTests.swift; sourceTree = "<group>"; };
+		60000000000000000000070F /* SickModeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeViews.swift; sourceTree = "<group>"; };
 		600000000000000000000709 /* SickModeAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A06 /* GlycemicEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000095 /* BackendAPIHovorkaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIHovorkaTests.swift; sourceTree = "<group>"; };
@@ -324,6 +328,7 @@
 				600000000000000000000705 /* AppState+SickMode.swift */,
 				600000000000000000000703 /* BackendAPI+SickMode.swift */,
 				600000000000000000000701 /* SickMode.swift */,
+				60000000000000000000070F /* SickModeViews.swift */,
 				60000000000000000000000C /* NotesView.swift */,
 				60000000000000000000000D /* SettingsView.swift */,
 				60000000000000000000000F /* InsulinIOB.swift */,
@@ -436,6 +441,7 @@
 				600000000000000000000A06 /* GlycemicEventDecodingTests.swift */,
 				600000000000000000000709 /* SickModeAppStateTests.swift */,
 				600000000000000000000707 /* SickModeDecodingTests.swift */,
+				60000000000000000000070B /* SickModeTextTests.swift */,
 				600000000000000000000D05 /* AssistantEventDecodingTests.swift */,
 				600000000000000000000DA3 /* EventProposalTests.swift */,
 				600000000000000000000DA5 /* NoteRemovalTests.swift */,
@@ -630,6 +636,7 @@
 				700000000000000000000706 /* AppState+SickMode.swift in Sources */,
 				700000000000000000000704 /* BackendAPI+SickMode.swift in Sources */,
 				700000000000000000000702 /* SickMode.swift in Sources */,
+				700000000000000000000710 /* SickModeViews.swift in Sources */,
 				700000000000000000000D01 /* ChatOverlayView.swift in Sources */,
 				700000000000000000000D02 /* ChatViewModel.swift in Sources */,
 				700000000000000000000D03 /* ChatMessageViews.swift in Sources */,
@@ -685,6 +692,7 @@
 				700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */,
 				70000000000000000000070A /* SickModeAppStateTests.swift in Sources */,
 				700000000000000000000708 /* SickModeDecodingTests.swift in Sources */,
+				70000000000000000000070C /* SickModeTextTests.swift in Sources */,
 				700000000000000000000D05 /* AssistantEventDecodingTests.swift in Sources */,
 				700000000000000000000DA3 /* EventProposalTests.swift in Sources */,
 				700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */,
