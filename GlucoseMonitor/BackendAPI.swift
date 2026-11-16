@@ -578,56 +578,52 @@ enum BackendAPI {
         return req
     }
 
-    /// Runs a backend call with one 401-refresh retry. If the backend can't be reached at all, the user
-    /// is signed out (by product decision: any failed connection, not only sustained outages).
-    /// Pass `signOutIfUnreachable: false` for calls that wait on LibreLinkUp: a slow or down LLU makes
-    /// them time out though the backend is fine, and that must leave the user signed in.
-    static func performWithRefresh<T>(signOutIfUnreachable: Bool = true, _ work: () async throws -> T) async throws -> T {
+    /// Runs a backend call with one 401-refresh retry.
+    ///
+    /// The user is signed out in exactly one case: the backend itself rejects the refresh token
+    /// (expired, revoked, logout-all). Anything that only means "couldn't ask right now" - offline,
+    /// timeout, DNS, a 5xx from the refresh endpoint - leaves the session intact so the next call
+    /// can try again; an unreachable backend is not evidence that the session is dead.
+    static func performWithRefresh<T>(
+        refresh: () async throws -> Void = { try await GlucoseMonitorAPI.refreshToken() },
+        _ work: () async throws -> T
+    ) async throws -> T {
         do {
+            return try await work()
+        } catch let err as GlucoseMonitorAPI.APIError {
+            guard case .httpStatus(401, _) = err else { throw err }
             do {
-                return try await work()
-            } catch let err as GlucoseMonitorAPI.APIError {
-                if case .httpStatus(401, _) = err {
-                    do {
-                        try await GlucoseMonitorAPI.refreshToken()
-                    } catch {
-                        // refresh failed - the refresh token itself is expired/revoked.
-                        // Keeping the dead tokens in the Keychain just repeats this dance
-                        // forever; clear them so the UI can prompt re-login.
-                        GlucoseMonitorAPI.clearSession()
-                        throw err
-                    }
-                    return try await work()
+                try await refresh()
+            } catch let refreshError {
+                guard isSessionRejected(refreshError) else {
+                    // refresh failed for a transient reason - keep the tokens and surface that error.
+                    throw refreshError
                 }
+                // refresh failed because the refresh token itself is expired/revoked.
+                // Keeping the dead tokens in the Keychain just repeats this dance
+                // forever; clear them so the UI can prompt re-login.
+                GlucoseMonitorAPI.sharedDefaults().set(sessionEndedReason, forKey: signOutReasonKey)
+                GlucoseMonitorAPI.clearSession()
                 throw err
             }
-        } catch {
-            if signOutIfUnreachable { signOutIfBackendUnreachable(error) }
-            throw error
+            return try await work()
         }
     }
 
     /// Defaults key holding why the app last signed itself out; shown once on the sign-in screen.
     static let signOutReasonKey = "gm_sign_out_reason"
-    static let backendUnreachableReason = "Signed out because the server couldn't be reached. Sign in again when it's back."
+    static let sessionEndedReason = "Your session has ended. Sign in again."
 
-    /// True for transport errors meaning the backend was never reached (as opposed to an HTTP error it returned).
-    static func isBackendUnreachable(_ error: Error) -> Bool {
-        guard let urlError = error as? URLError else { return false }
-        switch urlError.code {
-        case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .timedOut, .networkConnectionLost,
-             .notConnectedToInternet, .cannotLoadFromNetwork, .internationalRoamingOff, .dataNotAllowed:
+    /// True when a failed token refresh means the backend refused the refresh token, as opposed to
+    /// the refresh simply not getting through. Only this may end the session.
+    static func isSessionRejected(_ refreshError: Error) -> Bool {
+        guard let apiError = refreshError as? GlucoseMonitorAPI.APIError else { return false }
+        switch apiError {
+        case .httpStatus(401, _), .httpStatus(403, _), .missingToken:
             return true
         default:
             return false
         }
-    }
-
-    /// Clear the session (AppState observes this and shows sign-in) when `error` means the backend is unreachable.
-    static func signOutIfBackendUnreachable(_ error: Error) {
-        guard isBackendUnreachable(error) else { return }
-        GlucoseMonitorAPI.sharedDefaults().set(backendUnreachableReason, forKey: signOutReasonKey)
-        GlucoseMonitorAPI.clearSession()
     }
 
     static func checkStatus(_ response: URLResponse, data: Data) throws {
@@ -872,6 +868,15 @@ enum BackendAPI {
 
         /// Windows with enough data to propose a new ISF.
         var proposalLines: [WindowProposal] { windows.filter { $0.hasData && $0.proposedIsf != nil } }
+
+        /// All four windows in display order, padding with any missing ones.
+        var allWindowsOrdered: [WindowProposal] {
+            let order = ["BREAKFAST", "LUNCH", "DINNER", "NIGHT"]
+            let byKey = Dictionary(uniqueKeysWithValues: windows.map { ($0.mealWindow, $0) })
+            return order.map { key in
+                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil)
+            }
+        }
     }
 
     static func fetchIsfMealWindowSuggestion() async throws -> IsfMealWindowSuggestion {
@@ -1157,7 +1162,7 @@ enum BackendAPI {
     @discardableResult
     static func syncLibreNow() async throws -> String {
         // The backend waits on LibreLinkUp here, so a timeout means LLU is slow, not that the backend is gone.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             let req = try authorizedRequest(path: "/api/libre/sync-now", method: "POST")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)

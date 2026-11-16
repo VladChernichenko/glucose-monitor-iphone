@@ -60,6 +60,10 @@ final class AppState: ObservableObject {
     /// Bumped on every logout so in-flight refresh tasks started before logout can detect that
     /// their results are stale and must not write into a now-logged-out session.
     private var authGeneration = 0
+    /// The sign-in generation whose chart history has been loaded in full from the backend. Nil on
+    /// launch, so the first load of every launch and of every sign-in replaces the cached history
+    /// instead of only appending to it.
+    private var historyFullLoadGeneration: Int?
     private var sessionClearedObserver: NSObjectProtocol?
 
     init() {
@@ -631,7 +635,10 @@ final class AppState: ObservableObject {
                 // LLU: read from the cached chart data written by the background scheduler
                 // (runs every 5 min). Pass the latest cached timestamp so the backend only
                 // returns new readings; merge them into the existing history.
-                let sinceDate = glucoseHistory.last.map { $0.time }
+                // The first load after launch or sign-in is a full one: an append-only history
+                // never receives readings the backend backfills behind its newest point, and a
+                // history that was once cut short would stay short.
+                let sinceDate = historyFullLoadGeneration == generation ? glucoseHistory.last.map { $0.time } : nil
                 let entries = try await BackendAPI.fetchNightscoutChartData(count: 200, since: sinceDate)
                 guard generation == authGeneration else { return }
                 if !entries.isEmpty {
@@ -654,8 +661,11 @@ final class AppState: ObservableObject {
                     if let latest = Self.latestNightscoutEntry(entries) {
                         currentReading = latest.toLibreGlucoseCurrent(isLLU: true)
                     }
-                } else {
-                    // No cached data yet - fall back to live LLU endpoint.
+                    historyFullLoadGeneration = generation
+                } else if sinceDate == nil {
+                    // No cached data yet - fall back to live LLU endpoint. Only on a full load:
+                    // an incremental poll that finds nothing new just means no new reading, and
+                    // must not replace the history with LibreLinkUp's (possibly much shorter) list.
                     let rows = try await GlucoseMonitorAPI.fetchLibreGlucoseHistory(days: 1)
                     guard generation == authGeneration else { return }
                     let points: [GlucoseChartPoint] = rows.compactMap { r in

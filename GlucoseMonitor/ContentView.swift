@@ -132,7 +132,6 @@ struct DashboardView: View {
     @State private var showAddNote = false
     @State private var selectedGlycemicEvent: BackendAPI.GlycemicEvent?
     @State private var showExtendedForecast = false
-    @State private var showBedsideMode = false
     @State private var showLongActing = false
     @State private var showActivity = false
     @State private var showTwinForecast = false
@@ -200,40 +199,12 @@ struct DashboardView: View {
                     }
                 }
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        Task { await appState.refreshAll() }
-                    } label: {
-                        if appState.isLoading {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .disabled(appState.isLoading || !appState.isAuthenticated)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showBedsideMode = true } label: {
-                        Image(systemName: "moon.stars")
-                    }
-                    .disabled(!appState.isAuthenticated)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button { showAddNote = true } label: {
-                        Image(systemName: "plus")
-                    }
-                    .disabled(!appState.isAuthenticated)
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddNote) {
                 NoteEditorSheet { input, photo in
                     await appState.createNote(input, photo: photo)
                 }
                 .environmentObject(appState)
-            }
-            .fullScreenCover(isPresented: $showBedsideMode) {
-                BedsideModeView().environmentObject(appState)
             }
             .sheet(isPresented: $showLongActing) {
                 LongActingInsulinSheet(
@@ -313,15 +284,20 @@ struct DashboardView: View {
             Text("Based on your recent data, we suggest refining meal-window ISF. Review and apply, or dismiss for a few days.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(suggestion.proposalLines) { w in
+            ForEach(suggestion.allWindowsOrdered) { w in
                 HStack {
                     Text(w.displayName)
                         .font(.caption.weight(.medium))
+                        .foregroundStyle(w.hasData ? .primary : .tertiary)
                     Spacer()
                     if let cur = w.currentIsf, let prop = w.proposedIsf {
-                        Text(String(format: "%.2f ? %.2f", cur, prop))
+                        Text(String(format: "%.2f → %.2f", cur, prop))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
+                    } else {
+                        Text("No data yet")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }

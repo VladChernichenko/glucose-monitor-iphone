@@ -108,7 +108,7 @@ extension BackendAPI {
     static func postDoseRecheck(messageId: String, doseUnits: Double, clientTime: String,
                                 timezone: String) async throws -> DoseRecheck {
         // A rejected re-check (409, 400 clock off) must never sign the user out.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             var req = try authorizedRequest(path: recheckPath(messageId: messageId), method: "POST")
             req.httpBody = recheckBody(doseUnits: doseUnits, clientTime: clientTime, timezone: timezone)
             let (data, resp) = try await URLSession.shared.data(for: req)

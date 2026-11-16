@@ -437,7 +437,7 @@ extension BackendAPI {
         openLines: () async throws -> Lines,
         onEvent: @MainActor @escaping (AssistantEvent) -> Void
     ) async throws where Lines.Element == String {
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             for try await line in try await openLines() {
                 guard let event = decodeAssistantEvent(line: line) else { continue }
                 await onEvent(event)
@@ -449,7 +449,7 @@ extension BackendAPI {
 
     static func fetchAssistantHistory(before: Date?, limit: Int) async throws -> [ChatMessageDTO] {
         // The chat loads history on its own; a flaky connection there must not sign the user out.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             var path = "/api/assistant/messages?limit=\(limit)"
             if let before {
                 let f = ISO8601DateFormatter()
@@ -474,7 +474,7 @@ extension BackendAPI {
 
     static func fetchAssistantHitRate() async throws -> AssistantHitRate {
         // A header pill must never sign the user out when the connection is flaky.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             let req = try authorizedRequest(path: "/api/assistant/hit-rate")
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)

@@ -184,7 +184,7 @@ extension BackendAPI {
     static func postMealPlanAction(messageId: String, action: MealPlanAction, clientTime: String,
                                    timezone: String) async throws -> MealPlanActionResult {
         // A rejected action (409 wrong state, 400 clock off) must never sign the user out.
-        try await performWithRefresh(signOutIfUnreachable: false) {
+        try await performWithRefresh {
             var req = try authorizedRequest(path: mealPlanActionPath(messageId: messageId, action: action), method: "POST")
             req.httpBody = mealPlanActionBody(action, clientTime: clientTime, timezone: timezone)
             let (data, resp) = try await URLSession.shared.data(for: req)
