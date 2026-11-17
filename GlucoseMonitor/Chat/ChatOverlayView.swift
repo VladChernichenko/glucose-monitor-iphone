@@ -101,8 +101,7 @@ struct ChatOverlayView: View {
             onTurnOn: { severity, since in
                 Task {
                     await model.runSickCommand(messageId: id) {
-                        await appState.startSickMode(severity, since: since)
-                        guard let status = appState.sickMode, status.active else { return nil }
+                        guard let status = await appState.startSickMode(severity, since: since), status.active else { return nil }
                         return SickModeChatCard.doneOnText(status.severity ?? severity)
                     }
                 }
@@ -110,8 +109,7 @@ struct ChatOverlayView: View {
             onEnd: {
                 Task {
                     await model.runSickCommand(messageId: id) {
-                        await appState.endSickMode(reason: "USER")
-                        guard let status = appState.sickMode, !status.active else { return nil }
+                        guard let status = await appState.endSickMode(reason: "USER"), !status.active else { return nil }
                         return SickModeChatCard.doneEndedText
                     }
                 }

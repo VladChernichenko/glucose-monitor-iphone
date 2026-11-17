@@ -57,6 +57,18 @@ final class SickModeAppStateTests: XCTestCase {
         XCTAssertNotNil(s.errorMessage)
     }
 
+    func testCommandReturnsTheStatusOnSuccessAndNilOnFailure() async {
+        StubURLProtocol.enqueue(path: "/api/sick-mode/start", .init(status: 200, body: statusJSON(severity: "MILD")))
+        StubURLProtocol.enqueue(path: "/api/sick-mode/end", .jsonError(status: 400, message: "rejected"))
+        let s = makeState()
+        let started = await s.startSickMode(.mild, since: .now)
+        XCTAssertEqual(started?.severity, .mild)
+        let ended = await s.endSickMode(reason: "USER")
+        XCTAssertNil(ended)
+        XCTAssertEqual(s.sickMode?.active, true)
+        XCTAssertNotNil(s.errorMessage)
+    }
+
     func testStepUpUsesTheNoteIdFromTheCurrentStatus() async throws {
         StubURLProtocol.enqueue(path: "/api/sick-mode/start", .init(status: 200, body: statusJSON(severity: "SEVERE", stepUp: true)))
         StubURLProtocol.enqueue(path: "/api/sick-mode/step-up", .init(status: 200, body: statusJSON(severity: "SEVERE_UNRESPONSIVE")))

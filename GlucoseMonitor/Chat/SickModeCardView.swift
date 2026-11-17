@@ -109,6 +109,7 @@ struct SickModeChatCardView: View {
                 }
             }
             .buttonStyle(.plain)
+            .disabled(actions.isBusy)
         }
         Text("Since when?").font(.subheadline)
         Picker("Since when?", selection: $since) {
@@ -117,6 +118,7 @@ struct SickModeChatCardView: View {
             }
         }
         .pickerStyle(.segmented)
+        .disabled(actions.isBusy)
         Button("Turn on") {
             if let severity { actions.onTurnOn(severity, since) }
         }

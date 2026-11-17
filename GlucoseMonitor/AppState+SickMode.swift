@@ -5,38 +5,47 @@ import Foundation
 /// command leaves `sickMode` untouched and reports the error.
 extension AppState {
 
-    func startSickMode(_ severity: SickSeverity, since: SickSince) async {
-        await runSickCommand { try await BackendAPI.startSickMode(severity, since: since) }
+    @discardableResult
+    func startSickMode(_ severity: SickSeverity, since: SickSince) async -> SickModeStatus? {
+        return await runSickCommand { try await BackendAPI.startSickMode(severity, since: since) }
     }
 
-    func changeSickSeverity(_ severity: SickSeverity) async {
-        await runSickCommand { try await BackendAPI.changeSickSeverity(severity) }
+    @discardableResult
+    func changeSickSeverity(_ severity: SickSeverity) async -> SickModeStatus? {
+        return await runSickCommand { try await BackendAPI.changeSickSeverity(severity) }
     }
 
-    func confirmStillSick() async {
-        await runSickCommand { try await BackendAPI.confirmStillSick() }
+    @discardableResult
+    func confirmStillSick() async -> SickModeStatus? {
+        return await runSickCommand { try await BackendAPI.confirmStillSick() }
     }
 
-    func endSickMode(reason: String) async {
-        await runSickCommand { try await BackendAPI.endSickMode(reason: reason) }
+    @discardableResult
+    func endSickMode(reason: String) async -> SickModeStatus? {
+        return await runSickCommand { try await BackendAPI.endSickMode(reason: reason) }
     }
 
     /// Answers the pending step-up proposal; does nothing when there is none.
-    func decideSickStepUp(accept: Bool) async {
-        guard let noteId = sickMode?.stepUp?.noteId else { return }
-        await runSickCommand { try await BackendAPI.decideSickStepUp(noteId: noteId, accept: accept) }
+    @discardableResult
+    func decideSickStepUp(accept: Bool) async -> SickModeStatus? {
+        guard let noteId = sickMode?.stepUp?.noteId else { return nil }
+        return await runSickCommand { try await BackendAPI.decideSickStepUp(noteId: noteId, accept: accept) }
     }
 
-    private func runSickCommand(_ command: () async throws -> SickModeStatus) async {
+    /// Returns the server's status on success, nil on any failure (including a sign-out mid-command).
+    private func runSickCommand(_ command: () async throws -> SickModeStatus) async -> SickModeStatus? {
         let generation = authGeneration
+        var result: SickModeStatus?
         do {
             let status = try await command()
-            guard generation == authGeneration else { return }
+            guard generation == authGeneration else { return nil }
             sickMode = status
+            result = status
         } catch {
             errorMessage = "Couldn't update sick mode. Try again."
-            return
+            return nil
         }
         await refreshGlucoseOnly(silent: true, forceServerSync: false)
+        return result
     }
 }

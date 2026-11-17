@@ -72,6 +72,66 @@ final class ChatViewModelTests: XCTestCase {
                       timeZone: TimeZone(identifier: "Europe/Berlin")!)
     }
 
+    // MARK: - Sick mode card
+
+    private let sickCardId = UUID(uuidString: "6F1C2A52-0D1E-4C53-9A53-3B1F0A9D7E11")!
+
+    private func makeSickVM() async -> ChatViewModel {
+        let fake = FakeAssistantService()
+        fake.scriptedEvents = [.sickMode(messageId: sickCardId, action: "START", severity: .mild,
+                                         current: SickModeStatus(active: false))]
+        let vm = makeVM(fake)
+        await vm.send(text: "I'm sick", photoJPEG: nil)
+        return vm
+    }
+
+    private func sickCard(_ vm: ChatViewModel) -> SickModeChatCard? {
+        for item in vm.items { if case .sickMode(let c) = item.kind { return c } }
+        return nil
+    }
+
+    func testSickCommandSuccessMarksTheCardDone() async {
+        let vm = await makeSickVM()
+        let id = sickCardId.uuidString.lowercased()
+        await vm.runSickCommand(messageId: id) { "Sick mode is on · mild" }
+        XCTAssertEqual(sickCard(vm)?.state, .done("Sick mode is on · mild"))
+        XCTAssertTrue(vm.busySickIds.isEmpty)
+    }
+
+    func testSickCommandFailureKeepsTheCardOpenAndClearsBusy() async {
+        let vm = await makeSickVM()
+        await vm.runSickCommand(messageId: sickCardId.uuidString.lowercased()) { nil }
+        XCTAssertEqual(sickCard(vm)?.state, .open)
+        XCTAssertTrue(vm.busySickIds.isEmpty)
+    }
+
+    func testSickCommandWhileBusyIsIgnored() async {
+        let vm = await makeSickVM()
+        let id = sickCardId.uuidString.lowercased()
+        var secondRan = false
+        let first = Task { @MainActor in
+            await vm.runSickCommand(messageId: id) {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                return "first"
+            }
+        }
+        while !vm.busySickIds.contains(id) { await Task.yield() }
+        await vm.runSickCommand(messageId: id) { secondRan = true; return "second" }
+        await first.value
+        XCTAssertFalse(secondRan)
+        XCTAssertEqual(sickCard(vm)?.state, .done("first"))
+    }
+
+    func testSickCommandOnADoneCardIsIgnored() async {
+        let vm = await makeSickVM()
+        let id = sickCardId.uuidString.lowercased()
+        await vm.runSickCommand(messageId: id) { "done" }
+        var ran = false
+        await vm.runSickCommand(messageId: id) { ran = true; return "again" }
+        XCTAssertFalse(ran)
+        XCTAssertEqual(sickCard(vm)?.state, .done("done"))
+    }
+
     // MARK: - Carb advice
 
     func testTookFastCarbsSendsGramsFastThroughChatPath() async {
