@@ -153,6 +153,7 @@ struct DashboardView: View {
                                 if appState.libreDataStale && scenePhase == .active {
                                     libreStaleBanner
                                 }
+                                SickModeSection(appState: appState)
                                 // Re-evaluated on a timer so an expired dose strip leaves without waiting for a refresh.
                                 TimelineView(.periodic(from: .now, by: 15)) { context in
                                     if let strip = appState.watchStrip(at: context.date) {

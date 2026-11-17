@@ -94,6 +94,28 @@ struct ChatOverlayView: View {
             onDismiss: { model.dismissProposal(messageId: id) })
     }
 
+    private func sickActions(_ card: SickModeChatCard) -> SickModeChatActions {
+        let id = card.messageId
+        return SickModeChatActions(
+            isBusy: model.busySickIds.contains(id),
+            onTurnOn: { severity, since in
+                Task {
+                    await model.runSickCommand(messageId: id) {
+                        guard let status = await appState.startSickMode(severity, since: since), status.active else { return nil }
+                        return SickModeChatCard.doneOnText(status.severity ?? severity)
+                    }
+                }
+            },
+            onEnd: {
+                Task {
+                    await model.runSickCommand(messageId: id) {
+                        guard let status = await appState.endSickMode(reason: "USER"), !status.active else { return nil }
+                        return SickModeChatCard.doneEndedText
+                    }
+                }
+            })
+    }
+
     private func removalActions(_ card: NoteRemovalCard) -> NoteRemovalActions {
         let id = card.messageId
         return NoteRemovalActions(
@@ -193,7 +215,8 @@ struct ChatOverlayView: View {
                                        prompt: promptActions,
                                        mealPlan: mealPlanActions,
                                        proposal: proposalActions,
-                                       removal: removalActions)
+                                       removal: removalActions,
+                                       sickMode: sickActions)
                         .id(item.id)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomId)

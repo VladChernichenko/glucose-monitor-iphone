@@ -15,7 +15,13 @@ final class AppState: ObservableObject {
     @Published var isAuthenticated = false
     @Published var isLoading = false
     @Published var currentReading: GlucoseMonitorAPI.LibreGlucoseCurrent?
-    @Published var calculations: BackendAPI.GlucoseCalculationsResponse?
+    @Published var calculations: BackendAPI.GlucoseCalculationsResponse? {
+        // Sick mode follows the newest calculations (nil when the server omits it). Clearing the
+        // calculations (nothing to calculate from) says nothing about sick mode, so it is left alone.
+        didSet { if let calculations { sickMode = calculations.sickMode } }
+    }
+    /// Latest sick-mode status: from the newest calculations, or the result of a sick-mode command.
+    @Published var sickMode: SickModeStatus?
     /// True when the last calculations refresh failed and `calculations` is showing a stale (previously fetched) value.
     @Published var calculationsStale: Bool = false
     /// True while `calculations` is the copy restored from DashboardCache at launch and no fetch has succeeded
@@ -59,7 +65,7 @@ final class AppState: ObservableObject {
     private var lastCalculationsResponseJSON: Data?
     /// Bumped on every logout so in-flight refresh tasks started before logout can detect that
     /// their results are stale and must not write into a now-logged-out session.
-    private var authGeneration = 0
+    private(set) var authGeneration = 0
     /// The sign-in generation whose chart history has been loaded in full from the backend. Nil on
     /// launch, so the first load of every launch and of every sign-in replaces the cached history
     /// instead of only appending to it.
@@ -190,6 +196,7 @@ final class AppState: ObservableObject {
         isAuthenticated = false
         currentReading = nil
         calculations = nil
+        sickMode = nil
         calculationsStale = false
         calculationsFromCache = false
         calculationsFetchedAt = nil

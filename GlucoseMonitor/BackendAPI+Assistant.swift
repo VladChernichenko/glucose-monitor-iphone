@@ -199,6 +199,29 @@ extension BackendAPI {
         case proposal(messageId: String, tags: [String], comment: String?)
         /// A logged note proposed for removal (assistant message `messageId`); deleted only on Remove.
         case removal(NoteRemovalCard)
+        /// "I'm sick" / "I'm better": a confirmation card for assistant message `messageId`. The chat never
+        /// switches sick mode itself; the card's buttons do. `action` is "START" or "END".
+        case sickMode(messageId: UUID, action: String, severity: SickSeverity?, current: SickModeStatus?)
+    }
+
+    /// The stream's `sickMode` line. An unknown or unselectable severity reads as nil, an unreadable
+    /// `current` as nil; the event itself is kept.
+    private struct SickModeEventBody: Decodable {
+        let messageId: UUID
+        let action: String
+        let severity: SickSeverity?
+        let current: SickModeStatus?
+
+        private enum CodingKeys: String, CodingKey { case messageId, action, severity, current }
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            messageId = try c.decode(UUID.self, forKey: .messageId)
+            action = try c.decode(String.self, forKey: .action)
+            let raw = (try? c.decodeIfPresent(String.self, forKey: .severity)) ?? nil
+            severity = raw.flatMap(SickSeverity.init(rawValue:)).flatMap { $0.selectable ? $0 : nil }
+            current = (try? c.decodeIfPresent(SickModeStatus.self, forKey: .current)) ?? nil
+        }
     }
 
     private struct AssistantEventEnvelope: Decodable {
@@ -272,6 +295,10 @@ extension BackendAPI {
                 .removal(NoteRemovalCard(messageId: $0.messageId, at: $0.at, insulin: $0.insulin, carbs: $0.carbs,
                                          label: $0.label))
             }
+        case "sickMode":
+            guard let body = try? decoder.decode(SickModeEventBody.self, from: data),
+                  body.action == "START" || body.action == "END" else { return nil }
+            return .sickMode(messageId: body.messageId, action: body.action, severity: body.severity, current: body.current)
         default:
             return nil
         }
