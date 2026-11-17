@@ -123,22 +123,22 @@ struct SickModeCard: View {
     }
 }
 
-/// Off state: a small "I'm sick" row.
+/// Off state: a small "Log I've fallen ill" row.
 struct SickModeEntry: View {
     let onTap: () -> Void
 
     var body: some View {
         Button(action: onTap) {
+            // Styled to match the dashboard's Actions list rows.
             HStack {
-                Image(systemName: "thermometer.medium")
-                Text("I'm sick").font(.subheadline)
+                Label("Log I've fallen ill", systemImage: "thermometer.medium")
+                    .font(.subheadline)
                 Spacer()
-                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right").font(.caption).foregroundColor(.secondary)
             }
-            .padding(.horizontal)
             .padding(.vertical, 10)
-            .background(Color.secondary.opacity(0.1))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .contentShape(Rectangle())
+            .foregroundColor(.primary)
         }
         .buttonStyle(.plain)
     }

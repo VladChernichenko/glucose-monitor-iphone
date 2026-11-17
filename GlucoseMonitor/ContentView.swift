@@ -153,7 +153,6 @@ struct DashboardView: View {
                                 if appState.libreDataStale && scenePhase == .active {
                                     libreStaleBanner
                                 }
-                                SickModeSection(appState: appState)
                                 // Re-evaluated on a timer so an expired dose strip leaves without waiting for a refresh.
                                 TimelineView(.periodic(from: .now, by: 15)) { context in
                                     if let strip = appState.watchStrip(at: context.date) {
@@ -842,6 +841,11 @@ struct DashboardView: View {
                 }
                 Divider()
                 Button { showTwinForecast = true } label: {
+                // SickModeSection renders nothing when sick mode is off and data is from cache.
+                if appState.sickMode?.active == true || !appState.calculationsFromCache {
+                    Divider()
+                    SickModeSection(appState: appState)
+                }
                     quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
                 }
             }
