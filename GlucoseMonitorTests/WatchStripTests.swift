@@ -132,18 +132,16 @@ final class WatchStripTests: XCTestCase {
         XCTAssertEqual(WatchStripText.detail(rough, unit: "mmol/L"), "")
     }
 
-    func testRoughActivitySuffix_onlyWhenDefault() throws {
-        let rough = " \u{00B7} activity estimate still rough"
+    func testDipAndWatching_omitActivityEstimate() throws {
         let watching = try strip(reason: "WATCHING", landing: landing, activity: "DEFAULT")
         XCTAssertEqual(WatchStripText.headline(watching, unit: "mmol/L"), "Watching \u{00B7} 1.2 U, 30 g active")
         XCTAssertEqual(WatchStripText.detail(watching, unit: "mmol/L"),
-                       "Lands 10.4 mmol/L by \(at("2026-10-31T23:00:00"))" + rough)
+                       "Lands 10.4 mmol/L by \(at("2026-10-31T23:00:00"))")
         let dip = try strip(reason: "DIP_AHEAD", low: low, activity: "DEFAULT")
-        XCTAssertTrue(WatchStripText.detail(dip, unit: "mmol/L").hasSuffix("have 10\u{2013}15 g ready" + rough))
+        XCTAssertEqual(WatchStripText.detail(dip, unit: "mmol/L"),
+                       "Dip to 3.6 mmol/L around \(at("2026-10-31T19:40:00")), have 10\u{2013}15 g ready")
         let learned = try strip(reason: "DIP_AHEAD", low: low, activity: "LEARNED")
         XCTAssertFalse(WatchStripText.detail(learned, unit: "mmol/L").contains("rough"))
-        let high = try strip(state: "URGENT_HIGH", reason: "SMALL_RISE", landing: landing, activity: "DEFAULT")
-        XCTAssertFalse(WatchStripText.detail(high, unit: "mmol/L").contains("rough"))
     }
 
     // MARK: visibility

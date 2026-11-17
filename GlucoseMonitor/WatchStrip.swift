@@ -145,11 +145,9 @@ enum WatchStripText {
         case .watching, .dipAhead:
             // No landing to state: no detail line rather than "Lands -- by --:--".
             if s.reason == .watching && s.landing == nil { return "" }
-            var text = s.reason == .watching
+            return s.reason == .watching
                 ? "Lands \(glucose(s.landing?.mmol, unit)) by \(time(s.landing?.at))"
                 : "Dip to \(glucose(s.low?.mmol, unit)) around \(time(s.low?.at)), have 10\u{2013}15 g ready"
-            if s.activityEstimate == .default { text += " \u{00B7} activity estimate still rough" }
-            return text
         case .unknown: return ""
         }
     }
