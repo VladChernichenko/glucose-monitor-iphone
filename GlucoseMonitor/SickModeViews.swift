@@ -225,9 +225,10 @@ struct SickSeverityPicker: View {
         return current.selectable ? current : .severe
     }
 
-    /// Changing to the level already in force is a no-op, so Save is off for it.
+    /// Changing to the level already in force is a no-op, so Save is off for it. The unselectable top
+    /// level can never be the selection, so Save stays on with `.severe` preselected (a step down).
     static func canSave(mode: Mode, current: SickSeverity?, selection: SickSeverity) -> Bool {
-        mode == .start || selection != initialSelection(mode: mode, current: current)
+        mode == .start || selection != current
     }
 
     var body: some View {

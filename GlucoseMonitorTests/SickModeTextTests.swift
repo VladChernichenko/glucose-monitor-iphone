@@ -48,10 +48,13 @@ final class SickModeTextTests: XCTestCase {
         XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .start, current: nil), .mild)
     }
 
-    func testChangeSaveIsOffWhileTheSelectionIsTheCurrentOrMappedLevel() {
+    func testChangeSaveIsOffWhileTheSelectionIsTheCurrentLevel() {
         XCTAssertFalse(SickSeverityPicker.canSave(mode: .change, current: .moderate, selection: .moderate))
         XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .moderate, selection: .severe))
-        XCTAssertFalse(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: .severe))
+        XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: .severe))
+        let preselected = SickSeverityPicker.initialSelection(mode: .change, current: .severeUnresponsive)
+        XCTAssertEqual(preselected, .severe)
+        XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: preselected))
         XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: .mild))
         XCTAssertTrue(SickSeverityPicker.canSave(mode: .start, current: nil, selection: .mild))
     }
