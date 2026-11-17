@@ -31,6 +31,8 @@ struct ChatItem: Identifiable, Equatable {
         case noteLogged(String)
         /// The sentence told to the model after a note was deleted. Not a message the user typed.
         case noteDeleted(String)
+        /// "I'm sick" / "I'm better" confirmation: [Turn on] / [End sick mode] switch sick mode, the chat never does.
+        case sickMode(SickModeChatCard)
     }
 
     let id: String
@@ -57,6 +59,7 @@ struct ChatItem: Identifiable, Equatable {
         case .noteRemoval(let card): return card.text
         case .noteLogged(let text): return text
         case .noteDeleted(let text): return text
+        case .sickMode(let card): return card.previewText
         }
     }
 }

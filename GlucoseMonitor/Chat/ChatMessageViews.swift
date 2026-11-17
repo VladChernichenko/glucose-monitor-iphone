@@ -12,6 +12,8 @@ struct ChatMessageRow: View {
     var proposal: ((EventProposalCard) -> EventProposalActions)?
     /// Actions for a removal proposal row (Remove / Keep).
     var removal: ((NoteRemovalCard) -> NoteRemovalActions)?
+    /// Actions for a sick mode card row (Turn on / End sick mode).
+    var sickMode: ((SickModeChatCard) -> SickModeChatActions)?
 
     var body: some View {
         switch item.kind {
@@ -69,6 +71,10 @@ struct ChatMessageRow: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        case .sickMode(let card):
+            if let sickMode {
+                SickModeChatCardView(card: card, actions: sickMode(card))
+            }
         case .noteRemoval(let card):
             if let removal {
                 NoteRemovalBubble(card: card, actions: removal(card))

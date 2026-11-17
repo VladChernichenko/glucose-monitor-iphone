@@ -143,6 +143,58 @@ final class AssistantEventDecodingTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(episodes(line)).map(\.id), ["m"])
     }
 
+    // MARK: sickMode
+
+    private let sickId = "6f1c2a52-0d1e-4c53-9a53-3b1f0a9d7e11"
+
+    private func sickLine(action: String = "START", severity: String = #""MODERATE""#, current: String = #"{"active":false}"#) -> String {
+        #"{"type":"sickMode","messageId":"\#(sickId)","action":"\#(action)","severity":\#(severity),"current":\#(current)}"#
+    }
+
+    func testDecodesSickModeProposal() throws {
+        guard case .sickMode(let id, let action, let severity, let current)? = BackendAPI.decodeAssistantEvent(line: sickLine()) else {
+            return XCTFail("expected sickMode")
+        }
+        XCTAssertEqual(id, UUID(uuidString: sickId))
+        XCTAssertEqual(action, "START")
+        XCTAssertEqual(severity, .moderate)
+        XCTAssertEqual(current?.active, false)
+    }
+
+    func testSickModeNullOrUnknownSeverityDecodesAsNilAndKeepsEvent() {
+        for sev in ["null", #""BOGUS""#, #""SEVERE_UNRESPONSIVE""#] {
+            guard case .sickMode(_, _, let severity, _)? = BackendAPI.decodeAssistantEvent(line: sickLine(severity: sev)) else {
+                return XCTFail("event dropped for \(sev)")
+            }
+            XCTAssertNil(severity, sev)
+        }
+    }
+
+    func testSickModeUnknownActionIsDropped() {
+        XCTAssertNil(BackendAPI.decodeAssistantEvent(line: sickLine(action: "PAUSE")))
+    }
+
+    func testSickModeEndCarriesActiveStatus() throws {
+        guard case .sickMode(_, let action, _, let current)? = BackendAPI.decodeAssistantEvent(
+            line: sickLine(action: "END", severity: "null", current: #"{"active":true,"severity":"MILD","dayNumber":2}"#)) else {
+            return XCTFail("expected sickMode")
+        }
+        XCTAssertEqual(action, "END")
+        XCTAssertEqual(current?.active, true)
+        XCTAssertEqual(current?.severity, .mild)
+    }
+
+    func testSickModeCardStates() throws {
+        let id = try XCTUnwrap(UUID(uuidString: sickId))
+        let on = SickModeStatus(active: true, severity: .mild)
+        let off = SickModeStatus(active: false)
+        XCTAssertTrue(try XCTUnwrap(SickModeChatCard(messageId: id, action: "START", severity: nil, current: on)).alreadyOn)
+        XCTAssertFalse(try XCTUnwrap(SickModeChatCard(messageId: id, action: "START", severity: nil, current: off)).alreadyOn)
+        XCTAssertTrue(try XCTUnwrap(SickModeChatCard(messageId: id, action: "END", severity: nil, current: off)).alreadyOff)
+        XCTAssertNil(SickModeChatCard(messageId: id, action: "X", severity: nil, current: nil))
+        XCTAssertEqual(SickModeChatCard.doneOnText(.moderate), "Sick mode is on · moderate")
+    }
+
     func testUnknownTypeAndJunkAreIgnored() {
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: #"{"type":"hologram","x":1}"#))
         XCTAssertNil(BackendAPI.decodeAssistantEvent(line: ""))

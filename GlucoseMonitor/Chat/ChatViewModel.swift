@@ -18,6 +18,8 @@ final class ChatViewModel: ObservableObject {
     @Published private(set) var bannerStates: [String: HistoryBannerState] = [:]
     /// Event proposals with a Confirm in flight; their buttons are disabled (double-tap protection).
     @Published private(set) var busyProposalIds: Set<String> = []
+    /// Sick mode cards with a command in flight; their buttons are disabled.
+    @Published private(set) var busySickIds: Set<String> = []
     /// Removal cards with a Remove in flight; their buttons are disabled (double-tap protection).
     @Published private(set) var busyRemovalIds: Set<String> = []
 
@@ -321,6 +323,10 @@ final class ChatViewModel: ObservableObject {
             // No tokens follow a proposal: the bubble (with Confirm / No) takes the reply's place.
             let card = EventProposalCard(messageId: messageId, tags: tags, comment: comment)
             items[i] = ChatItem(id: messageId, createdAt: items[i].createdAt, kind: .eventProposal(card))
+        case .sickMode(let messageId, let action, let severity, let current):
+            // No tokens follow the card: it takes the reply's place.
+            guard let card = SickModeChatCard(messageId: messageId, action: action, severity: severity, current: current) else { break }
+            items[i] = ChatItem(id: card.messageId, createdAt: items[i].createdAt, kind: .sickMode(card))
         case .removal(let card):
             // No tokens follow a removal proposal: the bubble (with Remove / Keep) takes the reply's place.
             items[i] = ChatItem(id: card.messageId, createdAt: items[i].createdAt, kind: .noteRemoval(card))
@@ -414,6 +420,25 @@ final class ChatViewModel: ObservableObject {
     /// Edit: there is no re-plan endpoint, so the edited items go out as a new meal-prep message.
     func replan(items: [BackendAPI.MealPlanItem]) async {
         await send(text: MealPlanRules.replanMessage(items), photoJPEG: nil)
+    }
+
+    // MARK: Sick mode card
+
+    /// Runs a card's command. `command` returns the done text on success and nil on failure; on failure the
+    /// card keeps its previous state (the app already reports the error).
+    func runSickCommand(messageId: String, _ command: () async -> String?) async {
+        guard !busySickIds.contains(messageId), sickCard(messageId)?.state == .open else { return }
+        busySickIds.insert(messageId)
+        defer { busySickIds.remove(messageId) }
+        guard let doneText = await command(), let i = index(of: messageId),
+              case .sickMode(var card) = items[i].kind else { return }
+        card.state = .done(doneText)
+        items[i].kind = .sickMode(card)
+    }
+
+    private func sickCard(_ messageId: String) -> SickModeChatCard? {
+        guard let i = index(of: messageId), case .sickMode(let card) = items[i].kind else { return nil }
+        return card
     }
 
     // MARK: Event proposals

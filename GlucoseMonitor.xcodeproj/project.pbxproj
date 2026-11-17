@@ -66,6 +66,7 @@
 		700000000000000000000708 /* SickModeDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000707 /* SickModeDecodingTests.swift */; };
 		70000000000000000000070C /* SickModeTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000070B /* SickModeTextTests.swift */; };
 		700000000000000000000710 /* SickModeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000070F /* SickModeViews.swift */; };
+		700000000000000000000712 /* SickModeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000711 /* SickModeCardView.swift */; };
 		70000000000000000000070A /* SickModeAppStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000709 /* SickModeAppStateTests.swift */; };
 		700000000000000000000A06 /* GlycemicEventDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000A06 /* GlycemicEventDecodingTests.swift */; };
 		700000000000000000000095 /* BackendAPIHovorkaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000095 /* BackendAPIHovorkaTests.swift */; };
@@ -215,6 +216,7 @@
 		600000000000000000000707 /* SickModeDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeDecodingTests.swift; sourceTree = "<group>"; };
 		60000000000000000000070B /* SickModeTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeTextTests.swift; sourceTree = "<group>"; };
 		60000000000000000000070F /* SickModeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeViews.swift; sourceTree = "<group>"; };
+		600000000000000000000711 /* SickModeCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeCardView.swift; sourceTree = "<group>"; };
 		600000000000000000000709 /* SickModeAppStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SickModeAppStateTests.swift; sourceTree = "<group>"; };
 		600000000000000000000A06 /* GlycemicEventDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlycemicEventDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000095 /* BackendAPIHovorkaTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackendAPIHovorkaTests.swift; sourceTree = "<group>"; };
@@ -359,6 +361,7 @@
 				600000000000000000000D30 /* EpisodeCardView.swift */,
 				600000000000000000000D90 /* CitationChipsView.swift */,
 				600000000000000000000DA2 /* EventProposal.swift */,
+				600000000000000000000711 /* SickModeCardView.swift */,
 				600000000000000000000DA4 /* NoteRemoval.swift */,
 				600000000000000000000DA1 /* ChatItem.swift */,
 				600000000000000000000D16 /* FoodCaptureFlow.swift */,
@@ -649,6 +652,7 @@
 				700000000000000000000D30 /* EpisodeCardView.swift in Sources */,
 				700000000000000000000D90 /* CitationChipsView.swift in Sources */,
 				700000000000000000000DA2 /* EventProposal.swift in Sources */,
+				700000000000000000000712 /* SickModeCardView.swift in Sources */,
 				700000000000000000000DA4 /* NoteRemoval.swift in Sources */,
 				700000000000000000000DA1 /* ChatItem.swift in Sources */,
 				700000000000000000000D16 /* FoodCaptureFlow.swift in Sources */,
