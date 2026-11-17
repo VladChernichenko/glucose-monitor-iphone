@@ -37,9 +37,12 @@ final class AppState: ObservableObject {
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
     @Published var glucoseHistory: [GlucoseChartPoint] = []
-    /// True while the backend reports LibreLinkUp unavailable (its circuit breaker), after one reconnect
-    /// attempt: the readings are stale, so the dashboard hides the current value and the forecast.
+    /// True while the readings must not be shown as current: the backend reports LibreLinkUp unavailable
+    /// (its circuit breaker, after one reconnect attempt) or reports no reading newer than 15 min. The
+    /// dashboard then hides the current value's status and the forecast. `libreStaleCause` says which.
     @Published var libreDataStale = false
+    /// Why `libreDataStale` is set; nil when it is not.
+    @Published var libreStaleCause: LibreStaleCause?
     @Published var errorMessage: String?
     @Published var preferredGlucoseUnit: String = "mmol/L"
     @Published var dataSource: String = "libre"
@@ -206,6 +209,7 @@ final class AppState: ObservableObject {
         notesLoadError = nil
         glucoseHistory = []
         libreDataStale = false
+        libreStaleCause = nil
         errorMessage = nil
         sensorInfo = nil
         clearEventPromptState()
@@ -628,6 +632,7 @@ final class AppState: ObservableObject {
         do {
             if source == "nightscout" {
                 libreDataStale = false
+                libreStaleCause = nil
                 let entries = try await BackendAPI.fetchNightscoutEntriesWithFallbacks(count: 200)
                 guard generation == authGeneration else { return }
                 glucoseHistory = Self.nightscoutEntriesToChartPoints(entries)
@@ -708,7 +713,16 @@ final class AppState: ObservableObject {
             status = (try? await BackendAPI.fetchLibreUpstreamStatus()) ?? status
         }
         guard generation == authGeneration else { return }
-        libreDataStale = !status.available
+        libreStaleCause = Self.staleCause(status)
+        libreDataStale = libreStaleCause != nil
+    }
+
+    /// LibreLinkUp failing comes first: then the readings cannot be new. Otherwise readings older than the
+    /// backend's 15-min limit mean the sensor or the phone's Libre app has stopped uploading.
+    static func staleCause(_ status: BackendAPI.LibreUpstreamStatus) -> LibreStaleCause? {
+        if !status.available { return .upstreamDown }
+        if status.readingsStale == true { return .noNewReadings }
+        return nil
     }
 
     private static func nightscoutEntriesToChartPoints(_ entries: [BackendAPI.NightscoutEntry]) -> [GlucoseChartPoint] {
@@ -978,5 +992,40 @@ final class AppState: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+}
+
+
+/// Why the dashboard is not showing the readings as current.
+enum LibreStaleCause: Equatable {
+    /// LibreLinkUp is not answering (the backend's circuit breaker is open).
+    case upstreamDown
+    /// LibreLinkUp answers, but no reading newer than 15 min has arrived.
+    case noNewReadings
+
+    var title: String {
+        switch self {
+        case .upstreamDown: return "LibreLinkUp isn't responding"
+        case .noNewReadings: return "No new readings from Libre"
+        }
+    }
+
+    /// The banner's second line; `lastReading` is the newest reading's time, nil when unknown.
+    func detail(lastReading: Date?, now: Date = Date()) -> String {
+        let since = lastReading.map { " for " + Self.span(now.timeIntervalSince($0)) } ?? ""
+        switch self {
+        case .upstreamDown:
+            return "Data is stale\(lastReading == nil ? "" : " - no update" + since). Reconnecting..."
+        case .noNewReadings:
+            return "Nothing new" + since + ". Check the sensor and the Libre app on your phone."
+        }
+    }
+
+    /// "55 min", "1 h 20 min".
+    static func span(_ seconds: TimeInterval) -> String {
+        let minutes = max(0, Int(seconds / 60))
+        if minutes < 60 { return "\(minutes) min" }
+        let rest = minutes % 60
+        return rest == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(rest) min"
     }
 }

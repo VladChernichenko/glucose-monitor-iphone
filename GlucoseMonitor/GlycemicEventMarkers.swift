@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import UIKit
 
 /// Colour families for glycemic events: warm for rise explanations, cool for falls, purple for the
 /// insulin-resistance family (stress, late absorption, injection site).
@@ -64,6 +65,26 @@ enum GlycemicEventMarkerLayout {
             return Pill(eventIds: group.map(\.event.id), label: "\(group.count) events", x: x, dashed: false)
         }
     }
+
+    /// Horizontal padding on each side of a pill label (matches the overlay).
+    static let pillHorizontalPadding: CGFloat = 7
+
+    /// Width of a pill drawn at 11 pt semibold, including its horizontal padding.
+    static func pillWidth(_ label: String) -> CGFloat {
+        let font = UIFont.systemFont(ofSize: 11, weight: .semibold)
+        return ceil((label as NSString).size(withAttributes: [.font: font]).width) + pillHorizontalPadding * 2
+    }
+
+    /// Center that keeps a pill of `width` inside `[minX, maxX]`. A pill wider than that span is centered in it.
+    /// An onset pinned to the plot edge (the event started before the visible window) would otherwise
+    /// draw half the label outside the chart, where it is clipped.
+    static func clampedCenter(anchorX: CGFloat, width: CGFloat, minX: CGFloat, maxX: CGFloat) -> CGFloat {
+        let span = maxX - minX
+        guard width > 0, span > 0 else { return anchorX }
+        if width >= span { return (minX + maxX) / 2 }
+        let half = width / 2
+        return min(max(anchorX, minX + half), maxX - half)
+    }
 }
 
 /// Label pills, parent-child connectors and the tap target, drawn over the chart's plot area
@@ -112,12 +133,16 @@ struct GlycemicEventPillsOverlay: ViewModifier {
 
                     ForEach(GlycemicEventMarkerLayout.pills(placed), id: \.eventIds) { pill in
                         let first = events.first { $0.id == pill.eventIds[0] }
+                        let width = GlycemicEventMarkerLayout.pillWidth(pill.label)
+                        let x = GlycemicEventMarkerLayout.clampedCenter(
+                            anchorX: pill.x, width: width, minX: plot.minX + 2, maxX: plot.maxX - 2)
                         Button {
                             if let first { onSelect(first) }
                         } label: {
                             Text(pill.label)
                                 .font(.system(size: 11, weight: .semibold))
-                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .padding(.horizontal, GlycemicEventMarkerLayout.pillHorizontalPadding)
+                                .padding(.vertical, 3)
                                 .foregroundStyle(first.map { GlycemicEventStyle.color(for: $0) } ?? .secondary)
                                 .background(Capsule().fill(Color(.systemBackground).opacity(0.9)))
                                 .overlay(Capsule().strokeBorder(
@@ -125,7 +150,7 @@ struct GlycemicEventPillsOverlay: ViewModifier {
                                     style: StrokeStyle(lineWidth: 1, dash: pill.dashed ? [3, 2] : [])))
                         }
                         .buttonStyle(.plain)
-                        .position(x: pill.x, y: plot.minY + Self.pillRowY)
+                        .position(x: x, y: plot.minY + Self.pillRowY)
                         .accessibilityLabel(Text(pill.label))
                     }
                 }

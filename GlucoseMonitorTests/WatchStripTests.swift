@@ -278,6 +278,41 @@ final class WatchStripTests: XCTestCase {
         XCTAssertNil(a.visibleWatchStrip)
     }
 
+    // MARK: - Stale readings: why, and what the banner says
+
+    private func status(_ json: String) throws -> BackendAPI.LibreUpstreamStatus {
+        try JSONDecoder().decode(BackendAPI.LibreUpstreamStatus.self, from: json.data(using: .utf8)!)
+    }
+
+    func testUpstreamDownIsTheStaleCauseEvenWithOldReadings() throws {
+        let s = try status(#"{"available":false,"state":"OPEN","retryInSeconds":30,"readingsStale":true}"#)
+        XCTAssertEqual(AppState.staleCause(s), .upstreamDown)
+    }
+
+    func testNoNewReadingsWhileLibreLinkUpAnswers() throws {
+        let s = try status(#"{"available":true,"state":"CLOSED","lastReadingAt":1763409499000,"readingsStale":true}"#)
+        XCTAssertEqual(AppState.staleCause(s), .noNewReadings)
+        XCTAssertEqual(s.lastReadingDate, Date(timeIntervalSince1970: 1_763_409_499))
+    }
+
+    func testFreshReadingsAndAnOlderBackendAreNotStale() throws {
+        XCTAssertNil(AppState.staleCause(try status(#"{"available":true,"state":"CLOSED","readingsStale":false}"#)))
+        XCTAssertNil(AppState.staleCause(try status(#"{"available":true,"state":"CLOSED"}"#)))
+    }
+
+    func testBannerTextNamesTheCauseAndHowLong() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let last = now.addingTimeInterval(-55 * 60)
+        XCTAssertEqual(LibreStaleCause.noNewReadings.title, "No new readings from Libre")
+        XCTAssertEqual(LibreStaleCause.noNewReadings.detail(lastReading: last, now: now),
+                       "Nothing new for 55 min. Check the sensor and the Libre app on your phone.")
+        XCTAssertEqual(LibreStaleCause.upstreamDown.title, "LibreLinkUp isn't responding")
+        XCTAssertEqual(LibreStaleCause.upstreamDown.detail(lastReading: last, now: now),
+                       "Data is stale - no update for 55 min. Reconnecting...")
+        XCTAssertEqual(LibreStaleCause.span(80 * 60), "1 h 20 min")
+        XCTAssertEqual(LibreStaleCause.span(120 * 60), "2 h")
+    }
+
     // MARK: - Target and rescue-carb settings
 
     private func cobJSON(extra: String = "") -> Data {

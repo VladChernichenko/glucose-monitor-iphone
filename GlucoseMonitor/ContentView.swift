@@ -373,21 +373,19 @@ struct DashboardView: View {
     private static let dashboardCobTint = Color(red: 0.92, green: 0.55, blue: 0.12)
     private static let dashboardIobTint = Color(red: 0.35, green: 0.45, blue: 0.95)
 
-    /// Shown while LibreLinkUp is unavailable: the readings are stale, so the card hides the current
-    /// value and the forecast until the backend reconnects.
+    /// Shown while the readings are stale - LibreLinkUp is not answering, or it answers but nothing new
+    /// has arrived for 15 min - so the card hides the current value's status and the forecast.
     private var libreStaleBanner: some View {
-        HStack(alignment: .top, spacing: 10) {
+        let cause = appState.libreStaleCause ?? .upstreamDown
+        return HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
-                Text("LibreLinkUp isn't responding")
+                Text(cause.title)
                     .font(.subheadline.bold())
-                Group {
-                    if let ts = appState.currentReading?.timestamp {
-                        Text("Data is stale - last reading ") + Text(ts, style: .relative) + Text(" ago. Reconnecting...")
-                    } else {
-                        Text("Data is stale. Reconnecting...")
-                    }
+                // Re-evaluated every minute so "for 55 min" keeps counting between refreshes.
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    Text(cause.detail(lastReading: appState.currentReading?.timestamp, now: context.date))
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -841,12 +839,12 @@ struct DashboardView: View {
                 }
                 Divider()
                 Button { showTwinForecast = true } label: {
+                    quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
+                }
                 // SickModeSection renders nothing when sick mode is off and data is from cache.
                 if appState.sickMode?.active == true || !appState.calculationsFromCache {
                     Divider()
                     SickModeSection(appState: appState)
-                }
-                    quickActionRow(title: "Forecast at each log", systemImage: "chart.line.uptrend.xyaxis")
                 }
             }
         }

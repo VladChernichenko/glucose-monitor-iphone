@@ -61,6 +61,34 @@ final class GlycemicEventMarkerLayoutTests: XCTestCase {
         XCTAssertEqual(GlycemicEventMarkerLayout.visible([outside, dismissed, inside], in: domain).map(\.id), ["i"])
     }
 
+    func testPillAtThePlotEdgeStaysFullyInside() {
+        let label = "More insulin than logged"
+        let width = GlycemicEventMarkerLayout.pillWidth(label)
+        XCTAssertGreaterThan(width, 80, "the label is wide enough to clip when centered on the plot edge")
+
+        let plotMin: CGFloat = 28
+        let plotMax: CGFloat = 360
+        let pinnedToStart = GlycemicEventMarkerLayout.clampedCenter(
+            anchorX: plotMin, width: width, minX: plotMin, maxX: plotMax)
+        XCTAssertEqual(pinnedToStart, plotMin + width / 2, accuracy: 0.5)
+        XCTAssertGreaterThanOrEqual(pinnedToStart - width / 2, plotMin)
+        XCTAssertLessThanOrEqual(pinnedToStart + width / 2, plotMax)
+
+        let pinnedToEnd = GlycemicEventMarkerLayout.clampedCenter(
+            anchorX: plotMax, width: width, minX: plotMin, maxX: plotMax)
+        XCTAssertEqual(pinnedToEnd, plotMax - width / 2, accuracy: 0.5)
+    }
+
+    func testInteriorPillKeepsItsAnchor() {
+        let center = GlycemicEventMarkerLayout.clampedCenter(anchorX: 180, width: 40, minX: 20, maxX: 300)
+        XCTAssertEqual(center, 180)
+    }
+
+    func testPillWiderThanThePlotIsCentered() {
+        let center = GlycemicEventMarkerLayout.clampedCenter(anchorX: 10, width: 400, minX: 0, maxX: 200)
+        XCTAssertEqual(center, 100)
+    }
+
     func testUnloggedEventsStayOffTheChart() {
         let domain = t0...t0.addingTimeInterval(3600)
         let food = event("f", onset: 600, end: 1200, category: "UNLOGGED_FOOD")

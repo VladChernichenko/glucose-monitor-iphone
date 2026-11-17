@@ -1182,6 +1182,15 @@ enum BackendAPI {
         let state: String
         /// Seconds until an open breaker allows the next reconnect attempt; nil unless OPEN.
         let retryInSeconds: Int?
+        /// Epoch ms of the newest stored reading; nil when none (or an older backend).
+        var lastReadingAt: Int64? = nil
+        /// True when the newest stored reading is older than 15 min; nil from an older backend.
+        var readingsStale: Bool? = nil
+
+        /// The newest stored reading's time.
+        var lastReadingDate: Date? {
+            lastReadingAt.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
+        }
     }
 
     /// Cheap: the backend reads in-memory breaker state and never calls LibreLinkUp.
