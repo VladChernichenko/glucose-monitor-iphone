@@ -214,7 +214,20 @@ struct SickSeverityPicker: View {
         self.mode = mode
         self.initial = initial
         self.onConfirm = onConfirm
-        _severity = State(initialValue: initial.flatMap { $0.selectable ? $0 : nil } ?? .mild)
+        _severity = State(initialValue: Self.initialSelection(mode: mode, current: initial))
+    }
+
+    /// The level the picker opens on. Changing from the unselectable top level opens on `.severe`
+    /// (the nearest selectable one), never on `.mild`, so a hasty "Save" cannot cut the dose
+    /// adjustment from -60% to -15%.
+    static func initialSelection(mode: Mode, current: SickSeverity?) -> SickSeverity {
+        guard mode == .change, let current else { return .mild }
+        return current.selectable ? current : .severe
+    }
+
+    /// Changing to the level already in force is a no-op, so Save is off for it.
+    static func canSave(mode: Mode, current: SickSeverity?, selection: SickSeverity) -> Bool {
+        mode == .start || selection != initialSelection(mode: mode, current: current)
     }
 
     var body: some View {
@@ -257,6 +270,7 @@ struct SickSeverityPicker: View {
                         onConfirm(severity, since)
                         dismiss()
                     }
+                    .disabled(!Self.canSave(mode: mode, current: initial, selection: severity))
                 }
             }
         }

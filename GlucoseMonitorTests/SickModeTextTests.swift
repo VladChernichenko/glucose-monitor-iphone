@@ -36,4 +36,23 @@ final class SickModeTextTests: XCTestCase {
         XCTAssertEqual(SickModeText.keepTitle(.moderate), "Keep moderate")
         XCTAssertEqual(SickModeText.keepTitle(nil), "Keep current")
     }
+
+    func testChangePickerOpensOnTheCurrentLevelAndMapsTheTopLevelToSevere() {
+        XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .change, current: .mild), .mild)
+        XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .change, current: .moderate), .moderate)
+        XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .change, current: .severe), .severe)
+        XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .change, current: .severeUnresponsive), .severe)
+    }
+
+    func testStartPickerOpensOnMild() {
+        XCTAssertEqual(SickSeverityPicker.initialSelection(mode: .start, current: nil), .mild)
+    }
+
+    func testChangeSaveIsOffWhileTheSelectionIsTheCurrentOrMappedLevel() {
+        XCTAssertFalse(SickSeverityPicker.canSave(mode: .change, current: .moderate, selection: .moderate))
+        XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .moderate, selection: .severe))
+        XCTAssertFalse(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: .severe))
+        XCTAssertTrue(SickSeverityPicker.canSave(mode: .change, current: .severeUnresponsive, selection: .mild))
+        XCTAssertTrue(SickSeverityPicker.canSave(mode: .start, current: nil, selection: .mild))
+    }
 }
