@@ -266,14 +266,6 @@ final class ChatViewModel: ObservableObject {
     private var heldText = ""
     private var heldCitations: [BackendAPI.AssistantCitation]?
 
-    /// "Took N g" on the carb advice card: logs fast sugar through the normal chat send path,
-    /// where the backend quick-log parser attaches it to an open low.
-    /// Returns true when the message was delivered without an error.
-    @discardableResult
-    func sendFastCarbs(grams: Int) async -> Bool {
-        await send(text: "\(grams)g fast", photoJPEG: nil)
-    }
-
     private func apply(_ event: BackendAPI.AssistantEvent, to replyId: String) {
         guard let i = index(of: replyId) else { return }
         switch event {

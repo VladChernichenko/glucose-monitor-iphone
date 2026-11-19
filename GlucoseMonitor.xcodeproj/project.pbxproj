@@ -87,7 +87,6 @@
 		700000000000000000000061 /* OnboardingRegisterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000061 /* OnboardingRegisterView.swift */; };
 		700000000000000000000062 /* OnboardingDataSourceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000062 /* OnboardingDataSourceView.swift */; };
 		70000000000000000000004C /* OnboardingFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60000000000000000000004D /* OnboardingFlowTests.swift */; };
-		700000000000000000000D11 /* CarbAdvice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D11 /* CarbAdvice.swift */; };
 		700000000000000000000F01 /* WatchStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F01 /* WatchStrip.swift */; };
 		700000000000000000000F03 /* WatchStripView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F03 /* WatchStripView.swift */; };
 		518000000000000000000007 /* CurrentGlucoseIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000007 /* CurrentGlucoseIntent.swift */; };
@@ -99,7 +98,6 @@
 		518000000000000000000005 /* SiriLiveReadingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000005 /* SiriLiveReadingTests.swift */; };
 		518000000000000000000003 /* SiriGlucoseResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000003 /* SiriGlucoseResolverTests.swift */; };
 		518000000000000000000001 /* SiriGlucoseAnswerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517000000000000000000001 /* SiriGlucoseAnswerTests.swift */; };
-		700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D13 /* CarbAdviceDecodingTests.swift */; };
 		700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D99 /* NoteDisplayTitleTests.swift */; };
 		700000000000000000000D14 /* MealPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D14 /* MealPlan.swift */; };
 		700000000000000000000D15 /* MealPlanCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000D15 /* MealPlanCardView.swift */; };
@@ -243,7 +241,6 @@
 		600000000000000000000061 /* OnboardingRegisterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingRegisterView.swift; sourceTree = "<group>"; };
 		600000000000000000000062 /* OnboardingDataSourceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingDataSourceView.swift; sourceTree = "<group>"; };
 		60000000000000000000004D /* OnboardingFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingFlowTests.swift; sourceTree = "<group>"; };
-		600000000000000000000D11 /* CarbAdvice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdvice.swift; sourceTree = "<group>"; };
 		600000000000000000000F01 /* WatchStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStrip.swift; sourceTree = "<group>"; };
 		600000000000000000000F03 /* WatchStripView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripView.swift; sourceTree = "<group>"; };
 		517000000000000000000007 /* CurrentGlucoseIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrentGlucoseIntent.swift; sourceTree = "<group>"; };
@@ -255,7 +252,6 @@
 		517000000000000000000005 /* SiriLiveReadingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriLiveReadingTests.swift; sourceTree = "<group>"; };
 		517000000000000000000003 /* SiriGlucoseResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseResolverTests.swift; sourceTree = "<group>"; };
 		517000000000000000000001 /* SiriGlucoseAnswerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiriGlucoseAnswerTests.swift; sourceTree = "<group>"; };
-		600000000000000000000D13 /* CarbAdviceDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarbAdviceDecodingTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D99 /* NoteDisplayTitleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteDisplayTitleTests.swift; sourceTree = "<group>"; };
 		600000000000000000000D14 /* MealPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlan.swift; sourceTree = "<group>"; };
 		600000000000000000000D15 /* MealPlanCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealPlanCardView.swift; sourceTree = "<group>"; };
@@ -370,7 +366,6 @@
 				600000000000000000000D01 /* ChatOverlayView.swift */,
 				600000000000000000000D02 /* ChatViewModel.swift */,
 				600000000000000000000D03 /* ChatMessageViews.swift */,
-				600000000000000000000D11 /* CarbAdvice.swift */,
 				600000000000000000000D14 /* MealPlan.swift */,
 				600000000000000000000D15 /* MealPlanCardView.swift */,
 				600000000000000000000E02 /* HistoryBannerView.swift */,
@@ -466,7 +461,6 @@
 				600000000000000000000DA3 /* EventProposalTests.swift */,
 				600000000000000000000DA5 /* NoteRemovalTests.swift */,
 				600000000000000000000D06 /* ChatViewModelTests.swift */,
-				600000000000000000000D13 /* CarbAdviceDecodingTests.swift */,
 				600000000000000000000D99 /* NoteDisplayTitleTests.swift */,
 				600000000000000000000F02 /* WatchStripTests.swift */,
 				517000000000000000000008 /* WidgetValueTimeTests.swift */,
@@ -668,7 +662,6 @@
 				700000000000000000000D01 /* ChatOverlayView.swift in Sources */,
 				700000000000000000000D02 /* ChatViewModel.swift in Sources */,
 				700000000000000000000D03 /* ChatMessageViews.swift in Sources */,
-				700000000000000000000D11 /* CarbAdvice.swift in Sources */,
 				700000000000000000000D14 /* MealPlan.swift in Sources */,
 				700000000000000000000D15 /* MealPlanCardView.swift in Sources */,
 				700000000000000000000E02 /* HistoryBannerView.swift in Sources */,
@@ -725,7 +718,6 @@
 				700000000000000000000DA3 /* EventProposalTests.swift in Sources */,
 				700000000000000000000DA5 /* NoteRemovalTests.swift in Sources */,
 				700000000000000000000D06 /* ChatViewModelTests.swift in Sources */,
-				700000000000000000000D13 /* CarbAdviceDecodingTests.swift in Sources */,
 				700000000000000000000D99 /* NoteDisplayTitleTests.swift in Sources */,
 				700000000000000000000F02 /* WatchStripTests.swift in Sources */,
 				518000000000000000000008 /* WidgetValueTimeTests.swift in Sources */,

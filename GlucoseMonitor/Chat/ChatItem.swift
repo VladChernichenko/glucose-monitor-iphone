@@ -110,3 +110,15 @@ enum ChatFormatting {
         return r == r.rounded() ? String(Int(r)) : String(r)
     }
 }
+
+extension ChatFormatting {
+    static func clock(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.timeZone = TimeZone.current
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
+    }
+
+    static func unitLabel(_ unit: String) -> String { GlucoseUnit.isMgdl(unit) ? "mg/dL" : "mmol/L" }
+}

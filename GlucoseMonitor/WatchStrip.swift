@@ -87,7 +87,7 @@ extension BackendAPI {
             activityEstimate = try c.decodeIfPresent(ActivityEstimate.self, forKey: .activityEstimate) ?? .unknown
         }
 
-        /// Dates come as zone-less `LocalDateTime` strings, parsed like `CarbAdvice`'s.
+        /// Dates come as zone-less `LocalDateTime` strings, parsed with `BackendAPI.parseBackendDate`.
         fileprivate static func date<K: CodingKey>(_ c: KeyedDecodingContainer<K>, _ key: K) throws -> Date {
             let s = try c.decode(String.self, forKey: key)
             guard let d = BackendAPI.parseBackendDate(s) else {
@@ -124,7 +124,7 @@ enum WatchStripText {
         case .lowNow:
             return "Take \(sug?.grams ?? 15) g fast carbs \u{00B7} \(next)"
         case .treatingLow:
-            let target = glucose(BackendAPI.CarbAdvice.furtherCarbsThresholdMmol, unit)
+            let target = glucose(4.5, unit)
             return "Wait until \(target) and holding \u{00B7} \(next)"
         case .forecastLow:
             return "Take \(sug?.grams ?? 15) g now \u{2192} min \(glucose(sug?.minWithCarbs, unit)) \u{00B7} \(next)"

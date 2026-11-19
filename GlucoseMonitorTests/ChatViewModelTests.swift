@@ -132,23 +132,6 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(sickCard(vm)?.state, .done("done"))
     }
 
-    // MARK: - Carb advice
-
-    func testTookFastCarbsSendsGramsFastThroughChatPath() async {
-        let fake = FakeAssistantService()
-        let vm = makeVM(fake)
-        let ok = await vm.sendFastCarbs(grams: 15)
-        XCTAssertEqual(fake.sent.map(\.text), ["15g fast"])
-        XCTAssertTrue(ok)
-    }
-
-    func testTookFastCarbsReportsFailure() async {
-        let fake = FakeAssistantService()
-        fake.sendError = URLError(.notConnectedToInternet)
-        let ok = await makeVM(fake).sendFastCarbs(grams: 15)
-        XCTAssertFalse(ok, "a failed send must not dismiss the card")
-    }
-
     // MARK: - Hit rate
 
     func testHitRateHiddenWhenNoChecks() async {

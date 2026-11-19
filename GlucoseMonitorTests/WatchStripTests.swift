@@ -209,23 +209,6 @@ final class WatchStripTests: XCTestCase {
         XCTAssertNotNil(a.watchStrip(at: now))
     }
 
-    // MARK: tap target
-
-    private func carbAdviceResponse(watch: String) throws -> BackendAPI.GlucoseCalculationsResponse {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        let recheck = f.string(from: Date().addingTimeInterval(600))
-        let lowAt = f.string(from: Date().addingTimeInterval(1800))
-        let json = """
-        {"activeCarbsOnBoard":0,"activeInsulinOnBoard":1.2,"twoHourPrediction":5.0,"predictionTrend":"falling",
-         "confidence":0.8,"watch":\(watch),
-         "carbAdvice":{"state":"TAKE_NOW","grams":15,"minWithout":3.6,"minWithoutAt":"\(lowAt)","minWith":4.6,
-                       "pathWithout":[],"pathWith":[],"recheckAt":"\(recheck)"}}
-        """.data(using: .utf8)!
-        return try JSONDecoder().decode(BackendAPI.GlucoseCalculationsResponse.self, from: json)
-    }
-
     func testVisibleWhenFreshAndKnown() throws {
         XCTAssertNotNil(try app().visibleWatchStrip)
         XCTAssertNil(try app(watch: false).visibleWatchStrip)
