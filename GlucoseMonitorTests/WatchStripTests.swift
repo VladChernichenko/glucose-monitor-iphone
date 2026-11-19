@@ -226,35 +226,6 @@ final class WatchStripTests: XCTestCase {
         return try JSONDecoder().decode(BackendAPI.GlucoseCalculationsResponse.self, from: json)
     }
 
-    func testUrgentLowTap_opensChatOnlyWhenCarbCardVisible() throws {
-        let lowStrip = #"{"state":"URGENT_LOW","reason":"FORECAST_LOW","suggestion":{"kind":"CARBS","grams":15},"nextCheckAt":"2026-10-31T19:15:00"}"#
-        let a = AppState()
-        a.calculations = try carbAdviceResponse(watch: lowStrip)
-        a.calculationsFetchedAt = Date()
-        let strip = try XCTUnwrap(a.calculations?.watch)
-        let advice = try XCTUnwrap(a.visibleCarbAdvice)
-        XCTAssertTrue(a.watchStripTapOpensChat(strip))
-
-        a.tookCarbAdviceIdentity = advice.identity
-        XCTAssertNil(a.visibleCarbAdvice)
-        XCTAssertFalse(a.watchStripTapOpensChat(strip))
-    }
-
-    func testUrgentLowTap_withoutCarbAdvice_scrollsToChart() throws {
-        let a = AppState()
-        a.calculations = try response(watch: #"{"state":"URGENT_LOW","reason":"LOW_NOW","nextCheckAt":"2026-10-31T19:15:00"}"#)
-        let strip = try XCTUnwrap(a.calculations?.watch)
-        XCTAssertFalse(a.watchStripTapOpensChat(strip))
-    }
-
-    func testHighTap_neverOpensChat() throws {
-        let highStrip = #"{"state":"URGENT_HIGH","reason":"SMALL_RISE","nextCheckAt":"2026-10-31T19:15:00"}"#
-        let a = AppState()
-        a.calculations = try carbAdviceResponse(watch: highStrip)
-        let strip = try XCTUnwrap(a.calculations?.watch)
-        XCTAssertFalse(a.watchStripTapOpensChat(strip))
-    }
-
     func testVisibleWhenFreshAndKnown() throws {
         XCTAssertNotNil(try app().visibleWatchStrip)
         XCTAssertNil(try app(watch: false).visibleWatchStrip)

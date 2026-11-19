@@ -157,11 +157,7 @@ struct DashboardView: View {
                                 TimelineView(.periodic(from: .now, by: 15)) { context in
                                     if let strip = appState.watchStrip(at: context.date) {
                                         WatchStripView(strip: strip, unit: appState.preferredGlucoseUnit) {
-                                            if appState.watchStripTapOpensChat(strip) {
-                                                selectedTab = ContentView.chatTab
-                                            } else {
-                                                withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
-                                            }
+                                            withAnimation { proxy.scrollTo("forecastChart", anchor: .top) }
                                         }
                                     }
                                 }

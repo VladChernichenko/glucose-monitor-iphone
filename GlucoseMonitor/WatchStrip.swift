@@ -202,9 +202,4 @@ extension AppState {
                                       hypoPromptOpen: openHypoEvent != nil,
                                       tookIdentity: tookCarbAdviceIdentity)
     }
-
-    /// A low strip opens the chat only when the carb card is actually there; otherwise the tap shows the chart.
-    func watchStripTapOpensChat(_ strip: BackendAPI.WatchStrip) -> Bool {
-        strip.state == .urgentLow && visibleCarbAdvice != nil
-    }
 }
