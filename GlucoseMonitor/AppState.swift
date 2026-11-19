@@ -31,8 +31,6 @@ final class AppState: ObservableObject {
     /// When a calculations fetch last succeeded (never set from the launch cache). The watch strip is hidden
     /// once this is older than `watchStripMaxAge`.
     @Published var calculationsFetchedAt: Date?
-    /// Identity of the carb advice the user already acted on ("Took N g"); that advice stays hidden.
-    @Published var tookCarbAdviceIdentity: String?
     @Published var notes: [BackendAPI.GlucoseNote] = []
     @Published var isLoadingNotes = false
     @Published var notesLoadError: String? = nil
@@ -203,7 +201,6 @@ final class AppState: ObservableObject {
         calculationsStale = false
         calculationsFromCache = false
         calculationsFetchedAt = nil
-        tookCarbAdviceIdentity = nil
         notes = []
         isLoadingNotes = false
         notesLoadError = nil

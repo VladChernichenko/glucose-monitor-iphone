@@ -193,13 +193,4 @@ extension AppState {
         if (kind == .insulin || kind == .carbs) && strip.nextCheckAt < now { return nil }
         return strip
     }
-
-    /// The carb advice card the chat shows, or nil (taken, stale, cached, expired, or a low prompt is open).
-    var visibleCarbAdvice: BackendAPI.CarbAdvice? {
-        BackendAPI.CarbAdvice.visible(calculations?.carbAdvice,
-                                      calculationsStale: calculationsStale,
-                                      calculationsFromCache: calculationsFromCache,
-                                      hypoPromptOpen: openHypoEvent != nil,
-                                      tookIdentity: tookCarbAdviceIdentity)
-    }
 }
