@@ -97,6 +97,12 @@ struct MealPlanCardView: View {
             Text(MealPlanRules.doseText(dose))
                 .font(.title2.weight(.bold))
                 .monospacedDigit()
+            if let reason = plan.pause?.reason, !reason.isEmpty {
+                Text(reason)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if let curve = plan.pause?.curve, !curve.isEmpty {
                 forecastChart(curve)
             }
