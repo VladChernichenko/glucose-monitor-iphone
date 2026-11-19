@@ -110,6 +110,7 @@ enum GlycemicCategory {
         "ANAEROBIC_ACTIVITY": "Strength workout",
         "UNLOGGED_INSULIN": "Took unlogged insulin",
         "UNDER_ESTIMATED_INSULIN": "Took more than logged",
+        "OVER_ESTIMATED_FOOD": "Took less carbs than logged",
         "AEROBIC_ACTIVITY": "Cardio",
     ]
 
