@@ -263,20 +263,6 @@ struct GlucoseHistoryChart: View {
                 .foregroundStyle(Color.green.opacity(0.14))
             }
 
-            // Confidence band (digital-twin uncertainty) - a widening cone around the forecast.
-            // Only the points that carry both edges contribute; the anchor pinches it shut at "now".
-            ForEach(futurePrediction) { p in
-                if let lo = p.lower, let hi = p.upper {
-                    AreaMark(
-                        x: .value("Time", p.time),
-                        yStart: .value("Lower", lo),
-                        yEnd: .value("Upper", hi)
-                    )
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(Color.blue.opacity(0.12))
-                }
-            }
-
             ForEach(bridgedHistory) { p in
                 LineMark(
                     x: .value("Time", p.time),

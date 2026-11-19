@@ -124,13 +124,6 @@ struct TwinForecastView: View {
                 .foregroundStyle(Color.red.opacity(0.7))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
 
-            if hasBand(f) {
-              ForEach(f.forecast) { p in
-                AreaMark(x: .value("Time", p.time), yStart: .value("Lower", v(p.lower)), yEnd: .value("Upper", v(p.upper)))
-                    .interpolationMethod(.monotone)
-                    .foregroundStyle(Color.blue.opacity(0.13))
-              }
-            }
             // Frozen forecasts start at +5 min; join them to the glucose at the log.
             if let g = f.startGlucose, let first = f.forecast.first, first.minute > 0 {
                 LineMark(x: .value("Time", f.anchor.time), y: .value("Glucose", v(g)), series: .value("Series", "forecast"))

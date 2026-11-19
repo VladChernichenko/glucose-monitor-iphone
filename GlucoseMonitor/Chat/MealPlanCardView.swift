@@ -315,10 +315,6 @@ struct MealPlanCardView: View {
             Chart {
                 RectangleMark(yStart: .value("Low", lo), yEnd: .value("High", hi))
                     .foregroundStyle(Color.green.opacity(0.10))
-                ForEach(samples.filter { $0.lower != nil && $0.upper != nil }) { s in
-                    AreaMark(x: .value("Time", s.time), yStart: .value("Lower", s.lower!), yEnd: .value("Upper", s.upper!))
-                        .foregroundStyle(Color.blue.opacity(0.15))
-                }
                 ForEach(samples) { s in
                     LineMark(x: .value("Time", s.time), y: .value("Glucose", s.value))
                         .foregroundStyle(Color.blue)
