@@ -20,7 +20,6 @@ struct ChatOverlayView: View {
             VStack(spacing: 0) {
                 header
                 Divider()
-                carbAdviceCard
                 messageList
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 Divider()
@@ -136,26 +135,6 @@ struct ChatOverlayView: View {
             },
             onNotSure: { model.snoozePrompt() },
             onNothing: { Task { await model.dismissPrompt() } })
-    }
-
-    // MARK: Carb advice
-
-    private var carbAdvice: BackendAPI.CarbAdvice? { appState.visibleCarbAdvice }
-
-    @ViewBuilder
-    private var carbAdviceCard: some View {
-        if let advice = carbAdvice {
-            CarbAdviceCardView(advice: advice, unit: appState.preferredGlucoseUnit, isBusy: model.isSending) { grams in
-                let identity = advice.identity
-                Task {
-                    guard await model.sendFastCarbs(grams: grams) else { return }
-                    appState.tookCarbAdviceIdentity = identity
-                    await appState.refreshAfterChatNotesChanged()
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
     }
 
     // MARK: Header
