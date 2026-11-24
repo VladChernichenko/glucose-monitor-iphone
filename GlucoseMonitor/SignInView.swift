@@ -152,7 +152,10 @@ private struct SignInForm: View {
             #endif
             try await GlucoseMonitorAPI.loginAppAccount(username: username, password: password, baseURL: base)
             GlucoseMonitorAPI.saveAppLoginCredentials(username: username, password: password)
-            await MainActor.run { appState.checkAuthentication() }
+            await MainActor.run {
+                appState.checkAuthentication()
+                appState.didSignIn()
+            }
         } catch {
             status = "Error: \(error.localizedDescription)"
         }

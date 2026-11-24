@@ -157,6 +157,7 @@ final class AppState: ObservableObject {
         preferredGlucoseUnit = unit
         GlucoseMonitorAPI.sharedDefaults().set(unit, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
         persistWidgetSnapshot()
+        WatchSessionBridge.shared.displayUnitChanged(unit)
     }
 
     func setDataSource(_ source: String) {
@@ -171,13 +172,21 @@ final class AppState: ObservableObject {
         // skip writing stale post-logout data into @Published state.
         beginLocalSignOut()
         await GlucoseMonitorAPI.logout()
+        WatchSessionBridge.shared.signedOut()
         applyLoggedOutUIState()
+    }
+
+    /// After an explicit sign-in: hand the Apple Watch its own session. Not on launch - a launch must not
+    /// mint a new device session; the watch asks when it has none.
+    func didSignIn() {
+        Task { await WatchSessionBridge.shared.pushSession() }
     }
 
     /// Called when Keychain tokens were wiped (e.g. refresh returned 401) without an explicit Sign Out tap.
     private func handleSessionCleared() {
         guard isAuthenticated else { return }
         beginLocalSignOut()
+        WatchSessionBridge.shared.signedOut()
         applyLoggedOutUIState()
     }
 
@@ -989,40 +998,5 @@ final class AppState: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
-    }
-}
-
-
-/// Why the dashboard is not showing the readings as current.
-enum LibreStaleCause: Equatable {
-    /// LibreLinkUp is not answering (the backend's circuit breaker is open).
-    case upstreamDown
-    /// LibreLinkUp answers, but no reading newer than 15 min has arrived.
-    case noNewReadings
-
-    var title: String {
-        switch self {
-        case .upstreamDown: return "LibreLinkUp isn't responding"
-        case .noNewReadings: return "No new readings from Libre"
-        }
-    }
-
-    /// The banner's second line; `lastReading` is the newest reading's time, nil when unknown.
-    func detail(lastReading: Date?, now: Date = Date()) -> String {
-        let since = lastReading.map { " for " + Self.span(now.timeIntervalSince($0)) } ?? ""
-        switch self {
-        case .upstreamDown:
-            return "Data is stale\(lastReading == nil ? "" : " - no update" + since). Reconnecting..."
-        case .noNewReadings:
-            return "Nothing new" + since + ". Check the sensor and the Libre app on your phone."
-        }
-    }
-
-    /// "55 min", "1 h 20 min".
-    static func span(_ seconds: TimeInterval) -> String {
-        let minutes = max(0, Int(seconds / 60))
-        if minutes < 60 { return "\(minutes) min" }
-        let rest = minutes % 60
-        return rest == 0 ? "\(minutes / 60) h" : "\(minutes / 60) h \(rest) min"
     }
 }

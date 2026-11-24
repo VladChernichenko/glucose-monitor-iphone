@@ -67,11 +67,7 @@ struct ChatItem: Identifiable, Equatable {
 /// Display formatting for the chat. The backend works in mmol/L; mg/dL users see mg/dL.
 enum ChatFormatting {
 
-    static func glucose(mmol: Double, unit: String) -> String {
-        GlucoseUnit.isMgdl(unit)
-            ? String(format: "%.0f", GlucoseUnit.mmolToMgdl(mmol))
-            : String(format: "%.1f", mmol)
-    }
+    static func glucose(mmol: Double, unit: String) -> String { GlucoseText.glucose(mmol: mmol, unit: unit) }
 
     /// e.g. "Unexplained rise 14:10-14:55, +58 mg/dL above forecast. Anything to log?"
     static func promptText(_ event: BackendAPI.GlycemicEvent, unit: String) -> String {
@@ -112,13 +108,7 @@ enum ChatFormatting {
 }
 
 extension ChatFormatting {
-    static func clock(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale.current
-        f.timeZone = TimeZone.current
-        f.dateFormat = "HH:mm"
-        return f.string(from: date)
-    }
+    static func clock(_ date: Date) -> String { GlucoseText.clock(date) }
 
-    static func unitLabel(_ unit: String) -> String { GlucoseUnit.isMgdl(unit) ? "mg/dL" : "mmol/L" }
+    static func unitLabel(_ unit: String) -> String { GlucoseText.unitLabel(unit) }
 }

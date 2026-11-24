@@ -16,7 +16,7 @@ final class WatchStripTests: XCTestCase {
 
     private func strip(state: String = "CALM", reason: String, suggestion: String = "null",
                        low: String = "null", landing: String = "null",
-                       iob: String = "1.2", cob: String = "30", activity: String = "LEARNED") throws -> BackendAPI.WatchStrip {
+                       iob: String = "1.2", cob: String = "30", activity: String = "LEARNED") throws -> WatchStrip {
         let r = try response(watch: """
         {"state":"\(state)","reason":"\(reason)","suggestion":\(suggestion),"low":\(low),"landing":\(landing),
          "iob":\(iob),"cob":\(cob),"nextCheckAt":"2026-10-31T19:15:00","activityEstimate":"\(activity)"}
