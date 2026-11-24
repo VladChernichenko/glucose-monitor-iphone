@@ -1250,7 +1250,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.complication;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.widget;
 				PRODUCT_NAME = GlucoseMonitorWatchComplication;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -1279,7 +1279,7 @@
 					"@executable_path/../../Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.complication;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.widget;
 				PRODUCT_NAME = GlucoseMonitorWatchComplication;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
