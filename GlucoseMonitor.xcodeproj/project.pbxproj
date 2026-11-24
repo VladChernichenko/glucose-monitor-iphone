@@ -136,6 +136,16 @@
 		B70000000000000000000017 /* AlertBuzzPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000F /* AlertBuzzPolicy.swift */; };
 		B70000000000000000000018 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000010 /* AlertNotifier.swift */; };
 		B70000000000000000000019 /* GlanceRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000011 /* GlanceRefresher.swift */; };
+		C00000000000000000000011 /* GlucoseComplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = C00000000000000000000002 /* GlucoseComplication.swift */; };
+		C00000000000000000000012 /* WatchGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000005 /* WatchGlance.swift */; };
+		C00000000000000000000013 /* WatchStripModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000003 /* WatchStripModel.swift */; };
+		C00000000000000000000014 /* TrendArrow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000002 /* TrendArrow.swift */; };
+		C00000000000000000000015 /* LibreStaleCause.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000004 /* LibreStaleCause.swift */; };
+		C00000000000000000000016 /* GlancePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000D /* GlancePresentation.swift */; };
+		C00000000000000000000017 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
+		C00000000000000000000018 /* GlucoseMonitorAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000003 /* GlucoseMonitorAPI.swift */; };
+		C00000000000000000000019 /* GlanceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000B /* GlanceStore.swift */; };
+		C0000000000000000000000E /* GlucoseMonitorWatchComplication.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C00000000000000000000001 /* GlucoseMonitorWatchComplication.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -160,6 +170,13 @@
 			remoteGlobalIDString = 200000000000000000000001;
 			remoteInfo = GlucoseMonitor;
 		};
+		C0000000000000000000000F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C00000000000000000000006;
+			remoteInfo = GlucoseMonitorWatchComplication;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -181,6 +198,17 @@
 			dstSubfolderSpec = 13;
 			files = (
 				700000000000000000000015 /* GlucoseMonitorWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0000000000000000000000D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C0000000000000000000000E /* GlucoseMonitorWatchComplication.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -307,6 +335,10 @@
 		B6000000000000000000000F /* AlertBuzzPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBuzzPolicy.swift; sourceTree = "<group>"; };
 		B60000000000000000000010 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertNotifier.swift; sourceTree = "<group>"; };
 		B60000000000000000000011 /* GlanceRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceRefresher.swift; sourceTree = "<group>"; };
+		C00000000000000000000001 /* GlucoseMonitorWatchComplication.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlucoseMonitorWatchComplication.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C00000000000000000000002 /* GlucoseComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseComplication.swift; sourceTree = "<group>"; };
+		C00000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		C00000000000000000000004 /* GlucoseMonitorWatchComplication.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlucoseMonitorWatchComplication.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -339,12 +371,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C00000000000000000000008 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		800000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				C00000000000000000000005 /* GlucoseMonitorWatchComplication */,
 				800000000000000000000002 /* GlucoseMonitor */,
 				800000000000000000000003 /* Shared */,
 				800000000000000000000006 /* GlucoseMonitorWidget */,
@@ -460,6 +500,7 @@
 		800000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				C00000000000000000000001 /* GlucoseMonitorWatchComplication.appex */,
 				600000000000000000000008 /* GlucoseMonitor.app */,
 				600000000000000000000016 /* GlucoseMonitorWidget.appex */,
 				600000000000000000000009 /* GMWatch.app */,
@@ -533,6 +574,16 @@
 			path = GlucoseMonitorTests;
 			sourceTree = "<group>";
 		};
+		C00000000000000000000005 /* GlucoseMonitorWatchComplication */ = {
+			isa = PBXGroup;
+			children = (
+				C00000000000000000000002 /* GlucoseComplication.swift */,
+				C00000000000000000000003 /* Info.plist */,
+				C00000000000000000000004 /* GlucoseMonitorWatchComplication.entitlements */,
+			);
+			path = GlucoseMonitorWatchComplication;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -561,6 +612,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 900000000000000000000002 /* Build configuration list for PBXNativeTarget "GlucoseMonitorWatch" */;
 			buildPhases = (
+				C0000000000000000000000D /* Embed Foundation Extensions */,
 				400000000000000000000001 /* Sources */,
 				400000000000000000000002 /* Frameworks */,
 				400000000000000000000003 /* Resources */,
@@ -568,6 +620,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				C00000000000000000000010 /* PBXTargetDependency */,
 			);
 			name = GlucoseMonitorWatch;
 			productName = GMWatch;
@@ -609,6 +662,23 @@
 			productReference = 600000000000000000000040 /* GlucoseMonitorTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C00000000000000000000006 /* GlucoseMonitorWatchComplication */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0000000000000000000000A /* Build configuration list for PBXNativeTarget "GlucoseMonitorWatchComplication" */;
+			buildPhases = (
+				C00000000000000000000007 /* Sources */,
+				C00000000000000000000008 /* Frameworks */,
+				C00000000000000000000009 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GlucoseMonitorWatchComplication;
+			productName = GlucoseMonitorWatchComplication;
+			productReference = C00000000000000000000001 /* GlucoseMonitorWatchComplication.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -644,6 +714,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				C00000000000000000000006 /* GlucoseMonitorWatchComplication */,
 				200000000000000000000001 /* GlucoseMonitor */,
 				200000000000000000000003 /* GlucoseMonitorWidgetExtension */,
 				200000000000000000000002 /* GlucoseMonitorWatch */,
@@ -677,6 +748,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		400000000000000000000012 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C00000000000000000000009 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -838,6 +916,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C00000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C00000000000000000000011 /* GlucoseComplication.swift in Sources */,
+				C00000000000000000000012 /* WatchGlance.swift in Sources */,
+				C00000000000000000000013 /* WatchStripModel.swift in Sources */,
+				C00000000000000000000014 /* TrendArrow.swift in Sources */,
+				C00000000000000000000015 /* LibreStaleCause.swift in Sources */,
+				C00000000000000000000016 /* GlancePresentation.swift in Sources */,
+				C00000000000000000000017 /* GlucoseUnit.swift in Sources */,
+				C00000000000000000000018 /* GlucoseMonitorAPI.swift in Sources */,
+				C00000000000000000000019 /* GlanceStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -855,6 +949,11 @@
 			isa = PBXTargetDependency;
 			target = 200000000000000000000001 /* GlucoseMonitor */;
 			targetProxy = 500000000000000000000006 /* PBXContainerItemProxy */;
+		};
+		C00000000000000000000010 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C00000000000000000000006 /* GlucoseMonitorWatchComplication */;
+			targetProxy = C0000000000000000000000F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1129,6 +1228,64 @@
 			};
 			name = Release;
 		};
+		C0000000000000000000000B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = GlucoseMonitorWatchComplication/GlucoseMonitorWatchComplication.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TRRFV962PL;
+				"EXCLUDED_ARCHS[sdk=watchsimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlucoseMonitorWatchComplication/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Glucose;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.complication;
+				PRODUCT_NAME = GlucoseMonitorWatchComplication;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		C0000000000000000000000C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = GlucoseMonitorWatchComplication/GlucoseMonitorWatchComplication.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = TRRFV962PL;
+				"EXCLUDED_ARCHS[sdk=watchsimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlucoseMonitorWatchComplication/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Glucose;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.che.glucosemonitor.watchapp.complication;
+				PRODUCT_NAME = GlucoseMonitorWatchComplication;
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1173,6 +1330,15 @@
 			buildConfigurations = (
 				A000000000000000000000051 /* Debug */,
 				A000000000000000000000052 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0000000000000000000000A /* Build configuration list for PBXNativeTarget "GlucoseMonitorWatchComplication" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0000000000000000000000B /* Debug */,
+				C0000000000000000000000C /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
