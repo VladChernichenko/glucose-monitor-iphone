@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The dashboard watch strip: a bold headline over one detail line. Red for urgent states, green for calm.
 struct WatchStripView: View {
-    let strip: BackendAPI.WatchStrip
+    let strip: WatchStrip
     let unit: String
     let onTap: () -> Void
 

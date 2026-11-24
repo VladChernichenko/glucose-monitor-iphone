@@ -111,6 +111,18 @@
 		700000000000000000000E01 /* HistoryBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E01 /* HistoryBanner.swift */; };
 		700000000000000000000E02 /* HistoryBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E02 /* HistoryBannerView.swift */; };
 		700000000000000000000E03 /* HistoryBannerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000E03 /* HistoryBannerTests.swift */; };
+		B70000000000000000000001 /* WatchSharedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000001 /* WatchSharedTests.swift */; };
+		B70000000000000000000002 /* TrendArrow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000002 /* TrendArrow.swift */; };
+		B70000000000000000000003 /* TrendArrow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000002 /* TrendArrow.swift */; };
+		B70000000000000000000004 /* WatchStripModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000003 /* WatchStripModel.swift */; };
+		B70000000000000000000005 /* WatchStripModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000003 /* WatchStripModel.swift */; };
+		B70000000000000000000006 /* LibreStaleCause.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000004 /* LibreStaleCause.swift */; };
+		B70000000000000000000007 /* LibreStaleCause.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000004 /* LibreStaleCause.swift */; };
+		B70000000000000000000008 /* WatchGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000005 /* WatchGlance.swift */; };
+		B70000000000000000000009 /* WatchGlance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000005 /* WatchGlance.swift */; };
+		B7000000000000000000000A /* WatchHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000006 /* WatchHandoff.swift */; };
+		B7000000000000000000000B /* WatchHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000006 /* WatchHandoff.swift */; };
+		B7000000000000000000000C /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -265,6 +277,12 @@
 		600000000000000000000E01 /* HistoryBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBanner.swift; sourceTree = "<group>"; };
 		600000000000000000000E02 /* HistoryBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerView.swift; sourceTree = "<group>"; };
 		600000000000000000000E03 /* HistoryBannerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBannerTests.swift; sourceTree = "<group>"; };
+		B60000000000000000000001 /* WatchSharedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSharedTests.swift; sourceTree = "<group>"; };
+		B60000000000000000000002 /* TrendArrow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendArrow.swift; sourceTree = "<group>"; };
+		B60000000000000000000003 /* WatchStripModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchStripModel.swift; sourceTree = "<group>"; };
+		B60000000000000000000004 /* LibreStaleCause.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreStaleCause.swift; sourceTree = "<group>"; };
+		B60000000000000000000005 /* WatchGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlance.swift; sourceTree = "<group>"; };
+		B60000000000000000000006 /* WatchHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHandoff.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -384,6 +402,11 @@
 		800000000000000000000003 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000006 /* WatchHandoff.swift */,
+				B60000000000000000000005 /* WatchGlance.swift */,
+				B60000000000000000000004 /* LibreStaleCause.swift */,
+				B60000000000000000000003 /* WatchStripModel.swift */,
+				B60000000000000000000002 /* TrendArrow.swift */,
 				600000000000000000000003 /* GlucoseMonitorAPI.swift */,
 				60000000000000000000000E /* ClientVersion.swift */,
 				600000000000000000000011 /* LockScreenWidgetSnapshot.swift */,
@@ -435,6 +458,7 @@
 		800000000000000000000010 /* GlucoseMonitorTests */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000001 /* WatchSharedTests.swift */,
 				600000000000000000000041 /* TestHelpers.swift */,
 				600000000000000000000042 /* AppStateBugTests.swift */,
 				600000000000000000000043 /* BackendAPIBugTests.swift */,
@@ -631,6 +655,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7000000000000000000000A /* WatchHandoff.swift in Sources */,
+				B70000000000000000000008 /* WatchGlance.swift in Sources */,
+				B70000000000000000000006 /* LibreStaleCause.swift in Sources */,
+				B70000000000000000000004 /* WatchStripModel.swift in Sources */,
+				B70000000000000000000002 /* TrendArrow.swift in Sources */,
 				F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */,
 				700000000000000000000001 /* GlucoseMonitorApp.swift in Sources */,
 				70000000000000000000000A /* AppState.swift in Sources */,
@@ -692,6 +721,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000001 /* WatchSharedTests.swift in Sources */,
 				700000000000000000000040 /* TestHelpers.swift in Sources */,
 				700000000000000000000041 /* AppStateBugTests.swift in Sources */,
 				700000000000000000000042 /* BackendAPIBugTests.swift in Sources */,
@@ -734,6 +764,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7000000000000000000000C /* GlucoseUnit.swift in Sources */,
+				B7000000000000000000000B /* WatchHandoff.swift in Sources */,
+				B70000000000000000000009 /* WatchGlance.swift in Sources */,
+				B70000000000000000000007 /* LibreStaleCause.swift in Sources */,
+				B70000000000000000000005 /* WatchStripModel.swift in Sources */,
+				B70000000000000000000003 /* TrendArrow.swift in Sources */,
 				700000000000000000000004 /* GlucoseMonitorAPI.swift in Sources */,
 				700000000000000000000005 /* GlucoseMonitorWatchApp.swift in Sources */,
 				700000000000000000000006 /* WatchRootView.swift in Sources */,

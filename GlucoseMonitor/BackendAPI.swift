@@ -205,18 +205,7 @@ enum BackendAPI {
     /// timezone - not UTC - before falling back to ISO-8601 with an explicit
     /// timezone (Z / ±HH:MM).
     static func parseBackendDate(_ s: String) -> Date? {
-        let df = DateFormatter()
-        df.locale = Locale(identifier: "en_US_POSIX")
-        df.timeZone = TimeZone.current
-        for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"] {
-            df.dateFormat = format
-            if let d = df.date(from: s) { return d }
-        }
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = iso.date(from: s) { return d }
-        iso.formatOptions = [.withInternetDateTime]
-        return iso.date(from: s)
+        BackendDate.parse(s)
     }
 
     /// COB tuning. `gramsPerUnit` is the insulin-to-carb ratio (grams per unit). `carbRatio` is the
@@ -427,41 +416,13 @@ enum BackendAPI {
         }
 
         /// LibreLinkUp `TrendArrow` 1-5 (stable readings are usually 3).
-        static func lluTrendArrow(_ trend: Int) -> String {
-            switch trend {
-            case 1: return "\u{2193}\u{2193}"
-            case 2: return "\u{2198}"
-            case 3: return "\u{2192}"
-            case 4: return "\u{2197}"
-            case 5: return "\u{2191}\u{2191}"
-            default: return "?"
-            }
-        }
+        static func lluTrendArrow(_ trend: Int) -> String { TrendArrow.libreArrow(trend) }
 
         static func trendArrow(trend: Int?, direction: String?, lluEntry: Bool) -> String {
-            if lluEntry {
-                guard let t = trend, (1...5).contains(t) else { return "?" }
-                return lluTrendArrow(t)
-            }
-            return directionArrow(direction)
+            TrendArrow.arrow(trend: trend, direction: direction, libreEntry: lluEntry)
         }
 
-        static func directionArrow(_ direction: String?) -> String {
-            guard let d = direction?.trimmingCharacters(in: .whitespacesAndNewlines), !d.isEmpty else {
-                return "\u{2192}"
-            }
-            switch d {
-            case "DoubleUp": return "\u{2191}\u{2191}"
-            case "SingleUp": return "\u{2191}"
-            case "FortyFiveUp": return "\u{2197}"
-            case "Flat": return "\u{2192}"
-            case "FortyFiveDown": return "\u{2198}"
-            case "SingleDown": return "\u{2193}"
-            case "DoubleDown": return "\u{2193}\u{2193}"
-            case "NOT COMPUTABLE", "RATE OUT OF RANGE": return "\u{2192}"
-            default: return "\u{2192}"
-            }
-        }
+        static func directionArrow(_ direction: String?) -> String { TrendArrow.directionArrow(direction) }
 
         private static func parseNightscoutDateString(_ s: String) -> Date? {
             let f1 = ISO8601DateFormatter()
@@ -940,18 +901,7 @@ enum BackendAPI {
     }
 
     /// Maps a CGM trend arrow string to mmol/L per minute velocity.
-    static func trendArrowToVelocity(_ arrow: String?) -> Double {
-        switch arrow {
-        case "\u{2191}\u{2191}": return  0.100
-        case "\u{2191}":         return  0.067
-        case "\u{2197}":         return  0.033
-        case "\u{2192}":         return  0.000
-        case "\u{2198}":         return -0.033
-        case "\u{2193}":         return -0.067
-        case "\u{2193}\u{2193}": return -0.100
-        default:                  return  0.000
-        }
-    }
+    static func trendArrowToVelocity(_ arrow: String?) -> Double { TrendArrow.velocity(arrow) }
 
     /// Decodes a cached `POST /api/glucose-calculations/` response body.
     static func decodeGlucoseCalculationsResponse(from data: Data) -> GlucoseCalculationsResponse? {
