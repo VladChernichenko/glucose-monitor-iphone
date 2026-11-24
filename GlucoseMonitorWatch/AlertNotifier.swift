@@ -23,6 +23,10 @@ enum AlertNotifier {
         let unit = ud.string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
         let decision = AlertBuzzPolicy.decide(memory: memory(), glance: glance, now: now, unit: unit)
         if let data = try? JSONEncoder().encode(decision.memory) { ud.set(data, forKey: memoryKey) }
+        if decision.clearDelivered {
+            // Its alert ended or its advice passed the recheck time: an old dose must not stay on the wrist.
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [requestIdentifier])
+        }
         if let buzz = decision.buzz { post(buzz) }
     }
 

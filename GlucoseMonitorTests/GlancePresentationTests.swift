@@ -33,8 +33,10 @@ final class GlancePresentationTests: XCTestCase {
         return try JSONDecoder().decode(WatchGlance.self, from: Data(json.utf8))
     }
 
-    private func present(_ g: WatchGlance, unit: String = "mmol/L", fetchedAgo: TimeInterval = 60) -> GlancePresentation {
-        GlancePresentation(glance: g, now: now, fetchedAt: now.addingTimeInterval(-fetchedAgo), unit: unit)
+    private func present(_ g: WatchGlance, unit: String = "mmol/L", fetchedAgo: TimeInterval = 60,
+                         lastAttemptFailed: Bool = false) -> GlancePresentation {
+        GlancePresentation(glance: g, now: now, fetchedAt: now.addingTimeInterval(-fetchedAgo),
+                           lastAttemptFailed: lastAttemptFailed, unit: unit)
     }
 
     // MARK: tests
@@ -79,6 +81,15 @@ final class GlancePresentationTests: XCTestCase {
         let p = present(try glance(strip: stripJSON(state: "CALM", reason: "WATCHING", landing: (3_600, 7.0))),
                         fetchedAgo: 11 * 60)
         XCTAssertNil(p.strip)
+    }
+
+    func testFailedRefreshHidesStrip() throws {
+        // The phone hides the strip as soon as a refresh fails (calculationsStale); so must the watch.
+        let p = present(try glance(mmol: 13, strip: stripJSON(state: "URGENT_HIGH", reason: "HIGH_FORECAST", kind: "INSULIN",
+                                                              units: "1.5", landing: (14_400, 14.2))),
+                        lastAttemptFailed: true)
+        XCTAssertNil(p.strip)
+        XCTAssertEqual(p.valueText, "13.0", "the reading itself is still shown")
     }
 
     func testStripTextMatchesPhone() throws {

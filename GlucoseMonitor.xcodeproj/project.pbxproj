@@ -339,6 +339,7 @@
 		C00000000000000000000002 /* GlucoseComplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseComplication.swift; sourceTree = "<group>"; };
 		C00000000000000000000003 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		C00000000000000000000004 /* GlucoseMonitorWatchComplication.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlucoseMonitorWatchComplication.entitlements; sourceTree = "<group>"; };
+		B60000000000000000000012 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -485,6 +486,7 @@
 		800000000000000000000004 /* GlucoseMonitorWatch */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000012 /* Info.plist */,
 				B60000000000000000000011 /* GlanceRefresher.swift */,
 				B60000000000000000000010 /* AlertNotifier.swift */,
 				B6000000000000000000000B /* GlanceStore.swift */,
@@ -1074,6 +1076,7 @@
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=watchsimulator*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GlucoseMonitorWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Glucose;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.che.glucosemonitor;
@@ -1103,6 +1106,7 @@
 				ENABLE_PREVIEWS = YES;
 				"EXCLUDED_ARCHS[sdk=watchsimulator*]" = x86_64;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = GlucoseMonitorWatch/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Glucose;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.che.glucosemonitor;

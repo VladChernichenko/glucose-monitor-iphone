@@ -35,6 +35,10 @@ final class AlertBuzzPolicyTests: XCTestCase {
         return (r.buzz, r.memory)
     }
 
+    private func clears(_ memory: BuzzMemory, _ g: WatchGlance, _ now: Date) -> Bool {
+        AlertBuzzPolicy.decide(memory: memory, glance: g, now: now, unit: "mmol/L").clearDelivered
+    }
+
     func testLowNowBuzzesOnce() throws {
         let (first, m1) = run(BuzzMemory(), try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW"), t0)
         XCTAssertNotNil(first)
@@ -92,6 +96,45 @@ final class AlertBuzzPolicyTests: XCTestCase {
     func testNoBuzzForPastRecheckAfterLongGap() throws {
         let memory = BuzzMemory(lastKey: nil, lastRecheckAt: nil, lastGlanceAt: t0.addingTimeInterval(-40 * 60))
         XCTAssertNil(run(memory, try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW", nextCheckIn: -60), t0).0)
+    }
+
+    func testLongGapStillRechecksLater() throws {
+        // The first glance after a long gap skips an alert already past its recheck - but the low must tap at the next recheck.
+        let memory = BuzzMemory(lastKey: nil, lastRecheckAt: nil, lastGlanceAt: t0.addingTimeInterval(-40 * 60))
+        let (skipped, m1) = run(memory, try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW", nextCheckIn: -60), t0)
+        XCTAssertNil(skipped)
+        let later = t0.addingTimeInterval(300)
+        XCTAssertNotNil(run(m1, try glance(at: later, state: "URGENT_LOW", reason: "LOW_NOW"), later).0,
+                        "still low after the skipped alert's recheck time")
+    }
+
+    func testDeliveredDoseClearedAfterRecheck() throws {
+        // A correction dose must not sit in Notification Center after its recheck time.
+        let (_, m1) = run(BuzzMemory(), try glance(at: t0, state: "URGENT_HIGH", reason: "HIGH_FORECAST", kind: "INSULIN"), t0)
+        let within = t0.addingTimeInterval(10 * 60)
+        XCTAssertFalse(clears(m1, try glance(at: within, state: "URGENT_HIGH", reason: "HIGH_FORECAST", kind: "INSULIN"), within))
+        let past = t0.addingTimeInterval(16 * 60)
+        XCTAssertTrue(clears(m1, try glance(at: past, state: "URGENT_HIGH", reason: "HIGH_FORECAST", kind: "INSULIN"), past))
+    }
+
+    func testDeliveredAlertClearedWhenItEnds() throws {
+        let (_, m1) = run(BuzzMemory(), try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW"), t0)
+        let later = t0.addingTimeInterval(300)
+        XCTAssertTrue(clears(m1, try glance(at: later, state: "CALM", reason: "WATCHING", kind: nil), later))
+    }
+
+    func testClearedOnlyOnce() throws {
+        let (_, m1) = run(BuzzMemory(), try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW"), t0)
+        let later = t0.addingTimeInterval(300)
+        let calm = try glance(at: later, state: "CALM", reason: "WATCHING", kind: nil)
+        let m2 = AlertBuzzPolicy.decide(memory: m1, glance: calm, now: later, unit: "mmol/L").memory
+        XCTAssertFalse(clears(m2, calm, later.addingTimeInterval(60)))
+    }
+
+    func testUnknownStaleCauseNeverTapsForItsStrip() throws {
+        var g = try glance(at: t0, state: "URGENT_LOW", reason: "LOW_NOW")
+        g = WatchGlance(reading: g.reading, staleCause: .unknown, twoHourPredictionMmol: g.twoHourPredictionMmol, watch: g.watch)
+        XCTAssertNil(run(BuzzMemory(), g, t0).0)
     }
 
     func testBuzzTextIsPhoneWording() throws {

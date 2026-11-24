@@ -50,10 +50,26 @@ struct WatchGlance: Codable, Equatable {
 
     enum StaleCause: String, Codable {
         case none = "NONE", upstreamDown = "UPSTREAM_DOWN", noNewReadings = "NO_NEW_READINGS"
+        /// A cause this app version doesn't know: treated as stale, with no banner text and no wrist tap.
+        case unknown = "UNKNOWN"
+        init(from decoder: Decoder) throws {
+            self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
+        }
     }
 
     let reading: Reading?
     let staleCause: StaleCause
     let twoHourPredictionMmol: Double?
     let watch: WatchStrip?
+}
+
+extension WatchGlance {
+    /// Lenient, like the phone's `watch` decoding: one malformed field is dropped instead of blanking the glance.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        reading = (try? c.decodeIfPresent(Reading.self, forKey: .reading)) ?? nil
+        staleCause = (try? c.decodeIfPresent(StaleCause.self, forKey: .staleCause)) ?? .unknown
+        twoHourPredictionMmol = (try? c.decodeIfPresent(Double.self, forKey: .twoHourPredictionMmol)) ?? nil
+        watch = (try? c.decodeIfPresent(WatchStrip.self, forKey: .watch)) ?? nil
+    }
 }

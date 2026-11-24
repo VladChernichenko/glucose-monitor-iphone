@@ -18,7 +18,9 @@ struct WatchRootView: View {
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     GlanceView(
                         presentation: GlancePresentation(glance: stored.glance, now: context.date,
-                                                         fetchedAt: stored.fetchedAt, unit: displayUnit),
+                                                         fetchedAt: stored.fetchedAt,
+                                                         lastAttemptFailed: GlanceStore.lastAttemptFailed(),
+                                                         unit: displayUnit),
                         offline: offline,
                         loading: loading,
                         onRefresh: { Task { await refresh() } }

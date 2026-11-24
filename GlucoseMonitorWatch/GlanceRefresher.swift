@@ -20,6 +20,8 @@ enum GlanceRefresher {
             WidgetCenter.shared.reloadAllTimelines()
             return true
         } catch {
+            GlanceStore.recordFailure(at: now)
+            WidgetCenter.shared.reloadAllTimelines()
             return false
         }
     }

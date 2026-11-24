@@ -29,7 +29,8 @@ struct GlancePresentation: Equatable {
     let stale: Banner?
     let strip: Banner?
 
-    init(glance: WatchGlance, now: Date, fetchedAt: Date, unit: String) {
+    /// - Parameter lastAttemptFailed: the latest refresh failed; the phone then hides its strip (`calculationsStale`).
+    init(glance: WatchGlance, now: Date, fetchedAt: Date, lastAttemptFailed: Bool, unit: String) {
         let reading = glance.reading
         unitLabel = GlucoseText.unitLabel(unit)
         readingAt = reading?.at
@@ -51,7 +52,7 @@ struct GlancePresentation: Equatable {
         }
         predictionText = glance.twoHourPredictionMmol.map { GlucoseText.glucose(mmol: $0, unit: unit) }
         rangeColor = reading.map { Self.color($0.mmol) } ?? .none
-        if let s = glance.watch, s.isKnown, !s.suggestionExpired(at: now),
+        if !lastAttemptFailed, let s = glance.watch, s.isKnown, !s.suggestionExpired(at: now),
            now.timeIntervalSince(fetchedAt) <= Self.stripMaxAge {
             strip = Banner(title: WatchStripText.headline(s, unit: unit), detail: WatchStripText.detail(s, unit: unit),
                            urgent: s.state != .calm)

@@ -27,12 +27,14 @@ struct GlanceProvider: TimelineProvider {
     /// One entry a minute for 15 min, so the age, greying and expired advice move on without a fetch.
     static func entries(from now: Date) -> [GlanceEntry] {
         let stored = GlanceStore.load()
+        let failed = GlanceStore.lastAttemptFailed()
         let unit = GlucoseMonitorAPI.sharedDefaults()
             .string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
         return (0...15).map { minute in
             let date = now.addingTimeInterval(Double(minute) * 60)
             let p = stored.map {
-                GlancePresentation(glance: $0.glance, now: date, fetchedAt: $0.fetchedAt, unit: unit)
+                GlancePresentation(glance: $0.glance, now: date, fetchedAt: $0.fetchedAt,
+                                   lastAttemptFailed: failed, unit: unit)
             }
             let urgent = p?.strip?.urgent == true
             return GlanceEntry(date: date, presentation: p, relevance: TimelineEntryRelevance(score: urgent ? 100 : 0))

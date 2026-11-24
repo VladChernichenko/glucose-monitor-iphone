@@ -78,6 +78,25 @@ final class WatchSharedTests: XCTestCase {
         XCTAssertEqual(again, first)
     }
 
+    func testGlanceWithMalformedStripKeepsReading() throws {
+        // One bad field must not blank the watch: the phone also decodes `watch` leniently.
+        let json = #"{"reading":{"mmol":6.8,"at":1795512143000,"trend":3,"direction":null,"libre":true},"staleCause":"NONE","twoHourPredictionMmol":6.2,"watch":{"state":"CALM","reason":"WATCHING","nextCheckAt":"not a date"}}"#
+        let g = try JSONDecoder().decode(WatchGlance.self, from: Data(json.utf8))
+        XCTAssertNil(g.watch)
+        XCTAssertEqual(g.reading?.mmol ?? 0, 6.8, accuracy: 1e-9)
+        XCTAssertEqual(g.twoHourPredictionMmol ?? 0, 6.2, accuracy: 1e-9)
+    }
+
+    func testUnknownStaleCauseCountsAsStale() throws {
+        let json = #"{"reading":{"mmol":6.8,"at":1795512143000,"trend":3,"direction":null,"libre":true},"staleCause":"SOMETHING_NEW","twoHourPredictionMmol":6.2,"watch":null}"#
+        let g = try JSONDecoder().decode(WatchGlance.self, from: Data(json.utf8))
+        XCTAssertEqual(g.staleCause, .unknown)
+        XCTAssertNil(LibreStaleCause(g.staleCause))
+        let p = GlancePresentation(glance: g, now: Date(timeIntervalSince1970: 1_795_512_200), fetchedAt: Date(timeIntervalSince1970: 1_795_512_200),
+                                   lastAttemptFailed: false, unit: "mmol/L")
+        XCTAssertTrue(p.isStale)
+    }
+
     // MARK: handoff messages
 
     func testDecodeSession() {

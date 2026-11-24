@@ -10,7 +10,7 @@ enum LibreStaleCause: Equatable {
     /// The watch glance's cause; nil when the glance says the readings are current.
     init?(_ cause: WatchGlance.StaleCause) {
         switch cause {
-        case .none: return nil
+        case .none, .unknown: return nil
         case .upstreamDown: self = .upstreamDown
         case .noNewReadings: self = .noNewReadings
         }
