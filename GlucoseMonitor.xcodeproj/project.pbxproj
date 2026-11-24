@@ -135,6 +135,7 @@
 		B70000000000000000000016 /* AlertBuzzPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000F /* AlertBuzzPolicy.swift */; };
 		B70000000000000000000017 /* AlertBuzzPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000F /* AlertBuzzPolicy.swift */; };
 		B70000000000000000000018 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000010 /* AlertNotifier.swift */; };
+		B70000000000000000000019 /* GlanceRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000011 /* GlanceRefresher.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -305,6 +306,7 @@
 		B6000000000000000000000E /* AlertBuzzPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBuzzPolicyTests.swift; sourceTree = "<group>"; };
 		B6000000000000000000000F /* AlertBuzzPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBuzzPolicy.swift; sourceTree = "<group>"; };
 		B60000000000000000000010 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertNotifier.swift; sourceTree = "<group>"; };
+		B60000000000000000000011 /* GlanceRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceRefresher.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -443,6 +445,7 @@
 		800000000000000000000004 /* GlucoseMonitorWatch */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000011 /* GlanceRefresher.swift */,
 				B60000000000000000000010 /* AlertNotifier.swift */,
 				B6000000000000000000000B /* GlanceStore.swift */,
 				B6000000000000000000000A /* GlanceClient.swift */,
@@ -802,6 +805,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000019 /* GlanceRefresher.swift in Sources */,
 				B70000000000000000000018 /* AlertNotifier.swift in Sources */,
 				B70000000000000000000017 /* AlertBuzzPolicy.swift in Sources */,
 				B70000000000000000000014 /* GlancePresentation.swift in Sources */,

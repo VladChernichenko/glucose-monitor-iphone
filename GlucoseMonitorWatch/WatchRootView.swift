@@ -53,14 +53,7 @@ struct WatchRootView: View {
         guard session.isSignedIn, !loading else { return }
         loading = true
         defer { loading = false }
-        do {
-            let glance = try await GlanceClient.fetch()
-            GlanceStore.save(glance, fetchedAt: Date())
-            AlertNotifier.handle(glance)
-            offline = false
-        } catch {
-            offline = true
-        }
+        offline = !(await GlanceRefresher.refresh())
         stored = GlanceStore.load()
     }
 }
