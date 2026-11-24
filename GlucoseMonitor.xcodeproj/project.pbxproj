@@ -399,7 +399,7 @@
 				600000000000000000000005 /* WatchRootView.swift */,
 			);
 			name = GlucoseMonitorWatch;
-			path = "../glucose-monitor-watch/GlucoseMonitorWatch";
+			path = GlucoseMonitorWatch;
 			sourceTree = "<group>";
 		};
 		800000000000000000000005 /* Products */ = {
@@ -884,7 +884,7 @@
 		A000000000000000000000021 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "../glucose-monitor-watch/GlucoseMonitorWatch/GlucoseMonitorWatch.entitlements";
+				CODE_SIGN_ENTITLEMENTS = GlucoseMonitorWatch/GlucoseMonitorWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TRRFV962PL;
@@ -913,7 +913,7 @@
 		A000000000000000000000022 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "../glucose-monitor-watch/GlucoseMonitorWatch/GlucoseMonitorWatch.entitlements";
+				CODE_SIGN_ENTITLEMENTS = GlucoseMonitorWatch/GlucoseMonitorWatch.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = TRRFV962PL;
