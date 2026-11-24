@@ -157,6 +157,7 @@ final class AppState: ObservableObject {
         preferredGlucoseUnit = unit
         GlucoseMonitorAPI.sharedDefaults().set(unit, forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit)
         persistWidgetSnapshot()
+        WatchSessionBridge.shared.displayUnitChanged(unit)
     }
 
     func setDataSource(_ source: String) {
@@ -171,13 +172,21 @@ final class AppState: ObservableObject {
         // skip writing stale post-logout data into @Published state.
         beginLocalSignOut()
         await GlucoseMonitorAPI.logout()
+        WatchSessionBridge.shared.signedOut()
         applyLoggedOutUIState()
+    }
+
+    /// After an explicit sign-in: hand the Apple Watch its own session. Not on launch - a launch must not
+    /// mint a new device session; the watch asks when it has none.
+    func didSignIn() {
+        Task { await WatchSessionBridge.shared.pushSession() }
     }
 
     /// Called when Keychain tokens were wiped (e.g. refresh returned 401) without an explicit Sign Out tap.
     private func handleSessionCleared() {
         guard isAuthenticated else { return }
         beginLocalSignOut()
+        WatchSessionBridge.shared.signedOut()
         applyLoggedOutUIState()
     }
 

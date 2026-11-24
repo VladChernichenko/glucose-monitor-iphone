@@ -123,6 +123,8 @@
 		B7000000000000000000000A /* WatchHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000006 /* WatchHandoff.swift */; };
 		B7000000000000000000000B /* WatchHandoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000006 /* WatchHandoff.swift */; };
 		B7000000000000000000000C /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
+		B7000000000000000000000D /* WatchSessionBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000007 /* WatchSessionBridgeTests.swift */; };
+		B7000000000000000000000E /* WatchSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000008 /* WatchSessionBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -283,6 +285,8 @@
 		B60000000000000000000004 /* LibreStaleCause.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibreStaleCause.swift; sourceTree = "<group>"; };
 		B60000000000000000000005 /* WatchGlance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchGlance.swift; sourceTree = "<group>"; };
 		B60000000000000000000006 /* WatchHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHandoff.swift; sourceTree = "<group>"; };
+		B60000000000000000000007 /* WatchSessionBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionBridgeTests.swift; sourceTree = "<group>"; };
+		B60000000000000000000008 /* WatchSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -334,6 +338,7 @@
 		800000000000000000000002 /* GlucoseMonitor */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000008 /* WatchSessionBridge.swift */,
 				600000000000000000000001 /* GlucoseMonitorApp.swift */,
 				60000000000000000000000A /* AppState.swift */,
 				600000000000000000000F01 /* WatchStrip.swift */,
@@ -458,6 +463,7 @@
 		800000000000000000000010 /* GlucoseMonitorTests */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000007 /* WatchSessionBridgeTests.swift */,
 				B60000000000000000000001 /* WatchSharedTests.swift */,
 				600000000000000000000041 /* TestHelpers.swift */,
 				600000000000000000000042 /* AppStateBugTests.swift */,
@@ -655,6 +661,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7000000000000000000000E /* WatchSessionBridge.swift in Sources */,
 				B7000000000000000000000A /* WatchHandoff.swift in Sources */,
 				B70000000000000000000008 /* WatchGlance.swift in Sources */,
 				B70000000000000000000006 /* LibreStaleCause.swift in Sources */,
@@ -721,6 +728,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B7000000000000000000000D /* WatchSessionBridgeTests.swift in Sources */,
 				B70000000000000000000001 /* WatchSharedTests.swift in Sources */,
 				700000000000000000000040 /* TestHelpers.swift in Sources */,
 				700000000000000000000041 /* AppStateBugTests.swift in Sources */,

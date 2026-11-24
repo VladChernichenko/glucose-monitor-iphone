@@ -72,6 +72,7 @@ final class GlucoseMonitorAppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         BackgroundRefreshService.register()
+        WatchSessionBridge.shared.activate()
         return true
     }
 

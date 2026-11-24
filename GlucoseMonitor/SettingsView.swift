@@ -498,6 +498,7 @@ private struct BackendSettingsDetailView: View {
                 baseURL: backendPreset.url
             )
             appState.checkAuthentication()
+            appState.didSignIn()
             persistAppLoginCredentials()
             signInStatus = "OK: signed in."
             onChange()
