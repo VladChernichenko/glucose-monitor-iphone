@@ -125,6 +125,9 @@
 		B7000000000000000000000C /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		B7000000000000000000000D /* WatchSessionBridgeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000007 /* WatchSessionBridgeTests.swift */; };
 		B7000000000000000000000E /* WatchSessionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000008 /* WatchSessionBridge.swift */; };
+		B7000000000000000000000F /* WatchSessionReceiver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000009 /* WatchSessionReceiver.swift */; };
+		B70000000000000000000010 /* GlanceClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000A /* GlanceClient.swift */; };
+		B70000000000000000000011 /* GlanceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000B /* GlanceStore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -287,6 +290,9 @@
 		B60000000000000000000006 /* WatchHandoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchHandoff.swift; sourceTree = "<group>"; };
 		B60000000000000000000007 /* WatchSessionBridgeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionBridgeTests.swift; sourceTree = "<group>"; };
 		B60000000000000000000008 /* WatchSessionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionBridge.swift; sourceTree = "<group>"; };
+		B60000000000000000000009 /* WatchSessionReceiver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchSessionReceiver.swift; sourceTree = "<group>"; };
+		B6000000000000000000000A /* GlanceClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceClient.swift; sourceTree = "<group>"; };
+		B6000000000000000000000B /* GlanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceStore.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -423,6 +429,9 @@
 		800000000000000000000004 /* GlucoseMonitorWatch */ = {
 			isa = PBXGroup;
 			children = (
+				B6000000000000000000000B /* GlanceStore.swift */,
+				B6000000000000000000000A /* GlanceClient.swift */,
+				B60000000000000000000009 /* WatchSessionReceiver.swift */,
 				600000000000000000000004 /* GlucoseMonitorWatchApp.swift */,
 				600000000000000000000005 /* WatchRootView.swift */,
 			);
@@ -772,6 +781,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000011 /* GlanceStore.swift in Sources */,
+				B70000000000000000000010 /* GlanceClient.swift in Sources */,
+				B7000000000000000000000F /* WatchSessionReceiver.swift in Sources */,
 				B7000000000000000000000C /* GlucoseUnit.swift in Sources */,
 				B7000000000000000000000B /* WatchHandoff.swift in Sources */,
 				B70000000000000000000009 /* WatchGlance.swift in Sources */,
@@ -950,7 +962,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 8.0;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Debug;
 		};
@@ -979,7 +991,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 8.0;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
