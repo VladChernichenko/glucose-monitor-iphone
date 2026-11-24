@@ -54,7 +54,9 @@ struct WatchRootView: View {
         loading = true
         defer { loading = false }
         do {
-            GlanceStore.save(try await GlanceClient.fetch(), fetchedAt: Date())
+            let glance = try await GlanceClient.fetch()
+            GlanceStore.save(glance, fetchedAt: Date())
+            AlertNotifier.handle(glance)
             offline = false
         } catch {
             offline = true

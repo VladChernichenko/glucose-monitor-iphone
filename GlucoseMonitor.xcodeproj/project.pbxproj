@@ -131,6 +131,10 @@
 		B70000000000000000000012 /* GlancePresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000C /* GlancePresentationTests.swift */; };
 		B70000000000000000000013 /* GlancePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000D /* GlancePresentation.swift */; };
 		B70000000000000000000014 /* GlancePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000D /* GlancePresentation.swift */; };
+		B70000000000000000000015 /* AlertBuzzPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000E /* AlertBuzzPolicyTests.swift */; };
+		B70000000000000000000016 /* AlertBuzzPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000F /* AlertBuzzPolicy.swift */; };
+		B70000000000000000000017 /* AlertBuzzPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6000000000000000000000F /* AlertBuzzPolicy.swift */; };
+		B70000000000000000000018 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B60000000000000000000010 /* AlertNotifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -298,6 +302,9 @@
 		B6000000000000000000000B /* GlanceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlanceStore.swift; sourceTree = "<group>"; };
 		B6000000000000000000000C /* GlancePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlancePresentationTests.swift; sourceTree = "<group>"; };
 		B6000000000000000000000D /* GlancePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlancePresentation.swift; sourceTree = "<group>"; };
+		B6000000000000000000000E /* AlertBuzzPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBuzzPolicyTests.swift; sourceTree = "<group>"; };
+		B6000000000000000000000F /* AlertBuzzPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBuzzPolicy.swift; sourceTree = "<group>"; };
+		B60000000000000000000010 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertNotifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -418,6 +425,7 @@
 		800000000000000000000003 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				B6000000000000000000000F /* AlertBuzzPolicy.swift */,
 				B6000000000000000000000D /* GlancePresentation.swift */,
 				B60000000000000000000006 /* WatchHandoff.swift */,
 				B60000000000000000000005 /* WatchGlance.swift */,
@@ -435,6 +443,7 @@
 		800000000000000000000004 /* GlucoseMonitorWatch */ = {
 			isa = PBXGroup;
 			children = (
+				B60000000000000000000010 /* AlertNotifier.swift */,
 				B6000000000000000000000B /* GlanceStore.swift */,
 				B6000000000000000000000A /* GlanceClient.swift */,
 				B60000000000000000000009 /* WatchSessionReceiver.swift */,
@@ -478,6 +487,7 @@
 		800000000000000000000010 /* GlucoseMonitorTests */ = {
 			isa = PBXGroup;
 			children = (
+				B6000000000000000000000E /* AlertBuzzPolicyTests.swift */,
 				B6000000000000000000000C /* GlancePresentationTests.swift */,
 				B60000000000000000000007 /* WatchSessionBridgeTests.swift */,
 				B60000000000000000000001 /* WatchSharedTests.swift */,
@@ -677,6 +687,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000016 /* AlertBuzzPolicy.swift in Sources */,
 				B70000000000000000000013 /* GlancePresentation.swift in Sources */,
 				B7000000000000000000000E /* WatchSessionBridge.swift in Sources */,
 				B7000000000000000000000A /* WatchHandoff.swift in Sources */,
@@ -745,6 +756,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000015 /* AlertBuzzPolicyTests.swift in Sources */,
 				B70000000000000000000012 /* GlancePresentationTests.swift in Sources */,
 				B7000000000000000000000D /* WatchSessionBridgeTests.swift in Sources */,
 				B70000000000000000000001 /* WatchSharedTests.swift in Sources */,
@@ -790,6 +802,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B70000000000000000000018 /* AlertNotifier.swift in Sources */,
+				B70000000000000000000017 /* AlertBuzzPolicy.swift in Sources */,
 				B70000000000000000000014 /* GlancePresentation.swift in Sources */,
 				B70000000000000000000011 /* GlanceStore.swift in Sources */,
 				B70000000000000000000010 /* GlanceClient.swift in Sources */,
