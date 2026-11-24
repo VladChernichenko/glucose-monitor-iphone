@@ -1,173 +1,191 @@
 import SwiftUI
 
-// MARK: - Main view
+// MARK: - Root
 
 struct WatchRootView: View {
-    @State private var snapshot: LockScreenWidgetSnapshot? = LockScreenWidgetSnapshot.load()
-
-    private var hasData: Bool { snapshot != nil }
+    @ObservedObject private var session = WatchSessionReceiver.shared
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var stored = GlanceStore.load()
+    @State private var loading = false
+    @State private var offline = false
 
     var body: some View {
         Group {
-            if let snap = snapshot {
-                GlucoseDisplayView(snapshot: snap, onRefresh: reload)
+            if !session.isSignedIn {
+                ConnectView { session.requestSessionIfNeeded() }
+            } else if let stored {
+                // Re-evaluated every 30 s so the age, greying and expired advice update without a fetch.
+                TimelineView(.periodic(from: .now, by: 30)) { context in
+                    GlanceView(
+                        presentation: GlancePresentation(glance: stored.glance, now: context.date,
+                                                         fetchedAt: stored.fetchedAt, unit: displayUnit),
+                        offline: offline,
+                        loading: loading,
+                        onRefresh: { Task { await refresh() } }
+                    )
+                }
             } else {
-                EmptyStateView(onRefresh: reload)
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text(offline ? "Can't reach the server" : "Loading…")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if offline {
+                        Button("Try again") { Task { await refresh() } }
+                    }
+                }
             }
         }
-        .onAppear { reload() }
+        .task(id: session.generation) { await refresh() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await refresh() } }
+        }
+        .onAppear { session.requestSessionIfNeeded() }
     }
 
-    private func reload() {
-        snapshot = LockScreenWidgetSnapshot.load()
+    private var displayUnit: String {
+        GlucoseMonitorAPI.sharedDefaults().string(forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit) ?? "mmol/L"
+    }
+
+    @MainActor
+    private func refresh() async {
+        stored = GlanceStore.load()
+        guard session.isSignedIn, !loading else { return }
+        loading = true
+        defer { loading = false }
+        do {
+            GlanceStore.save(try await GlanceClient.fetch(), fetchedAt: Date())
+            offline = false
+        } catch {
+            offline = true
+        }
+        stored = GlanceStore.load()
     }
 }
 
-// MARK: - Glucose display
+// MARK: - Glance
 
-private struct GlucoseDisplayView: View {
-    let snapshot: LockScreenWidgetSnapshot
+private struct GlanceView: View {
+    let presentation: GlancePresentation
+    let offline: Bool
+    let loading: Bool
     let onRefresh: () -> Void
 
-    private var glucoseMmol: Double? { snapshot.glucoseMmolForColoring() }
+    private var p: GlancePresentation { presentation }
 
-    private var glucoseColor: Color {
-        guard let mmol = glucoseMmol else { return .primary }
-        if mmol < 3.5 || mmol >= 14 { return .red }
-        if mmol < 4.0 || mmol >= 10.0 { return .yellow }
-        return .green
-    }
-
-    private var glucoseText: String {
-        guard let v = snapshot.glucoseValue else { return "--" }
-        let unit = snapshot.glucoseUnit
-        if unit.lowercased().contains("mg") {
-            return String(format: "%.0f", v)
+    private var valueColor: Color {
+        switch p.rangeColor {
+        case .urgent: return .red
+        case .low, .high: return .yellow
+        case .inRange: return .green
+        case .none: return .secondary
         }
-        return String(format: "%.1f", v)
-    }
-
-    private var unitText: String {
-        snapshot.glucoseUnit.lowercased().contains("mg") ? "mg/dL" : "mmol/L"
-    }
-
-    private var predictionText: String {
-        guard let pred = snapshot.twoHourPredictionMmol else { return "--" }
-        let unit = snapshot.glucoseUnit
-        if unit.lowercased().contains("mg") {
-            return String(format: "%.0f", pred * 18.018)
-        }
-        return String(format: "%.1f", pred)
-    }
-
-    private var readingAge: String {
-        let elapsed = -snapshot.readingAgeStart.timeIntervalSinceNow
-        if elapsed < 60 { return "now" }
-        let mins = Int(elapsed / 60)
-        if mins < 60 { return "\(mins)m ago" }
-        return "\(mins / 60)h \(mins % 60)m ago"
     }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 8) {
-
-                // ── Current glucose ───────────────────────────────────────────
                 VStack(spacing: 2) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(glucoseText)
+                        Text(p.valueText)
                             .font(.system(size: 44, weight: .bold, design: .rounded))
-                            .foregroundColor(glucoseColor)
                             .minimumScaleFactor(0.7)
                             .lineLimit(1)
+                        Text(p.arrow)
+                            .font(.title2)
+                    }
+                    .foregroundStyle(valueColor)
 
-                        if let arrow = snapshot.trendArrow, !arrow.isEmpty {
-                            Text(trendEmoji(arrow))
-                                .font(.title2)
-                                .foregroundColor(glucoseColor)
+                    HStack(spacing: 3) {
+                        Text(p.unitLabel)
+                        if let at = p.readingAt {
+                            Text("·")
+                            Text(at, style: .relative)
                         }
                     }
-
-                    Text(unitText)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 }
 
-                Divider()
-
-                // ── 2-hour prediction ─────────────────────────────────────────
-                VStack(spacing: 2) {
-                    Text("2h Prediction")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text(predictionText)
-                        .font(.system(size: 24, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .minimumScaleFactor(0.8)
-                        .lineLimit(1)
+                if let prediction = p.predictionText {
+                    HStack(spacing: 4) {
+                        Text("2h")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Text(prediction)
+                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    }
                 }
 
-                Divider()
+                if let stale = p.stale {
+                    BannerView(banner: stale, tint: .orange)
+                }
+                if let strip = p.strip {
+                    BannerView(banner: strip, tint: strip.urgent ? .red : .green)
+                }
 
-                // ── Reading age + refresh ─────────────────────────────────────
-                VStack(spacing: 6) {
-                    Text(readingAge)
+                if offline {
+                    Text("Can't reach the server")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
+                }
 
-                    Button(action: onRefresh) {
+                Button(action: onRefresh) {
+                    if loading {
+                        ProgressView()
+                    } else {
                         Label("Refresh", systemImage: "arrow.clockwise")
                             .font(.caption)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.blue.opacity(0.8))
                 }
+                .disabled(loading)
             }
             .padding(.horizontal, 4)
-            .padding(.vertical, 6)
         }
     }
 }
 
-// MARK: - Empty state
+/// The phone dashboard's banner: bold headline over one detail line, tinted.
+private struct BannerView: View {
+    let banner: GlancePresentation.Banner
+    let tint: Color
 
-private struct EmptyStateView: View {
-    let onRefresh: () -> Void
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(banner.title)
+                .font(.footnote.bold())
+            if !banner.detail.isEmpty {
+                Text(banner.detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(8)
+        .background(tint.opacity(0.2))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(tint.opacity(0.5), lineWidth: 1))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Not connected
+
+private struct ConnectView: View {
+    let onRetry: () -> Void
 
     var body: some View {
         VStack(spacing: 10) {
-            Image(systemName: "waveform.path.ecg")
+            Image(systemName: "iphone.and.arrow.forward")
                 .font(.title2)
-                .foregroundColor(.secondary)
-            Text("Open the iPhone app to sync glucose data.")
+                .foregroundStyle(.secondary)
+            Text("Open the app on your iPhone to connect")
                 .font(.caption2)
-                .foregroundColor(.secondary)
+                .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Refresh", action: onRefresh)
+            Button("Try again", action: onRetry)
                 .font(.caption)
-                .buttonStyle(.borderedProminent)
-                .tint(.blue.opacity(0.8))
         }
         .padding()
-    }
-}
-
-// MARK: - Trend arrow helper
-
-/// Maps LibreLinkUp / Nightscout trend strings to Unicode arrows.
-private func trendEmoji(_ arrow: String) -> String {
-    switch arrow.lowercased() {
-    case "doubleup", "rapidlyincreasing":       return "⇈"
-    case "singleup":                            return "↑"
-    case "fortyfiveup", "slowlyincreasing":     return "↗"
-    case "flat", "steady":                      return "→"
-    case "fortyfivedown", "slowlydecreasing":   return "↘"
-    case "singledown":                          return "↓"
-    case "doubledown", "rapidlydecreasing":     return "⇊"
-    default:
-        // Return raw value if it's already an arrow/symbol; otherwise "~"
-        let scalars = arrow.unicodeScalars
-        if let first = scalars.first, first.properties.isEmoji { return arrow }
-        return "~"
     }
 }
