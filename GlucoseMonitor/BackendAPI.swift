@@ -233,6 +233,14 @@ enum BackendAPI {
         /// Insulin-to-carb ratio, grams of carbohydrate per unit (3-30). Nil is omitted on encode,
         /// so a save cannot clear a ratio the server already stored.
         var gramsPerUnit: Double? = nil
+        /// Carb ratio override for 05:00-11:00 (grams per unit). Nil = use `gramsPerUnit`.
+        var gramsPerUnitBreakfast: Double? = nil
+        /// Carb ratio override for 11:00-16:00 (grams per unit). Nil = use `gramsPerUnit`.
+        var gramsPerUnitLunch: Double? = nil
+        /// Carb ratio override for 16:00-22:00 (grams per unit). Nil = use `gramsPerUnit`.
+        var gramsPerUnitDinner: Double? = nil
+        /// Carb ratio override for 22:00-05:00 (grams per unit). Nil = use `gramsPerUnit`.
+        var gramsPerUnitNight: Double? = nil
     }
 
     struct PredictionFactors: Decodable {

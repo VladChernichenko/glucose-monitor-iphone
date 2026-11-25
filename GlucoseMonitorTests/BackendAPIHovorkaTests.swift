@@ -84,6 +84,34 @@ final class BackendAPIHovorkaTests: XCTestCase {
         XCTAssertEqual(encoded!, 75.0, accuracy: 0.001)
     }
 
+    func testCOBSettings_roundTrip_preservesWindowRatios() throws {
+        let settings = BackendAPI.COBSettings(
+            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnit: 8,
+            gramsPerUnitBreakfast: 6, gramsPerUnitNight: 12
+        )
+        let data = try JSONEncoder().encode(settings)
+        let back = try decoder.decode(BackendAPI.COBSettings.self, from: data)
+        XCTAssertEqual(back.gramsPerUnitBreakfast, 6)
+        XCTAssertEqual(back.gramsPerUnitNight, 12)
+        XCTAssertNil(back.gramsPerUnitLunch)
+        XCTAssertNil(back.gramsPerUnitDinner)
+        XCTAssertEqual(back.gramsPerUnit, 8)
+    }
+
+    func testCOBSettings_nilWindowRatiosAreOmitted() throws {
+        let settings = BackendAPI.COBSettings(
+            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnit: 8, gramsPerUnitBreakfast: 6
+        )
+        let data = try JSONEncoder().encode(settings)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        XCTAssertNotNil(json["gramsPerUnitBreakfast"])
+        XCTAssertNil(json["gramsPerUnitLunch"], "nil must be omitted so a save leaves the stored value unchanged")
+        XCTAssertNil(json["gramsPerUnitDinner"])
+        XCTAssertNil(json["gramsPerUnitNight"])
+    }
+
     /// Encoding a COBSettings with nil bodyWeightKg must omit the field or send null.
     /// Either is acceptable - the backend treats both as "use population default".
     func testCOBSettings_encode_withoutBodyWeightKg_graceful() throws {
