@@ -491,4 +491,51 @@ final class BackendAPIHovorkaTests: XCTestCase {
         )
         XCTAssertNil(settings.bodyWeightKg)
     }
+
+    // MARK: - Meal-window suggestion ratios
+
+    private func suggestionJSON(windows: String) -> Data {
+        Data("""
+        {"show": true, "windows": [\(windows)]}
+        """.utf8)
+    }
+
+    func testSuggestion_decodesRatioFields() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":8.0,"ratioHasData":true,"ratioSamples":6}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        let w = try XCTUnwrap(s.windows.first)
+        XCTAssertEqual(w.proposedGramsPerUnit, 8.0)
+        XCTAssertEqual(w.currentGramsPerUnit, 10.0)
+        XCTAssertEqual(w.ratioSamples, 6)
+        XCTAssertTrue(w.hasRatioProposal)
+        XCTAssertTrue(w.hasIsfProposal)
+    }
+
+    func testSuggestion_withoutRatioFields_stillDecodes() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0},
+        {"mealWindow":"LUNCH","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        XCTAssertFalse(s.windows[0].hasRatioProposal)
+        XCTAssertEqual(s.proposalLines.map(\.mealWindow), ["BREAKFAST"])
+    }
+
+    func testSuggestion_ratioOnlyWindowIsAProposalLine() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"DINNER","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":9.0,"ratioHasData":true,"ratioSamples":4}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        XCTAssertFalse(s.windows[0].hasIsfProposal)
+        XCTAssertEqual(s.proposalLines.map(\.mealWindow), ["DINNER"])
+    }
+
+    func testAcceptSuggestionBody_encodesIncludeRatios() throws {
+        let data = try JSONEncoder().encode(BackendAPI.AcceptSuggestionBody(includeRatios: true))
+        XCTAssertEqual(String(data: data, encoding: .utf8), "{\"includeRatios\":true}")
+    }
 }

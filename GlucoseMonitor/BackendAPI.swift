@@ -821,8 +821,15 @@ enum BackendAPI {
             let currentIsf: Double?
             let hasData: Bool
             let weightedSamples: Double?
+            let currentGramsPerUnit: Double?
+            let proposedGramsPerUnit: Double?
+            let ratioHasData: Bool?
+            let ratioSamples: Int?
 
             var id: String { mealWindow }
+
+            var hasIsfProposal: Bool { hasData && proposedIsf != nil }
+            var hasRatioProposal: Bool { ratioHasData == true && proposedGramsPerUnit != nil }
 
             var displayName: String {
                 switch mealWindow {
@@ -835,15 +842,16 @@ enum BackendAPI {
             }
         }
 
-        /// Windows with enough data to propose a new ISF.
-        var proposalLines: [WindowProposal] { windows.filter { $0.hasData && $0.proposedIsf != nil } }
+        /// Windows with enough data to propose a new ISF or carb ratio.
+        var proposalLines: [WindowProposal] { windows.filter { $0.hasIsfProposal || $0.hasRatioProposal } }
 
         /// All four windows in display order, padding with any missing ones.
         var allWindowsOrdered: [WindowProposal] {
             let order = ["BREAKFAST", "LUNCH", "DINNER", "NIGHT"]
             let byKey = Dictionary(uniqueKeysWithValues: windows.map { ($0.mealWindow, $0) })
             return order.map { key in
-                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil)
+                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil,
+                                       currentGramsPerUnit: nil, proposedGramsPerUnit: nil, ratioHasData: nil, ratioSamples: nil)
             }
         }
     }
@@ -857,9 +865,14 @@ enum BackendAPI {
         }
     }
 
-    static func acceptIsfMealWindowSuggestion() async throws {
+    struct AcceptSuggestionBody: Encodable {
+        let includeRatios: Bool
+    }
+
+    static func acceptIsfMealWindowSuggestion(includeRatios: Bool = true) async throws {
         try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/accept", method: "POST")
+            var req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/accept", method: "POST")
+            req.httpBody = try JSONEncoder().encode(AcceptSuggestionBody(includeRatios: includeRatios))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
         }

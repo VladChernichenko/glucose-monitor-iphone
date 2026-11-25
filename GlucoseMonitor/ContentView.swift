@@ -273,23 +273,34 @@ struct DashboardView: View {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
                     .foregroundStyle(.purple)
-                Text("Updated ISF ready")
+                Text("Updated settings ready")
                     .font(.subheadline.bold())
                 Spacer()
             }
-            Text("Based on your recent data, we suggest refining meal-window ISF. Review and apply, or dismiss for a few days.")
+            Text("Based on your recent data, we suggest refining ISF and carb ratios by time of day. Review and apply, or dismiss for a few days.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             ForEach(suggestion.allWindowsOrdered) { w in
                 HStack {
                     Text(w.displayName)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(w.hasData ? .primary : .tertiary)
+                        .foregroundStyle((w.hasIsfProposal || w.hasRatioProposal) ? .primary : .tertiary)
                     Spacer()
-                    if let cur = w.currentIsf, let prop = w.proposedIsf {
-                        Text(String(format: "%.2f → %.2f", cur, prop))
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                    if w.hasIsfProposal || w.hasRatioProposal {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if w.hasIsfProposal, let cur = w.currentIsf, let prop = w.proposedIsf {
+                                Text(String(format: "%.2f → %.2f", cur, prop))
+                            } else if let cur = w.currentIsf {
+                                Text(String(format: "%.2f", cur))
+                            }
+                            if w.hasRatioProposal, let cur = w.currentGramsPerUnit, let prop = w.proposedGramsPerUnit {
+                                Text(String(format: "%.1f → %.1f g/U", cur, prop))
+                            } else if let cur = w.currentGramsPerUnit {
+                                Text(String(format: "%.1f g/U", cur))
+                            }
+                        }
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
                     } else {
                         Text("No data yet")
                             .font(.caption)
@@ -345,10 +356,10 @@ struct DashboardView: View {
         isfSuggestionBusy = true
         defer { isfSuggestionBusy = false }
         do {
-            try await BackendAPI.acceptIsfMealWindowSuggestion()
+            try await BackendAPI.acceptIsfMealWindowSuggestion(includeRatios: true)
             isfSuggestion = nil
         } catch {
-            appState.errorMessage = "Could not apply ISF suggestion."
+            appState.errorMessage = "Could not apply suggestion."
         }
     }
 
