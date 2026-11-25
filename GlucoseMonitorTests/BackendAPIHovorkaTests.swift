@@ -599,4 +599,32 @@ final class BackendAPIHovorkaTests: XCTestCase {
         let data = try JSONEncoder().encode(BackendAPI.AcceptSuggestionBody(includeRatios: true))
         XCTAssertEqual(String(data: data, encoding: .utf8), "{\"includeRatios\":true}")
     }
+
+    // MARK: - Settings Save gate
+
+    /// Until a fetch succeeds the screen holds the placeholder `COBSettings` (ISF 2.5, half-life 60);
+    /// saving them would overwrite the user's stored base ISF and carb half-life.
+    func testSaveGate_staysOffUntilSettingsHaveLoaded() {
+        XCTAssertFalse(CalculationSettingsSaveRule.canSave(
+            settingsLoaded: false, isSaving: false, targetError: nil, rescueError: nil))
+        XCTAssertTrue(CalculationSettingsSaveRule.canSave(
+            settingsLoaded: true, isSaving: false, targetError: nil, rescueError: nil))
+    }
+
+    func testSaveGate_keepsTheSavingAndFieldErrorRules() {
+        XCTAssertFalse(CalculationSettingsSaveRule.canSave(
+            settingsLoaded: true, isSaving: true, targetError: nil, rescueError: nil))
+        XCTAssertFalse(CalculationSettingsSaveRule.canSave(
+            settingsLoaded: true, isSaving: false, targetError: "Enter a number.", rescueError: nil))
+        XCTAssertFalse(CalculationSettingsSaveRule.canSave(
+            settingsLoaded: true, isSaving: false, targetError: nil, rescueError: "Rescue carbs must be 5-40 g."))
+    }
+
+    func testLoadFailureNote_showsOnlyWhileNothingHasLoaded() {
+        XCTAssertTrue(CalculationSettingsSaveRule.showsLoadFailure(settingsLoaded: false, lastLoadFailed: true))
+        XCTAssertFalse(CalculationSettingsSaveRule.showsLoadFailure(settingsLoaded: false, lastLoadFailed: false),
+            "the first fetch is still in flight: nothing has failed yet")
+        XCTAssertFalse(CalculationSettingsSaveRule.showsLoadFailure(settingsLoaded: true, lastLoadFailed: true),
+            "a failed refresh after a successful load still shows the user's own values")
+    }
 }
