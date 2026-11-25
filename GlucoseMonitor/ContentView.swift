@@ -288,15 +288,11 @@ struct DashboardView: View {
                     Spacer()
                     if w.hasIsfProposal || w.hasRatioProposal {
                         VStack(alignment: .trailing, spacing: 2) {
-                            if w.hasIsfProposal, let cur = w.currentIsf, let prop = w.proposedIsf {
-                                Text(String(format: "%.2f → %.2f", cur, prop))
-                            } else if let cur = w.currentIsf {
-                                Text(String(format: "%.2f", cur))
+                            if let isf = w.isfText {
+                                Text(isf)
                             }
-                            if w.hasRatioProposal, let cur = w.currentGramsPerUnit, let prop = w.proposedGramsPerUnit {
-                                Text(String(format: "%.1f → %.1f g/U", cur, prop))
-                            } else if let cur = w.currentGramsPerUnit {
-                                Text(String(format: "%.1f g/U", cur))
+                            if let ratio = w.ratioText {
+                                Text(ratio)
                             }
                         }
                         .font(.caption.monospacedDigit())

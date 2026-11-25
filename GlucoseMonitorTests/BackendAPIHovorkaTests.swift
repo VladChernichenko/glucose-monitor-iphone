@@ -534,6 +534,54 @@ final class BackendAPIHovorkaTests: XCTestCase {
         XCTAssertEqual(s.proposalLines.map(\.mealWindow), ["DINNER"])
     }
 
+    // MARK: - Suggestion card row text
+
+    private func singleWindow(_ fields: String) throws -> BackendAPI.IsfMealWindowSuggestion.WindowProposal {
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: suggestionJSON(windows: fields))
+        return try XCTUnwrap(s.windows.first)
+    }
+
+    /// The single ratio is unset, so the backend sends no current ratio; Apply still writes the
+    /// proposal, so the card has to show it.
+    func testRatioTextWithoutCurrentShowsTheProposal() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "proposedGramsPerUnit":14.0,"ratioHasData":true,"ratioSamples":3}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio — → 14.0 g/U")
+    }
+
+    func testRatioTextWithCurrentShowsCurrentToProposed() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":8.0,"ratioHasData":true,"ratioSamples":5}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio 10.0 → 8.0 g/U")
+    }
+
+    func testRatioTextWithoutProposalShowsTheCurrent() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"LUNCH","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":4,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":null,"ratioHasData":false,"ratioSamples":1}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio 10.0 g/U")
+    }
+
+    func testIsfTextWithProposalShowsCurrentToProposed() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0}
+        """)
+        XCTAssertEqual(w.isfText, "ISF 2.00 → 2.10")
+    }
+
+    func testIsfTextWithoutProposalShowsTheCurrent() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"DINNER","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0}
+        """)
+        XCTAssertEqual(w.isfText, "ISF 2.00")
+        XCTAssertNil(w.ratioText, "an older backend sends no ratio fields: no ratio line")
+    }
+
     func testAcceptSuggestionBody_encodesIncludeRatios() throws {
         let data = try JSONEncoder().encode(BackendAPI.AcceptSuggestionBody(includeRatios: true))
         XCTAssertEqual(String(data: data, encoding: .utf8), "{\"includeRatios\":true}")

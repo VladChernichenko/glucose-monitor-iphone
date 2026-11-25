@@ -831,6 +831,28 @@ enum BackendAPI {
             var hasIsfProposal: Bool { hasData && proposedIsf != nil }
             var hasRatioProposal: Bool { ratioHasData == true && proposedGramsPerUnit != nil }
 
+            /// The card's ISF line: "current → proposed", the current value alone, or nil when there
+            /// is nothing to show. A proposal always shows, since Apply writes it.
+            var isfText: String? {
+                if hasIsfProposal, let prop = proposedIsf {
+                    if let cur = currentIsf { return String(format: "ISF %.2f → %.2f", cur, prop) }
+                    return String(format: "ISF — → %.2f", prop)
+                }
+                if let cur = currentIsf { return String(format: "ISF %.2f", cur) }
+                return nil
+            }
+
+            /// The card's carb-ratio line, like `isfText`. With no single ratio set the backend sends
+            /// no current value; the proposal still shows, since Apply writes it.
+            var ratioText: String? {
+                if hasRatioProposal, let prop = proposedGramsPerUnit {
+                    if let cur = currentGramsPerUnit { return String(format: "Ratio %.1f → %.1f g/U", cur, prop) }
+                    return String(format: "Ratio — → %.1f g/U", prop)
+                }
+                if let cur = currentGramsPerUnit { return String(format: "Ratio %.1f g/U", cur) }
+                return nil
+            }
+
             var displayName: String {
                 switch mealWindow {
                 case "BREAKFAST": return "Breakfast"
