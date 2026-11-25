@@ -208,8 +208,9 @@ enum BackendAPI {
         BackendDate.parse(s)
     }
 
-    /// COB tuning. `gramsPerUnit` is the insulin-to-carb ratio (grams per unit). `carbRatio` is the
-    /// legacy mmol/L rise per 10 g and is sent back unchanged so a save cannot overwrite it.
+    /// COB tuning. `gramsPerUnitBreakfast` ... `gramsPerUnitNight` are the insulin-to-carb ratios
+    /// (grams per unit), one per meal window. `carbRatio` is the legacy mmol/L rise per 10 g and is
+    /// sent back unchanged so a save cannot overwrite it.
     /// `bodyWeightKg` scales the Hovorka volume of distribution (VG = 0.16 * kg)
     /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil -> backend uses population default 70 kg.
     struct COBSettings: Codable {
@@ -230,16 +231,15 @@ enum BackendAPI {
         var targetGlucoseMmol: Double? = nil
         /// Rescue carbs in grams (5-40). Nil = not sent, so the backend keeps its stored value (default 15).
         var rescueCarbsG: Int? = nil
-        /// Insulin-to-carb ratio, grams of carbohydrate per unit (3-30). Nil is omitted on encode,
-        /// so a save cannot clear a ratio the server already stored.
-        var gramsPerUnit: Double? = nil
-        /// Carb ratio override for 05:00-11:00 (grams per unit). Nil = use `gramsPerUnit`.
+        /// Insulin-to-carb ratio for 05:00-11:00, grams of carbohydrate per unit (3-30). Nil = not set;
+        /// the backend refuses to dose for this window. Nil is omitted on encode, so a save cannot
+        /// clear a ratio the server already stored.
         var gramsPerUnitBreakfast: Double? = nil
-        /// Carb ratio override for 11:00-16:00 (grams per unit). Nil = use `gramsPerUnit`.
+        /// Insulin-to-carb ratio for 11:00-16:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
         var gramsPerUnitLunch: Double? = nil
-        /// Carb ratio override for 16:00-22:00 (grams per unit). Nil = use `gramsPerUnit`.
+        /// Insulin-to-carb ratio for 16:00-22:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
         var gramsPerUnitDinner: Double? = nil
-        /// Carb ratio override for 22:00-05:00 (grams per unit). Nil = use `gramsPerUnit`.
+        /// Insulin-to-carb ratio for 22:00-05:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
         var gramsPerUnitNight: Double? = nil
     }
 

@@ -74,8 +74,7 @@ struct SettingsView: View {
     @State private var glucoseUnit = "mmol/L"
     @State private var insulinSummary = ""
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil,
-        gramsPerUnit: 5
+        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
     )
     @State private var targetText = ""
     @State private var rescueText = ""
@@ -126,13 +125,6 @@ struct SettingsView: View {
                             syncTargetFields()  // re-show the stored target in the new unit
                         }
 
-                        SettingsNumericRow(
-                            label: "Insulin-to-carb ratio",
-                            subtitle: "grams per unit * default",
-                            placeholder: "5",
-                            value: gramsPerUnitBinding,
-                            fractionDigits: 1...2
-                        )
                         SettingsNumericRow(
                             label: "Body Weight",
                             subtitle: "kg * used for glucose model calibration",
@@ -272,44 +264,38 @@ struct SettingsView: View {
         }
     }
 
-    /// Bridges the optional insulin-to-carb ratio to the non-optional row. A missing value shows 5 g/U,
-    /// the same default a new settings row is created with. Editing stores the typed number.
-    /// Carb ratio for the breakfast window; falls back to the default ratio until edited.
+    /// Bridges a window's optional insulin-to-carb ratio to the non-optional row. A window with no
+    /// ratio shows 5 g/U, the default a new settings row gets in every window; editing pins the typed
+    /// number for that window (saved on "Save").
+    /// Carb ratio for the breakfast window.
     private var gramsPerUnitBreakfastBinding: Binding<Double> {
         Binding(
-            get: { cobSettings.gramsPerUnitBreakfast ?? cobSettings.gramsPerUnit ?? 5 },
+            get: { cobSettings.gramsPerUnitBreakfast ?? 5 },
             set: { cobSettings.gramsPerUnitBreakfast = $0 }
         )
     }
 
-    /// Carb ratio for the lunch window; falls back to the default ratio until edited.
+    /// Carb ratio for the lunch window.
     private var gramsPerUnitLunchBinding: Binding<Double> {
         Binding(
-            get: { cobSettings.gramsPerUnitLunch ?? cobSettings.gramsPerUnit ?? 5 },
+            get: { cobSettings.gramsPerUnitLunch ?? 5 },
             set: { cobSettings.gramsPerUnitLunch = $0 }
         )
     }
 
-    /// Carb ratio for the dinner window; falls back to the default ratio until edited.
+    /// Carb ratio for the dinner window.
     private var gramsPerUnitDinnerBinding: Binding<Double> {
         Binding(
-            get: { cobSettings.gramsPerUnitDinner ?? cobSettings.gramsPerUnit ?? 5 },
+            get: { cobSettings.gramsPerUnitDinner ?? 5 },
             set: { cobSettings.gramsPerUnitDinner = $0 }
         )
     }
 
-    /// Carb ratio for the night window; falls back to the default ratio until edited.
+    /// Carb ratio for the night window.
     private var gramsPerUnitNightBinding: Binding<Double> {
         Binding(
-            get: { cobSettings.gramsPerUnitNight ?? cobSettings.gramsPerUnit ?? 5 },
+            get: { cobSettings.gramsPerUnitNight ?? 5 },
             set: { cobSettings.gramsPerUnitNight = $0 }
-        )
-    }
-
-    private var gramsPerUnitBinding: Binding<Double> {
-        Binding(
-            get: { cobSettings.gramsPerUnit ?? 5 },
-            set: { cobSettings.gramsPerUnit = $0 }
         )
     }
 
