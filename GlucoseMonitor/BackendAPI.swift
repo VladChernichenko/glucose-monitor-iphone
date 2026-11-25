@@ -209,12 +209,10 @@ enum BackendAPI {
     }
 
     /// COB tuning. `gramsPerUnitBreakfast` ... `gramsPerUnitNight` are the insulin-to-carb ratios
-    /// (grams per unit), one per meal window. `carbRatio` is the legacy mmol/L rise per 10 g and is
-    /// sent back unchanged so a save cannot overwrite it.
+    /// (grams per unit), one per meal window.
     /// `bodyWeightKg` scales the Hovorka volume of distribution (VG = 0.16 * kg)
     /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil -> backend uses population default 70 kg.
     struct COBSettings: Codable {
-        var carbRatio: Double
         var isf: Double
         var carbHalfLife: Double
         var maxCOBDuration: Double

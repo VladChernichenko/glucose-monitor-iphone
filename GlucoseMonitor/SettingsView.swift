@@ -74,7 +74,7 @@ struct SettingsView: View {
     @State private var glucoseUnit = "mmol/L"
     @State private var insulinSummary = ""
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
+        isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
     )
     @State private var targetText = ""
     @State private var rescueText = ""
