@@ -69,6 +69,22 @@ final class BackendAPIHovorkaTests: XCTestCase {
             "bodyWeightKg null in JSON must decode to Optional.none")
     }
 
+    /// The backend keeps a read-only `"carbRatio": 2.0` for app builds that still require it; this
+    /// build ignores the extra key and reads the rest.
+    func testCOBSettings_decode_ignoresTheCompatibilityCarbRatio() throws {
+        let json = """
+        { "carbRatio": 2.0, "isf": 2.2, "carbHalfLife": 45, "maxCOBDuration": 240,
+          "gramsPerUnitBreakfast": 6.0, "gramsPerUnitLunch": 10.0 }
+        """.data(using: .utf8)!
+        let settings = try decoder.decode(BackendAPI.COBSettings.self, from: json)
+
+        XCTAssertEqual(settings.isf, 2.2, accuracy: 0.001)
+        XCTAssertEqual(settings.gramsPerUnitBreakfast ?? 0, 6.0, accuracy: 0.001)
+        XCTAssertEqual(settings.gramsPerUnitLunch ?? 0, 10.0, accuracy: 0.001)
+        let reencoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as! [String: Any]
+        XCTAssertNil(reencoded["carbRatio"], "a save from this build never sends it back")
+    }
+
     /// Encoding a COBSettings with bodyWeightKg must include the field in JSON.
     func testCOBSettings_encode_withBodyWeightKg() throws {
         let settings = BackendAPI.COBSettings(
