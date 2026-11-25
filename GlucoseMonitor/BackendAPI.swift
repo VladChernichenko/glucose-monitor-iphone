@@ -208,12 +208,11 @@ enum BackendAPI {
         BackendDate.parse(s)
     }
 
-    /// COB tuning. `gramsPerUnit` is the insulin-to-carb ratio (grams per unit). `carbRatio` is the
-    /// legacy mmol/L rise per 10 g and is sent back unchanged so a save cannot overwrite it.
+    /// COB tuning. `gramsPerUnitBreakfast` ... `gramsPerUnitNight` are the insulin-to-carb ratios
+    /// (grams per unit), one per meal window.
     /// `bodyWeightKg` scales the Hovorka volume of distribution (VG = 0.16 * kg)
     /// and non-insulin-dependent utilisation (F01 = 0.0097 × kg). Nil -> backend uses population default 70 kg.
     struct COBSettings: Codable {
-        var carbRatio: Double
         var isf: Double
         var carbHalfLife: Double
         var maxCOBDuration: Double
@@ -230,9 +229,16 @@ enum BackendAPI {
         var targetGlucoseMmol: Double? = nil
         /// Rescue carbs in grams (5-40). Nil = not sent, so the backend keeps its stored value (default 15).
         var rescueCarbsG: Int? = nil
-        /// Insulin-to-carb ratio, grams of carbohydrate per unit (3-30). Nil is omitted on encode,
-        /// so a save cannot clear a ratio the server already stored.
-        var gramsPerUnit: Double? = nil
+        /// Insulin-to-carb ratio for 05:00-11:00, grams of carbohydrate per unit (3-30). Nil = not set;
+        /// the backend refuses to dose for this window. Nil is omitted on encode, so a save cannot
+        /// clear a ratio the server already stored.
+        var gramsPerUnitBreakfast: Double? = nil
+        /// Insulin-to-carb ratio for 11:00-16:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
+        var gramsPerUnitLunch: Double? = nil
+        /// Insulin-to-carb ratio for 16:00-22:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
+        var gramsPerUnitDinner: Double? = nil
+        /// Insulin-to-carb ratio for 22:00-05:00 (grams per unit). Nil = not set; the backend refuses to dose for this window.
+        var gramsPerUnitNight: Double? = nil
     }
 
     struct PredictionFactors: Decodable {
@@ -813,8 +819,37 @@ enum BackendAPI {
             let currentIsf: Double?
             let hasData: Bool
             let weightedSamples: Double?
+            let currentGramsPerUnit: Double?
+            let proposedGramsPerUnit: Double?
+            let ratioHasData: Bool?
+            let ratioSamples: Int?
 
             var id: String { mealWindow }
+
+            var hasIsfProposal: Bool { hasData && proposedIsf != nil }
+            var hasRatioProposal: Bool { ratioHasData == true && proposedGramsPerUnit != nil }
+
+            /// The card's ISF line: "current → proposed", the current value alone, or nil when there
+            /// is nothing to show. A proposal always shows, since Apply writes it.
+            var isfText: String? {
+                if hasIsfProposal, let prop = proposedIsf {
+                    if let cur = currentIsf { return String(format: "ISF %.2f → %.2f", cur, prop) }
+                    return String(format: "ISF — → %.2f", prop)
+                }
+                if let cur = currentIsf { return String(format: "ISF %.2f", cur) }
+                return nil
+            }
+
+            /// The card's carb-ratio line, like `isfText`. With no single ratio set the backend sends
+            /// no current value; the proposal still shows, since Apply writes it.
+            var ratioText: String? {
+                if hasRatioProposal, let prop = proposedGramsPerUnit {
+                    if let cur = currentGramsPerUnit { return String(format: "Ratio %.1f → %.1f g/U", cur, prop) }
+                    return String(format: "Ratio — → %.1f g/U", prop)
+                }
+                if let cur = currentGramsPerUnit { return String(format: "Ratio %.1f g/U", cur) }
+                return nil
+            }
 
             var displayName: String {
                 switch mealWindow {
@@ -827,15 +862,16 @@ enum BackendAPI {
             }
         }
 
-        /// Windows with enough data to propose a new ISF.
-        var proposalLines: [WindowProposal] { windows.filter { $0.hasData && $0.proposedIsf != nil } }
+        /// Windows with enough data to propose a new ISF or carb ratio.
+        var proposalLines: [WindowProposal] { windows.filter { $0.hasIsfProposal || $0.hasRatioProposal } }
 
         /// All four windows in display order, padding with any missing ones.
         var allWindowsOrdered: [WindowProposal] {
             let order = ["BREAKFAST", "LUNCH", "DINNER", "NIGHT"]
             let byKey = Dictionary(uniqueKeysWithValues: windows.map { ($0.mealWindow, $0) })
             return order.map { key in
-                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil)
+                byKey[key] ?? WindowProposal(mealWindow: key, proposedIsf: nil, currentIsf: nil, hasData: false, weightedSamples: nil,
+                                       currentGramsPerUnit: nil, proposedGramsPerUnit: nil, ratioHasData: nil, ratioSamples: nil)
             }
         }
     }
@@ -849,9 +885,14 @@ enum BackendAPI {
         }
     }
 
-    static func acceptIsfMealWindowSuggestion() async throws {
+    struct AcceptSuggestionBody: Encodable {
+        let includeRatios: Bool
+    }
+
+    static func acceptIsfMealWindowSuggestion(includeRatios: Bool = true) async throws {
         try await performWithRefresh {
-            let req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/accept", method: "POST")
+            var req = try authorizedRequest(path: "/api/isf/meal-windows/suggestion/accept", method: "POST")
+            req.httpBody = try JSONEncoder().encode(AcceptSuggestionBody(includeRatios: includeRatios))
             let (data, resp) = try await URLSession.shared.data(for: req)
             try checkStatus(resp, data: data)
         }

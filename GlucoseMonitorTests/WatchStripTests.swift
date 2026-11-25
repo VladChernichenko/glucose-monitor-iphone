@@ -271,7 +271,7 @@ final class WatchStripTests: XCTestCase {
 
     private func cobJSON(extra: String = "") -> Data {
         """
-        {"carbRatio":2.0,"isf":2.5,"carbHalfLife":60,"maxCOBDuration":240\(extra)}
+        {"isf":2.5,"carbHalfLife":60,"maxCOBDuration":240\(extra)}
         """.data(using: .utf8)!
     }
 

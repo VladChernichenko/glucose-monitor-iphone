@@ -74,8 +74,7 @@ struct SettingsView: View {
     @State private var glucoseUnit = "mmol/L"
     @State private var insulinSummary = ""
     @State private var cobSettings = BackendAPI.COBSettings(
-        carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil,
-        gramsPerUnit: 5
+        isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240, bodyWeightKg: nil
     )
     @State private var targetText = ""
     @State private var rescueText = ""
@@ -127,41 +126,6 @@ struct SettingsView: View {
                         }
 
                         SettingsNumericRow(
-                            label: "Insulin-to-carb ratio",
-                            subtitle: "grams per unit",
-                            placeholder: "5",
-                            value: gramsPerUnitBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "ISF Breakfast",
-                            subtitle: "mmol/L per unit * 05:00 - 11:00",
-                            placeholder: "2.5",
-                            value: isfBreakfastBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "ISF Lunch",
-                            subtitle: "mmol/L per unit * 11:00 - 16:00",
-                            placeholder: "2.5",
-                            value: isfLunchBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "ISF Dinner",
-                            subtitle: "mmol/L per unit * 16:00 - 22:00",
-                            placeholder: "2.5",
-                            value: isfDinnerBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "ISF Night",
-                            subtitle: "mmol/L per unit * 22:00 - 05:00",
-                            placeholder: "2.5",
-                            value: isfNightBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
                             label: "Body Weight",
                             subtitle: "kg * used for glucose model calibration",
                             placeholder: "70",
@@ -189,7 +153,77 @@ struct SettingsView: View {
                         if let message = rescueError {
                             Text(message).font(.footnote).foregroundStyle(.red)
                         }
+                    }
 
+                    Section("Breakfast · 05:00 – 11:00") {
+                        SettingsNumericRow(
+                            label: "ISF",
+                            subtitle: "mmol/L per unit",
+                            placeholder: "2.5",
+                            value: isfBreakfastBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "Carb ratio",
+                            subtitle: "grams per unit",
+                            placeholder: "5",
+                            value: gramsPerUnitBreakfastBinding,
+                            fractionDigits: 1...2
+                        )
+                    }
+
+                    Section("Lunch · 11:00 – 16:00") {
+                        SettingsNumericRow(
+                            label: "ISF",
+                            subtitle: "mmol/L per unit",
+                            placeholder: "2.5",
+                            value: isfLunchBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "Carb ratio",
+                            subtitle: "grams per unit",
+                            placeholder: "5",
+                            value: gramsPerUnitLunchBinding,
+                            fractionDigits: 1...2
+                        )
+                    }
+
+                    Section("Dinner · 16:00 – 22:00") {
+                        SettingsNumericRow(
+                            label: "ISF",
+                            subtitle: "mmol/L per unit",
+                            placeholder: "2.5",
+                            value: isfDinnerBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "Carb ratio",
+                            subtitle: "grams per unit",
+                            placeholder: "5",
+                            value: gramsPerUnitDinnerBinding,
+                            fractionDigits: 1...2
+                        )
+                    }
+
+                    Section("Night · 22:00 – 05:00") {
+                        SettingsNumericRow(
+                            label: "ISF",
+                            subtitle: "mmol/L per unit",
+                            placeholder: "2.5",
+                            value: isfNightBinding,
+                            fractionDigits: 1...2
+                        )
+                        SettingsNumericRow(
+                            label: "Carb ratio",
+                            subtitle: "grams per unit",
+                            placeholder: "5",
+                            value: gramsPerUnitNightBinding,
+                            fractionDigits: 1...2
+                        )
+                    }
+
+                    Section {
                         Button("Save") {
                             Task { await saveCalculationSettings() }
                         }
@@ -230,12 +264,38 @@ struct SettingsView: View {
         }
     }
 
-    /// Bridges the optional insulin-to-carb ratio to the non-optional row. A missing value shows 5 g/U,
-    /// the same default a new settings row is created with. Editing stores the typed number.
-    private var gramsPerUnitBinding: Binding<Double> {
+    /// Bridges a window's optional insulin-to-carb ratio to the non-optional row. A window with no
+    /// ratio shows 5 g/U, the default a new settings row gets in every window; editing pins the typed
+    /// number for that window (saved on "Save").
+    /// Carb ratio for the breakfast window.
+    private var gramsPerUnitBreakfastBinding: Binding<Double> {
         Binding(
-            get: { cobSettings.gramsPerUnit ?? 5 },
-            set: { cobSettings.gramsPerUnit = $0 }
+            get: { cobSettings.gramsPerUnitBreakfast ?? 5 },
+            set: { cobSettings.gramsPerUnitBreakfast = $0 }
+        )
+    }
+
+    /// Carb ratio for the lunch window.
+    private var gramsPerUnitLunchBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.gramsPerUnitLunch ?? 5 },
+            set: { cobSettings.gramsPerUnitLunch = $0 }
+        )
+    }
+
+    /// Carb ratio for the dinner window.
+    private var gramsPerUnitDinnerBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.gramsPerUnitDinner ?? 5 },
+            set: { cobSettings.gramsPerUnitDinner = $0 }
+        )
+    }
+
+    /// Carb ratio for the night window.
+    private var gramsPerUnitNightBinding: Binding<Double> {
+        Binding(
+            get: { cobSettings.gramsPerUnitNight ?? 5 },
+            set: { cobSettings.gramsPerUnitNight = $0 }
         )
     }
 

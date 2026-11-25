@@ -14,8 +14,8 @@ final class BackendAPIHovorkaTests: XCTestCase {
 
     // -- COBSettings JSON helpers ---------------------------------------------
 
+    /// A settings response as the backend sends it: no legacy `carbRatio`, no single `gramsPerUnit`.
     private func cobSettingsJSON(
-        carbRatio: Double = 2.0,
         isf: Double = 2.2,
         carbHalfLife: Int = 45,
         maxCOBDuration: Int = 240,
@@ -23,7 +23,6 @@ final class BackendAPIHovorkaTests: XCTestCase {
     ) -> Data {
         var fields = """
         {
-          "carbRatio": \(carbRatio),
           "isf": \(isf),
           "carbHalfLife": \(carbHalfLife),
           "maxCOBDuration": \(maxCOBDuration)
@@ -61,7 +60,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Explicit null in JSON must also decode to nil.
     func testCOBSettings_decode_bodyWeightKgNull_isNil() throws {
         let json = """
-        { "carbRatio": 2.0, "isf": 2.2, "carbHalfLife": 45,
+        { "isf": 2.2, "carbHalfLife": 45,
           "maxCOBDuration": 240, "bodyWeightKg": null }
         """.data(using: .utf8)!
         let settings = try decoder.decode(BackendAPI.COBSettings.self, from: json)
@@ -70,10 +69,26 @@ final class BackendAPIHovorkaTests: XCTestCase {
             "bodyWeightKg null in JSON must decode to Optional.none")
     }
 
+    /// The backend keeps a read-only `"carbRatio": 2.0` for app builds that still require it; this
+    /// build ignores the extra key and reads the rest.
+    func testCOBSettings_decode_ignoresTheCompatibilityCarbRatio() throws {
+        let json = """
+        { "carbRatio": 2.0, "isf": 2.2, "carbHalfLife": 45, "maxCOBDuration": 240,
+          "gramsPerUnitBreakfast": 6.0, "gramsPerUnitLunch": 10.0 }
+        """.data(using: .utf8)!
+        let settings = try decoder.decode(BackendAPI.COBSettings.self, from: json)
+
+        XCTAssertEqual(settings.isf, 2.2, accuracy: 0.001)
+        XCTAssertEqual(settings.gramsPerUnitBreakfast ?? 0, 6.0, accuracy: 0.001)
+        XCTAssertEqual(settings.gramsPerUnitLunch ?? 0, 10.0, accuracy: 0.001)
+        let reencoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as! [String: Any]
+        XCTAssertNil(reencoded["carbRatio"], "a save from this build never sends it back")
+    }
+
     /// Encoding a COBSettings with bodyWeightKg must include the field in JSON.
     func testCOBSettings_encode_withBodyWeightKg() throws {
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: 75.0
         )
         let data = try JSONEncoder().encode(settings)
@@ -84,19 +99,43 @@ final class BackendAPIHovorkaTests: XCTestCase {
         XCTAssertEqual(encoded!, 75.0, accuracy: 0.001)
     }
 
+    func testCOBSettings_roundTrip_preservesWindowRatios() throws {
+        let settings = BackendAPI.COBSettings(
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnitBreakfast: 6, gramsPerUnitNight: 12
+        )
+        let data = try JSONEncoder().encode(settings)
+        let back = try decoder.decode(BackendAPI.COBSettings.self, from: data)
+        XCTAssertEqual(back.gramsPerUnitBreakfast, 6)
+        XCTAssertEqual(back.gramsPerUnitNight, 12)
+        XCTAssertNil(back.gramsPerUnitLunch)
+        XCTAssertNil(back.gramsPerUnitDinner)
+    }
+
+    func testCOBSettings_nilWindowRatiosAreOmitted() throws {
+        let settings = BackendAPI.COBSettings(
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnitBreakfast: 6
+        )
+        let data = try JSONEncoder().encode(settings)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+        XCTAssertNotNil(json["gramsPerUnitBreakfast"])
+        XCTAssertNil(json["gramsPerUnitLunch"], "nil must be omitted so a save leaves the stored value unchanged")
+        XCTAssertNil(json["gramsPerUnitDinner"])
+        XCTAssertNil(json["gramsPerUnitNight"])
+    }
+
     /// Encoding a COBSettings with nil bodyWeightKg must omit the field or send null.
     /// Either is acceptable - the backend treats both as "use population default".
     func testCOBSettings_encode_withoutBodyWeightKg_graceful() throws {
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: nil
         )
         let data = try JSONEncoder().encode(settings)
         // Must not throw, and other fields must still be present
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
-        XCTAssertEqual((json["carbRatio"] as? Double) ?? 0, 2.0, accuracy: 0.001,
-            "carbRatio must still be present when bodyWeightKg is nil")
         XCTAssertEqual((json["isf"] as? Double) ?? 0, 2.2, accuracy: 0.001,
             "isf must still be present when bodyWeightKg is nil")
     }
@@ -104,13 +143,12 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Full round-trip: encode then decode must preserve bodyWeightKg.
     func testCOBSettings_roundTrip_preservesBodyWeightKg() throws {
         let original = BackendAPI.COBSettings(
-            carbRatio: 1.8, isf: 3.1, carbHalfLife: 50, maxCOBDuration: 300,
+            isf: 3.1, carbHalfLife: 50, maxCOBDuration: 300,
             bodyWeightKg: 68.0
         )
         let data    = try JSONEncoder().encode(original)
         let decoded = try decoder.decode(BackendAPI.COBSettings.self, from: data)
 
-        XCTAssertEqual(decoded.carbRatio,     original.carbRatio,     accuracy: 0.001)
         XCTAssertEqual(decoded.isf,           original.isf,           accuracy: 0.001)
         XCTAssertEqual(decoded.carbHalfLife,  original.carbHalfLife,  accuracy: 0.001)
         XCTAssertEqual(decoded.maxCOBDuration,original.maxCOBDuration,accuracy: 0.001)
@@ -118,21 +156,24 @@ final class BackendAPIHovorkaTests: XCTestCase {
             "bodyWeightKg must survive a full encode->decode round-trip")
     }
 
-    /// The insulin-to-carb ratio round-trips, and the legacy carbRatio is still on the payload.
+    /// The window ratios round-trip, and neither removed field (the single ratio, the legacy
+    /// carbRatio) is ever sent.
     func testCOBSettings_roundTrip_preservesGramsPerUnit() throws {
         let original = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
-            gramsPerUnit: 10
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            gramsPerUnitBreakfast: 10, gramsPerUnitLunch: 12, gramsPerUnitDinner: 9, gramsPerUnitNight: 15
         )
         let data = try JSONEncoder().encode(original)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-        XCTAssertEqual((json["carbRatio"] as? Double) ?? 0, 2.0, accuracy: 0.001,
-            "a save must still send the stored carbRatio")
-        XCTAssertEqual((json["gramsPerUnit"] as? Double) ?? 0, 10, accuracy: 0.001)
+        XCTAssertNil(json["gramsPerUnit"], "the single ratio was removed")
+        XCTAssertNil(json["carbRatio"], "the legacy mmol/L per 10 g was removed")
+        XCTAssertEqual((json["gramsPerUnitLunch"] as? Double) ?? 0, 12, accuracy: 0.001)
 
         let decoded = try decoder.decode(BackendAPI.COBSettings.self, from: data)
-        XCTAssertEqual(decoded.gramsPerUnit ?? 0, 10, accuracy: 0.001)
-        XCTAssertEqual(decoded.carbRatio, 2.0, accuracy: 0.001)
+        XCTAssertEqual(decoded.gramsPerUnitBreakfast ?? 0, 10, accuracy: 0.001)
+        XCTAssertEqual(decoded.gramsPerUnitLunch ?? 0, 12, accuracy: 0.001)
+        XCTAssertEqual(decoded.gramsPerUnitDinner ?? 0, 9, accuracy: 0.001)
+        XCTAssertEqual(decoded.gramsPerUnitNight ?? 0, 15, accuracy: 0.001)
     }
 
     // ---
@@ -373,7 +414,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Nil bodyWeightKg -> binding returns population default 70 kg.
     func testBodyWeightBinding_get_nilReturnsDefault70() {
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: nil
         )
         XCTAssertEqual(bodyWeightGet(from: settings), 70.0, accuracy: 0.001,
@@ -383,7 +424,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Set bodyWeightKg -> binding returns the stored value.
     func testBodyWeightBinding_get_returnsStoredValue() {
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: 88.0
         )
         XCTAssertEqual(bodyWeightGet(from: settings), 88.0, accuracy: 0.001,
@@ -393,7 +434,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Setting a positive value stores it in bodyWeightKg.
     func testBodyWeightBinding_set_positiveValueStored() {
         var settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: nil
         )
         bodyWeightSet(65.0, into: &settings)
@@ -405,7 +446,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Setting 0 clears bodyWeightKg to nil (use population default).
     func testBodyWeightBinding_set_zeroClears() {
         var settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: 75.0
         )
         bodyWeightSet(0, into: &settings)
@@ -417,7 +458,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Setting a negative value also clears bodyWeightKg to nil.
     func testBodyWeightBinding_set_negativeClears() {
         var settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: 75.0
         )
         bodyWeightSet(-10.0, into: &settings)
@@ -430,7 +471,7 @@ final class BackendAPIHovorkaTests: XCTestCase {
     /// Updating weight value replaces the previous one.
     func testBodyWeightBinding_set_updatesExistingValue() {
         var settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
+            isf: 2.2, carbHalfLife: 45, maxCOBDuration: 240,
             bodyWeightKg: 70.0
         )
         bodyWeightSet(80.5, into: &settings)
@@ -443,24 +484,119 @@ final class BackendAPIHovorkaTests: XCTestCase {
     // MARK: 5 - COBSettings default initializer still works (API stability)
     // ---
 
-    /// The default 5-arg initializer (without bodyWeightKg) still compiles
+    /// The memberwise initializer without bodyWeightKg still compiles
     /// and produces bodyWeightKg = nil.
     func testCOBSettings_legacyInit_noBodyWeight() {
         // This is the initialiser used in SettingsView's @State default.
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
+            isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240
         )
         XCTAssertNil(settings.bodyWeightKg,
-            "The 4-field memberwise init must leave bodyWeightKg nil - "
+            "The 3-field memberwise init must leave bodyWeightKg nil - "
             + "backward compatibility for all existing call sites")
     }
 
-    /// The 5-arg initializer with explicit nil also compiles.
+    /// The initializer with an explicit nil bodyWeightKg also compiles.
     func testCOBSettings_init_explicitNilBodyWeight() {
         let settings = BackendAPI.COBSettings(
-            carbRatio: 2.0, isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240,
+            isf: 2.5, carbHalfLife: 60, maxCOBDuration: 240,
             bodyWeightKg: nil
         )
         XCTAssertNil(settings.bodyWeightKg)
+    }
+
+    // MARK: - Meal-window suggestion ratios
+
+    private func suggestionJSON(windows: String) -> Data {
+        Data("""
+        {"show": true, "windows": [\(windows)]}
+        """.utf8)
+    }
+
+    func testSuggestion_decodesRatioFields() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":8.0,"ratioHasData":true,"ratioSamples":6}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        let w = try XCTUnwrap(s.windows.first)
+        XCTAssertEqual(w.proposedGramsPerUnit, 8.0)
+        XCTAssertEqual(w.currentGramsPerUnit, 10.0)
+        XCTAssertEqual(w.ratioSamples, 6)
+        XCTAssertTrue(w.hasRatioProposal)
+        XCTAssertTrue(w.hasIsfProposal)
+    }
+
+    func testSuggestion_withoutRatioFields_stillDecodes() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0},
+        {"mealWindow":"LUNCH","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        XCTAssertFalse(s.windows[0].hasRatioProposal)
+        XCTAssertEqual(s.proposalLines.map(\.mealWindow), ["BREAKFAST"])
+    }
+
+    func testSuggestion_ratioOnlyWindowIsAProposalLine() throws {
+        let json = suggestionJSON(windows: """
+        {"mealWindow":"DINNER","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":9.0,"ratioHasData":true,"ratioSamples":4}
+        """)
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: json)
+        XCTAssertFalse(s.windows[0].hasIsfProposal)
+        XCTAssertEqual(s.proposalLines.map(\.mealWindow), ["DINNER"])
+    }
+
+    // MARK: - Suggestion card row text
+
+    private func singleWindow(_ fields: String) throws -> BackendAPI.IsfMealWindowSuggestion.WindowProposal {
+        let s = try decoder.decode(BackendAPI.IsfMealWindowSuggestion.self, from: suggestionJSON(windows: fields))
+        return try XCTUnwrap(s.windows.first)
+    }
+
+    /// The single ratio is unset, so the backend sends no current ratio; Apply still writes the
+    /// proposal, so the card has to show it.
+    func testRatioTextWithoutCurrentShowsTheProposal() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "proposedGramsPerUnit":14.0,"ratioHasData":true,"ratioSamples":3}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio — → 14.0 g/U")
+    }
+
+    func testRatioTextWithCurrentShowsCurrentToProposed() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":8.0,"ratioHasData":true,"ratioSamples":5}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio 10.0 → 8.0 g/U")
+    }
+
+    func testRatioTextWithoutProposalShowsTheCurrent() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"LUNCH","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":4,
+         "currentGramsPerUnit":10.0,"proposedGramsPerUnit":null,"ratioHasData":false,"ratioSamples":1}
+        """)
+        XCTAssertEqual(w.ratioText, "Ratio 10.0 g/U")
+    }
+
+    func testIsfTextWithProposalShowsCurrentToProposed() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"BREAKFAST","proposedIsf":2.1,"currentIsf":2.0,"hasData":true,"weightedSamples":5.0}
+        """)
+        XCTAssertEqual(w.isfText, "ISF 2.00 → 2.10")
+    }
+
+    func testIsfTextWithoutProposalShowsTheCurrent() throws {
+        let w = try singleWindow("""
+        {"mealWindow":"DINNER","proposedIsf":null,"currentIsf":2.0,"hasData":false,"weightedSamples":0}
+        """)
+        XCTAssertEqual(w.isfText, "ISF 2.00")
+        XCTAssertNil(w.ratioText, "an older backend sends no ratio fields: no ratio line")
+    }
+
+    func testAcceptSuggestionBody_encodesIncludeRatios() throws {
+        let data = try JSONEncoder().encode(BackendAPI.AcceptSuggestionBody(includeRatios: true))
+        XCTAssertEqual(String(data: data, encoding: .utf8), "{\"includeRatios\":true}")
     }
 }
