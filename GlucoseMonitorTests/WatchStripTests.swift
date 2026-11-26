@@ -249,6 +249,16 @@ final class WatchStripTests: XCTestCase {
         XCTAssertEqual(s.lastReadingDate, Date(timeIntervalSince1970: 1_763_409_499))
     }
 
+    func testRejectedCredentialsComeFirst() throws {
+        let s = try status(#"{"available":false,"state":"OPEN","readingsStale":true,"credentialsRejected":true}"#)
+        XCTAssertEqual(AppState.staleCause(s), .credentialsRejected)
+        XCTAssertTrue(LibreStaleCause.credentialsRejected.needsSettings)
+        XCTAssertFalse(LibreStaleCause.upstreamDown.needsSettings)
+        XCTAssertEqual(LibreStaleCause.credentialsRejected.title, "LibreLinkUp password not accepted")
+        XCTAssertNil(AppState.staleCause(try status(
+            #"{"available":true,"state":"CLOSED","readingsStale":false,"credentialsRejected":false}"#)))
+    }
+
     func testFreshReadingsAndAnOlderBackendAreNotStale() throws {
         XCTAssertNil(AppState.staleCause(try status(#"{"available":true,"state":"CLOSED","readingsStale":false}"#)))
         XCTAssertNil(AppState.staleCause(try status(#"{"available":true,"state":"CLOSED"}"#)))
