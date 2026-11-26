@@ -12,7 +12,7 @@ struct ContentView: View {
 
     private static let dashboardTab = 0
     static let chatTab = 1
-    private static let settingsTab = 2
+    static let settingsTab = 2
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
@@ -376,12 +376,24 @@ struct DashboardView: View {
     private static let dashboardCobTint = Color(red: 0.92, green: 0.55, blue: 0.12)
     private static let dashboardIobTint = Color(red: 0.35, green: 0.45, blue: 0.95)
 
-    /// Shown while the readings are stale - LibreLinkUp is not answering, or it answers but nothing new
-    /// has arrived for 15 min - so the card hides the current value's status and the forecast.
+    /// Shown while the readings are stale - LibreLinkUp is not answering, it answers but nothing new
+    /// has arrived for 15 min, or it rejected the saved password - so the card hides the current
+    /// value's status and the forecast. For rejected credentials, a tap opens Settings.
+    @ViewBuilder
     private var libreStaleBanner: some View {
         let cause = appState.libreStaleCause ?? .upstreamDown
-        return HStack(alignment: .top, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
+        if cause.needsSettings {
+            Button { selectedTab = ContentView.settingsTab } label: { libreStaleBannerBody(cause) }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens Settings")
+        } else {
+            libreStaleBannerBody(cause)
+        }
+    }
+
+    private func libreStaleBannerBody(_ cause: LibreStaleCause) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: cause.needsSettings ? "lock.trianglebadge.exclamationmark.fill" : "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
             VStack(alignment: .leading, spacing: 2) {
                 Text(cause.title)
@@ -394,6 +406,12 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+            if cause.needsSettings {
+                Image(systemName: "chevron.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
         }
         .padding()
         .background(Color.orange.opacity(0.12))

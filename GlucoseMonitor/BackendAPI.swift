@@ -1174,6 +1174,9 @@ enum BackendAPI {
         var lastReadingAt: Int64? = nil
         /// True when the newest stored reading is older than 15 min; nil from an older backend.
         var readingsStale: Bool? = nil
+        /// True when LibreLinkUp rejected the saved email/password, so the backend has paused the
+        /// sync until they are entered again; nil from an older backend.
+        var credentialsRejected: Bool? = nil
 
         /// The newest stored reading's time.
         var lastReadingDate: Date? {

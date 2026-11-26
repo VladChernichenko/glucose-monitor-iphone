@@ -6,6 +6,8 @@ enum LibreStaleCause: Equatable {
     case upstreamDown
     /// LibreLinkUp answers, but no reading newer than 15 min has arrived.
     case noNewReadings
+    /// LibreLinkUp rejected the saved email/password; the sync is paused until they are entered again.
+    case credentialsRejected
 
     /// The watch glance's cause; nil when the glance says the readings are current.
     init?(_ cause: WatchGlance.StaleCause) {
@@ -20,8 +22,12 @@ enum LibreStaleCause: Equatable {
         switch self {
         case .upstreamDown: return "LibreLinkUp isn't responding"
         case .noNewReadings: return "No new readings from Libre"
+        case .credentialsRejected: return "LibreLinkUp password not accepted"
         }
     }
+
+    /// True when the user has to act in Settings (the banner then opens it on tap).
+    var needsSettings: Bool { self == .credentialsRejected }
 
     /// The banner's second line; `lastReading` is the newest reading's time, nil when unknown.
     func detail(lastReading: Date?, now: Date = Date()) -> String {
@@ -31,6 +37,8 @@ enum LibreStaleCause: Equatable {
             return "Data is stale\(lastReading == nil ? "" : " - no update" + since). Reconnecting..."
         case .noNewReadings:
             return "Nothing new" + since + ". Check the sensor and the Libre app on your phone."
+        case .credentialsRejected:
+            return "Syncing is paused. Tap to enter your LibreLinkUp email and password again in Settings."
         }
     }
 

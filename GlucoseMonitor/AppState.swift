@@ -714,7 +714,8 @@ final class AppState: ObservableObject {
     private func refreshLibreUpstreamStatus(justSynced: Bool) async {
         let generation = authGeneration
         guard var status = try? await BackendAPI.fetchLibreUpstreamStatus() else { return }
-        if !status.available && !justSynced {
+        // A reconnect attempt cannot help when LibreLinkUp rejected the saved credentials.
+        if !status.available && !justSynced && status.credentialsRejected != true {
             _ = try? await BackendAPI.syncLibreNow()
             status = (try? await BackendAPI.fetchLibreUpstreamStatus()) ?? status
         }
@@ -723,9 +724,11 @@ final class AppState: ObservableObject {
         libreDataStale = libreStaleCause != nil
     }
 
-    /// LibreLinkUp failing comes first: then the readings cannot be new. Otherwise readings older than the
-    /// backend's 15-min limit mean the sensor or the phone's Libre app has stopped uploading.
+    /// Rejected credentials come first: the user has to act, and nothing syncs until they do. Then
+    /// LibreLinkUp failing: the readings cannot be new. Otherwise readings older than the backend's 15-min
+    /// limit mean the sensor or the phone's Libre app has stopped uploading.
     static func staleCause(_ status: BackendAPI.LibreUpstreamStatus) -> LibreStaleCause? {
+        if status.credentialsRejected == true { return .credentialsRejected }
         if !status.available { return .upstreamDown }
         if status.readingsStale == true { return .noNewReadings }
         return nil

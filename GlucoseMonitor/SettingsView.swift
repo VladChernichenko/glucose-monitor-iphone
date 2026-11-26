@@ -650,6 +650,12 @@ private struct DataSourceSettingsDetailView: View {
 
             if dataSource == .libre {
                 Section("LibreLinkUp") {
+                    if appState.libreStaleCause == .credentialsRejected {
+                        Label("LibreLinkUp didn't accept the saved email or password, so syncing is paused. Enter them again and tap Sync LibreLinkUp.",
+                              systemImage: "lock.trianglebadge.exclamationmark.fill")
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
                     TextField("Email", text: $libreEmail)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
@@ -741,6 +747,8 @@ private struct DataSourceSettingsDetailView: View {
                 regionLocale: libreRegion
             )
             libreStatus = "OK: LibreLinkUp synced."
+            // New credentials clear the backend's rejected flag; refresh so the banner goes away.
+            await appState.refreshGlucoseOnly(silent: true, forceServerSync: true)
         } catch {
             libreStatus = error.localizedDescription
         }
