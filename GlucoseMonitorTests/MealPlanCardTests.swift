@@ -624,4 +624,23 @@ final class MealPlanCardTests: XCTestCase {
                        "/api/assistant/plans/a1/took")
         XCTAssertEqual(BackendAPI.mealPlanActionPath(messageId: "a1", action: .skip), "/api/assistant/plans/a1/skip")
     }
+
+    // MARK: - Forecast chart (2026-11-26: an 8.8-9.7 curve drawn flat on a 2-10 axis)
+
+    func testForecastYDomainFollowsTheCurveNotTheRangeBand() {
+        let d = MealPlanCardView.yDomain([8.8, 9.7, 9.1], unit: "mmol/L")
+        XCTAssertEqual(d.lowerBound, 7.8, accuracy: 1e-9)
+        XCTAssertEqual(d.upperBound, 10.7, accuracy: 1e-9)
+        let mg = MealPlanCardView.yDomain([90, 110], unit: "mg/dL")
+        XCTAssertEqual(mg.lowerBound, 90 - 18.018, accuracy: 1e-6)
+    }
+
+    func testForecastXAxisIsRelativeHours() {
+        let start = Date(timeIntervalSince1970: 1_000_000)
+        let marks = MealPlanCardView.hourMarks(from: start, to: start.addingTimeInterval(4 * 3600 - 15 * 60))
+        XCTAssertEqual(marks.map { MealPlanCardView.relativeLabel($0, from: start) }, ["now", "+1 h", "+2 h", "+3 h"])
+        XCTAssertEqual(MealPlanCardView.forecastSummary(start: 8.8, end: 9.1, peak: 9.7, low: 8.8, from: start,
+                                                        to: start.addingTimeInterval(4 * 3600), unit: "mmol/L"),
+                       "8.8 \u{2192} 9.1 mmol/L at +4 h \u{00B7} peak 9.7, low 8.8")
+    }
 }
