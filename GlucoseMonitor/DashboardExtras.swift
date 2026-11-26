@@ -39,8 +39,7 @@ enum ForecastAnchoring {
     }
 
     /// The dashed series: the path capped to `horizonEnd`, prefixed with an anchor at the
-    /// path's own origin carrying the reading the backend started from. The band is pinched
-    /// shut at the anchor so the confidence cone fans out from it.
+    /// path's own origin carrying the reading the backend started from.
     ///
     /// Points already in the past are deliberately kept: when a response is stale the dashed
     /// line visibly reaches back to where the model started, which is honest about its age
