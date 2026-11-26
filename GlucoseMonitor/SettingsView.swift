@@ -80,6 +80,10 @@ struct SettingsView: View {
     @State private var rescueText = ""
     @State private var calculationStatus = ""
     @State private var isSavingCalculations = false
+    /// True once a settings fetch has succeeded for the signed-in user. Until then `cobSettings`
+    /// holds the placeholder above, so Save stays off.
+    @State private var settingsLoaded = false
+    @State private var settingsLoadFailed = false
 
     var body: some View {
         NavigationStack {
@@ -227,7 +231,23 @@ struct SettingsView: View {
                         Button("Save") {
                             Task { await saveCalculationSettings() }
                         }
-                        .disabled(isSavingCalculations || targetError != nil || rescueError != nil)
+                        .disabled(!CalculationSettingsSaveRule.canSave(
+                            settingsLoaded: settingsLoaded,
+                            isSaving: isSavingCalculations,
+                            targetError: targetError,
+                            rescueError: rescueError
+                        ))
+
+                        if CalculationSettingsSaveRule.showsLoadFailure(
+                            settingsLoaded: settingsLoaded, lastLoadFailed: settingsLoadFailed
+                        ) {
+                            Text(CalculationSettingsSaveRule.loadFailedMessage)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                            Button("Retry") {
+                                Task { await loadCalculationSettings() }
+                            }
+                        }
 
                         if !calculationStatus.isEmpty {
                             Text(calculationStatus)
@@ -256,9 +276,18 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .onAppear(perform: refreshSummaries)
+            .refreshable {
+                if appState.isAuthenticated {
+                    await loadCalculationSettings()
+                }
+            }
             .task(id: appState.isAuthenticated) {
                 if appState.isAuthenticated {
                     await loadCalculationSettings()
+                } else {
+                    // Values loaded for a previous sign-in must not be saved into the next account.
+                    settingsLoaded = false
+                    settingsLoadFailed = false
                 }
             }
         }
@@ -339,9 +368,15 @@ struct SettingsView: View {
     }
 
     private func loadCalculationSettings() async {
-        if let settings = try? await BackendAPI.fetchCOBSettings() {
-            cobSettings = settings
+        do {
+            cobSettings = try await BackendAPI.fetchCOBSettings()
             syncTargetFields()
+            settingsLoaded = true
+            settingsLoadFailed = false
+        } catch {
+            // A cancelled load (view left, sign-in changed) is re-run by `.task`; not a failure.
+            if Task.isCancelled { return }
+            settingsLoadFailed = true
         }
     }
 
@@ -942,6 +977,23 @@ enum TargetGlucoseInput {
         if t.isEmpty { return stored }
         if let stored, t == format(display(mmol: stored, unit: unit), unit: unit) { return stored }
         return parse(t).flatMap { mmol(fromDisplay: $0, unit: unit) } ?? stored
+    }
+}
+
+/// When the calculation settings on the Settings hub may be saved. Save sends every field on screen,
+/// and until the user's settings have been fetched those fields hold placeholder defaults
+/// (ISF 2.5, carb half-life 60 min, max COB 240 min) that would overwrite the stored values.
+enum CalculationSettingsSaveRule {
+    static let loadFailedMessage = "Couldn't load your settings — pull to retry."
+
+    static func canSave(settingsLoaded: Bool, isSaving: Bool, targetError: String?, rescueError: String?) -> Bool {
+        settingsLoaded && !isSaving && targetError == nil && rescueError == nil
+    }
+
+    /// Once a load has succeeded the screen shows the user's own values, so a failed refresh after
+    /// that needs no note: Save stays usable.
+    static func showsLoadFailure(settingsLoaded: Bool, lastLoadFailed: Bool) -> Bool {
+        lastLoadFailed && !settingsLoaded
     }
 }
 
