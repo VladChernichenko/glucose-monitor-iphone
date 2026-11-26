@@ -717,12 +717,33 @@ struct DashboardView: View {
         return "\(days) days left"
     }
 
+    private func lateProteinRiseBanner(_ rise: BackendAPI.GlucoseCalculationsResponse.LateProteinRise) -> some View {
+        let started = rise.onsetAt <= Date()
+        return HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "arrow.up.right.circle.fill").foregroundStyle(.orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(started ? "Late rise from protein under way" : "Late rise from protein ~\(ChatFormatting.clock(rise.onsetAt))")
+                    .font(.subheadline.weight(.semibold))
+                Text("Gluconeogenesis \u{2248} \(String(format: "%.0f", rise.carbEquivalentG)) g slow carbs, already in the forecast")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(Color.orange.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
     private var extendedChartSection: some View {
         let is8h = appState.calculations?.eightHourPrediction != nil
         let window: GlucoseChartWindow = is8h ? .extended : .standard
         return VStack(alignment: .leading, spacing: 8) {
             Text(is8h ? "Forecast (4h / 8h)" : "Forecast (4h)")
                 .font(.headline)
+            if let rise = appState.calculations?.lateProteinRise, !appState.libreDataStale {
+                lateProteinRiseBanner(rise)
+            }
             GlucoseHistoryChart(
                 history: appState.glucoseHistory,
                 // Stale LibreLinkUp data: no forecast curve built on an old reading.

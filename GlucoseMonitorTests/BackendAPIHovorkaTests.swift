@@ -270,6 +270,25 @@ final class BackendAPIHovorkaTests: XCTestCase {
 
     // ---
     // MARK: 3 - GlucoseCalculationsResponse: Hovorka path backward compatibility
+
+    /// `lateProteinRise` decodes when present and is nil when absent or malformed, never failing the response.
+    func testLateProteinRiseDecoding() throws {
+        func decode(_ extra: String) throws -> BackendAPI.GlucoseCalculationsResponse {
+            let json = """
+            {"data":{"activeCarbsOnBoard":0,"activeInsulinOnBoard":0,"twoHourPrediction":6.0\(extra)}}
+            """.data(using: .utf8)!
+            return try XCTUnwrap(try decoder.decode(BackendAPI.GlucoseCalculationsResponse.Envelope.self, from: json).data)
+        }
+
+        let rise = try XCTUnwrap(try decode(#","lateProteinRise":{"onsetAt":"2026-11-26T15:30:00","carbEquivalentG":12.5}"#).lateProteinRise)
+        XCTAssertEqual(rise.carbEquivalentG, 12.5, accuracy: 0.001)
+        XCTAssertEqual(rise.onsetAt, BackendAPI.parseBackendDate("2026-11-26T15:30:00"))
+
+        XCTAssertNil(try decode("").lateProteinRise)
+        XCTAssertNil(try decode(#","lateProteinRise":null"#).lateProteinRise)
+        XCTAssertNil(try decode(#","lateProteinRise":{"onsetAt":"not a date","carbEquivalentG":3}"#).lateProteinRise)
+    }
+
     // ---
 
     /// Full GlucoseCalculationsResponse with a Hovorka prediction path.

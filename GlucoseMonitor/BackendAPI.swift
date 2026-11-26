@@ -309,6 +309,25 @@ enum BackendAPI {
         let watch: WatchStrip?
         /// Present only while sick mode is active; nil when absent or malformed (e.g. unknown severity).
         let sickMode: SickModeStatus?
+        /// Delayed protein glucose (gluconeogenesis) starting within the forecast; nil when none.
+        let lateProteinRise: LateProteinRise?
+
+        struct LateProteinRise: Decodable {
+            let onsetAt: Date
+            let carbEquivalentG: Double
+
+            enum CodingKeys: String, CodingKey { case onsetAt, carbEquivalentG }
+
+            init(from decoder: Decoder) throws {
+                let c = try decoder.container(keyedBy: CodingKeys.self)
+                let s = try c.decode(String.self, forKey: .onsetAt)
+                guard let d = BackendAPI.parseBackendDate(s) else {
+                    throw DecodingError.dataCorruptedError(forKey: .onsetAt, in: c, debugDescription: "Bad date: \(s)")
+                }
+                onsetAt = d
+                carbEquivalentG = try c.decode(Double.self, forKey: .carbEquivalentG)
+            }
+        }
 
         struct Envelope: Decodable {
             let backendMode: Bool?
@@ -319,7 +338,7 @@ enum BackendAPI {
         enum CodingKeys: String, CodingKey {
             case activeCarbsOnBoard, activeInsulinOnBoard, twoHourPrediction, fourHourPrediction
             case eightHourPrediction
-            case predictionTrend, confidence, factors, predictionPath, watch, sickMode
+            case predictionTrend, confidence, factors, predictionPath, watch, sickMode, lateProteinRise
         }
 
         init(from decoder: Decoder) throws {
@@ -335,6 +354,7 @@ enum BackendAPI {
             predictionPath = try? c.decode([PredictionPathPoint].self, forKey: .predictionPath)
             watch = try? c.decodeIfPresent(WatchStrip.self, forKey: .watch)
             sickMode = try? c.decodeIfPresent(SickModeStatus.self, forKey: .sickMode)
+            lateProteinRise = try? c.decodeIfPresent(LateProteinRise.self, forKey: .lateProteinRise)
         }
 
         private static func decodeFlexible(
