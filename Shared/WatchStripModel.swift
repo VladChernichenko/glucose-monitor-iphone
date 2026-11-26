@@ -89,6 +89,8 @@ struct WatchStrip: Codable, Equatable {
         let targetMmol: Double?
         let isf: Double?
         let minWithCarbs: Double?
+        /// Rapid insulin from the last 2 h, already in the forecast; a correction's `units` come on top of it.
+        var takenUnits: Double? = nil
     }
 
     struct GlucosePoint: Codable, Equatable {
@@ -210,6 +212,11 @@ enum WatchStripText {
             let units = String(format: "%.1f", sug?.units ?? 0)
             let target = bare(sug?.targetMmol, unit)
             let isf = bare(sug?.isf, unit)
+            if let taken = sug?.takenUnits, taken > 0 {
+                let total = String(format: "%.1f", (sug?.units ?? 0) + taken)
+                return "Correction \(units) U \u{00B7} with \(String(format: "%.1f", taken)) U taken = \(total) U"
+                    + " (target \(target), ISF \(isf)) \u{00B7} \(next)"
+            }
             return "Correction \(units) U (target \(target), ISF \(isf)) \u{00B7} \(next)"
         case .insulinLanding:
             return "Insulin still landing, no correction \u{00B7} \(next)"

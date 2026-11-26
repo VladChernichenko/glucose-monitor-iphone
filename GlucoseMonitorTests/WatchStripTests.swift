@@ -95,6 +95,14 @@ final class WatchStripTests: XCTestCase {
                        "Correction 1.6 U (target 5.5, ISF 2.2) \u{00B7} recheck \(at("2026-10-31T19:15:00"))")
     }
 
+    func testCorrectionText_withRecentInsulin_showsSum() throws {
+        let s = try strip(state: "URGENT_HIGH", reason: "HIGH_FORECAST",
+                          suggestion: #"{"kind":"INSULIN","grams":null,"units":3.0,"refusalCode":null,"targetMmol":5.5,"isf":2.5,"minWithCarbs":null,"takenUnits":1.0}"#,
+                          landing: landing)
+        XCTAssertEqual(WatchStripText.detail(s, unit: "mmol/L"),
+                       "Correction 3.0 U \u{00B7} with 1.0 U taken = 4.0 U (target 5.5, ISF 2.5) \u{00B7} recheck \(at("2026-10-31T19:15:00"))")
+    }
+
     func testRefusalText_mapsCodes() throws {
         func detail(_ code: String, unit: String = "mmol/L") throws -> String {
             let s = try strip(state: "URGENT_HIGH", reason: "HIGH_FORECAST",
