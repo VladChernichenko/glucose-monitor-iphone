@@ -322,7 +322,11 @@ struct ChatOverlayView: View {
             }
         }
         .padding(6)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        // Opaque fill so messages scrolling underneath don't show through the field; the glass
+        // effect still gives it the Liquid Glass edge and touch response.
+        .background(Color(.secondarySystemBackground),
+                    in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
