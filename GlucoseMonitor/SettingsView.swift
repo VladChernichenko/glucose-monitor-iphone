@@ -300,10 +300,10 @@ struct SettingsView: View {
                         settingsLoadFailed = false
                     }
                 }
+                // Tab opened: jump to the top without a vertical scroll animation.
                 .onChange(of: scrollTopTick) { _ in
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        proxy.scrollTo(Self.topId, anchor: .top)
-                    }
+                    var t = Transaction(); t.disablesAnimations = true
+                    withTransaction(t) { proxy.scrollTo(Self.topId, anchor: .top) }
                 }
             }
         }

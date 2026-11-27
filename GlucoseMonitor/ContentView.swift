@@ -543,12 +543,10 @@ struct DashboardView: View {
                             .padding()
                         }
                         .refreshable { await appState.refreshAll() }
+                        // Tab opened: jump to the top without a vertical scroll animation.
                         .onChange(of: scrollTopTick) { _ in
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                                withAnimation(.easeOut(duration: 0.25)) {
-                                    proxy.scrollTo("dashboardTop", anchor: .top)
-                                }
-                            }
+                            var t = Transaction(); t.disablesAnimations = true
+                            withTransaction(t) { proxy.scrollTo("dashboardTop", anchor: .top) }
                         }
                     }
                 }

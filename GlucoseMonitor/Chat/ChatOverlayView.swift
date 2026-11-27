@@ -220,7 +220,11 @@ struct ChatOverlayView: View {
             .onChange(of: model.bubbles.last?.id) { _ in scrollToBottom(proxy) }
             .onChange(of: model.lastMessageLine) { _ in scrollToBottom(proxy) }
             .onChange(of: model.isSending) { _ in scrollToBottom(proxy) }
-            .onChange(of: scrollToBottomTick) { _ in scrollToBottom(proxy) }
+            .onChange(of: scrollToBottomTick) { _ in
+                // Tab opened: jump to the latest message without a vertical scroll animation.
+                var t = Transaction(); t.disablesAnimations = true
+                withTransaction(t) { proxy.scrollTo(Self.bottomId, anchor: .bottom) }
+            }
             // Keep the latest message just above the input as the keyboard opens and closes; the
             // keyboard changes the list's height but not its scroll position.
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
