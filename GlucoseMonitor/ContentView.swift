@@ -13,27 +13,42 @@ struct ContentView: View {
     private static let dashboardTab = 0
     static let chatTab = 1
     static let settingsTab = 2
-    private static let tabCount = 3
+    private static let tabItems: [SwipeTabBar.Item] = [
+        .init(title: "Dashboard", systemImage: "waveform.path.ecg"),
+        .init(title: "Chat", systemImage: "bubble.left.and.bubble.right"),
+        .init(title: "Settings", systemImage: "gearshape"),
+    ]
+    /// Hides the tab bar while the keyboard is up (like the system tab bar), so it doesn't sit
+    /// between the chat input and the keyboard.
+    @State private var keyboardVisible = false
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
+        // Page-style TabView: the pages follow the finger while swiping left/right and snap with
+        // the system paging animation. It has no tab bar of its own, so SwipeTabBar provides one.
         TabView(selection: $selectedTab) {
             DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
-                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.dashboardTab)
-                .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
             ChatOverlayView(onMealLogged: {
                 dashboardScrollTopTick += 1
-                selectedTab = Self.dashboardTab
+                withAnimation { selectedTab = Self.dashboardTab }
             })
-                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.chatTab)
-                .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right") }
             SettingsView()
-                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.settingsTab)
-                .tabItem { Label("Settings", systemImage: "gearshape") }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if !keyboardVisible {
+                SwipeTabBar(selection: $selectedTab, items: Self.tabItems)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
         }
         .onChange(of: selectedTab) { newTab in
             // Refresh glucose values whenever the user opens (selects) the Dashboard tab. Force an
@@ -127,34 +142,48 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Tab swipe
+// MARK: - Tab bar
 
-/// Switches to the neighbouring tab on a clearly horizontal left/right swipe. Runs simultaneously with
-/// the content's own gestures so vertical scrolling is unaffected.
-private struct TabSwipeModifier: ViewModifier {
-    @Binding var selection: Int
-    let tabCount: Int
-
-    func body(content: Content) -> some View {
-        content
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 30, coordinateSpace: .global)
-                    .onEnded { g in
-                        let dx = g.translation.width
-                        let dy = g.translation.height
-                        guard abs(dx) > 60, abs(dx) > abs(dy) * 2 else { return }
-                        let target = selection + (dx < 0 ? 1 : -1)
-                        guard (0..<tabCount).contains(target) else { return }
-                        withAnimation(.easeInOut(duration: 0.2)) { selection = target }
-                    }
-            )
+/// Bottom tab bar for the page-style TabView, styled like the system tab bar.
+struct SwipeTabBar: View {
+    struct Item {
+        let title: String
+        let systemImage: String
     }
-}
 
-extension View {
-    /// Swipe left/right on this tab's content to move to the next/previous tab.
-    func tabSwipe(_ selection: Binding<Int>, tabCount: Int) -> some View {
-        modifier(TabSwipeModifier(selection: selection, tabCount: tabCount))
+    @Binding var selection: Int
+    let items: [Item]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack(spacing: 0) {
+                ForEach(items.indices, id: \.self) { index in
+                    let item = items[index]
+                    let isSelected = selection == index
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.3)) { selection = index }
+                    } label: {
+                        VStack(spacing: 3) {
+                            Image(systemName: item.systemImage)
+                                .font(.system(size: 22))
+                                .frame(height: 26)
+                            Text(item.title)
+                                .font(.system(size: 10, weight: .medium))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 7)
+                        .padding(.bottom, 3)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(item.title)
+                    .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+                }
+            }
+        }
+        .background(.bar)
     }
 }
 
@@ -418,7 +447,7 @@ struct DashboardView: View {
     private var libreStaleBanner: some View {
         let cause = appState.libreStaleCause ?? .upstreamDown
         if cause.needsSettings {
-            Button { selectedTab = ContentView.settingsTab } label: { libreStaleBannerBody(cause) }
+            Button { withAnimation { selectedTab = ContentView.settingsTab } } label: { libreStaleBannerBody(cause) }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens Settings")
         } else {
