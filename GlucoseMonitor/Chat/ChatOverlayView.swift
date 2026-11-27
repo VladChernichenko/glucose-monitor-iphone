@@ -25,6 +25,7 @@ struct ChatOverlayView: View {
                 Divider()
                 inputBar
             }
+            .reservesTabBarSpace()
             .background(Color(.systemBackground))
             .navigationBarHidden(true)
         }

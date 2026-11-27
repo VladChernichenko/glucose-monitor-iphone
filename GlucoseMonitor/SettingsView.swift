@@ -91,6 +91,7 @@ struct SettingsView: View {
                 Section {
                     NavigationLink {
                         BackendSettingsDetailView(onChange: refreshSummaries)
+                            .reservesTabBarSpace()
                     } label: {
                         SettingsIconRow(
                             icon: "server.rack",
@@ -104,6 +105,7 @@ struct SettingsView: View {
                 Section {
                     NavigationLink {
                         DataSourceSettingsDetailView(onChange: refreshSummaries)
+                            .reservesTabBarSpace()
                     } label: {
                         SettingsIconRow(
                             icon: "waveform.path.ecg",
@@ -257,6 +259,7 @@ struct SettingsView: View {
 
                         NavigationLink {
                             InsulinPreferencesDetailView(onChange: refreshSummaries)
+                                .reservesTabBarSpace()
                         } label: {
                             SettingsIconRow(
                                 icon: "syringe.fill",
@@ -273,6 +276,7 @@ struct SettingsView: View {
                 }
             }
             .dismissKeyboardOnInteraction()
+            .reservesTabBarSpace()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .onAppear(perform: refreshSummaries)

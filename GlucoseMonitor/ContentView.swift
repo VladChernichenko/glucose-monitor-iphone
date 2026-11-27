@@ -31,13 +31,11 @@ struct ContentView: View {
     var body: some View {
         // The pages follow the finger while swiping left/right; SwipeTabBar is the bottom tab bar.
         // The tab bar floats over the pages like the iOS 26 system bar: scrolling content passes
-        // underneath the glass, and each page reserves the bar's height in its bottom safe area so
-        // its last item can always be scrolled clear of the bar.
+        // underneath the glass, and each page reserves the bar's height in its bottom safe area
+        // (`reservesTabBarSpace()`) so its last item can always be scrolled clear of the bar.
         SwipePager(selection: $selectedTab, dragFraction: $swipeFraction, pageCount: Self.tabItems.count) { index in
             page(index)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    Color.clear.frame(height: keyboardVisible ? 0 : tabBarHeight)
-                }
+                .environment(\.tabBarInset, keyboardVisible ? 0 : tabBarHeight)
         }
         .ignoresSafeArea(.container, edges: .bottom)
         .overlay(alignment: .bottom) {
@@ -150,6 +148,38 @@ struct ContentView: View {
 }
 
 // MARK: - Tab pager
+
+private struct TabBarInsetKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    /// Height of the floating tab bar that page content must keep clear at the bottom.
+    var tabBarInset: CGFloat {
+        get { self[TabBarInsetKey.self] }
+        set { self[TabBarInsetKey.self] = newValue }
+    }
+}
+
+private struct ReservesTabBarSpace: ViewModifier {
+    @Environment(\.tabBarInset) private var inset
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            Color.clear.frame(height: inset)
+        }
+    }
+}
+
+extension View {
+    /// Keeps the floating tab bar's height clear at the bottom of this screen: scroll views can
+    /// still scroll under the glass, but their last item (and any bottom input bar) sits above it.
+    /// Apply inside each NavigationStack, on the root and on pushed screens, because a
+    /// NavigationStack doesn't pass on safe-area insets added outside it.
+    func reservesTabBarSpace() -> some View {
+        modifier(ReservesTabBarSpace())
+    }
+}
 
 private struct TabBarHeightKey: PreferenceKey {
     static var defaultValue: CGFloat = 0
@@ -510,6 +540,7 @@ struct DashboardView: View {
                     }
                 }
             }
+            .reservesTabBarSpace()
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $showAddNote) {
                 NoteEditorSheet { input, photo in
