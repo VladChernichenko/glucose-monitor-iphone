@@ -25,8 +25,12 @@ struct ContentView: View {
     @State private var swipeFraction: CGFloat = 0
     /// Measured height of the floating tab bar; each page keeps this much clear at the bottom.
     @State private var tabBarHeight: CGFloat = 0
-    /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
+    /// Bumped when the Dashboard is opened (or a meal is logged in chat) to scroll it to the top.
     @State private var dashboardScrollTopTick = 0
+    /// Bumped when Chat is opened to scroll it to the latest message.
+    @State private var chatScrollBottomTick = 0
+    /// Bumped when Settings is opened to scroll it to the top.
+    @State private var settingsScrollTopTick = 0
 
     var body: some View {
         // The pages follow the finger while swiping left/right; SwipeTabBar is the bottom tab bar.
@@ -56,6 +60,13 @@ struct ContentView: View {
             keyboardVisible = false
         }
         .onChange(of: selectedTab) { newTab in
+            hideKeyboard()
+            // All pages stay alive in the pager, so reset each one's scroll position when it opens.
+            switch newTab {
+            case Self.dashboardTab: dashboardScrollTopTick += 1
+            case Self.chatTab: chatScrollBottomTick += 1
+            default: settingsScrollTopTick += 1
+            }
             // Refresh glucose values whenever the user opens (selects) the Dashboard tab. Force an
             // on-demand server sync so the data is fresh on open (no spinner). Safe to call
             // unconditionally: the backend serialises/coalesces per-user syncs, refreshGlucoseOnly
@@ -194,11 +205,10 @@ extension ContentView {
             DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
         case Self.chatTab:
             ChatOverlayView(onMealLogged: {
-                dashboardScrollTopTick += 1
                 withAnimation(.tabSwipe) { selectedTab = Self.dashboardTab }
-            })
+            }, scrollToBottomTick: chatScrollBottomTick)
         default:
-            SettingsView()
+            SettingsView(scrollTopTick: settingsScrollTopTick)
         }
     }
 }
@@ -236,6 +246,7 @@ struct SwipePager<Page: View>: View {
             .background(
                 WindowSwipeRecognizer(
                     onChanged: { dx in
+                        if !isSwiping { hideKeyboard() }
                         isSwiping = true
                         // Rubber-band past the first and last page.
                         let atEdge = (selection == 0 && dx > 0) || (selection == pageCount - 1 && dx < 0)

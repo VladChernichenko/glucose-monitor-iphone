@@ -68,6 +68,10 @@ private struct SettingsIconRow: View {
 
 struct SettingsView: View {
     @EnvironmentObject var appState: AppState
+    /// Bumped by the tab container when Settings is opened, to scroll back to the top.
+    var scrollTopTick: Int = 0
+
+    private static let topId = "settingsTop"
 
     @State private var backendSummary = "Remote"
     @State private var dataSourceSummary = "LibreLinkUp"
@@ -87,211 +91,219 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    NavigationLink {
-                        BackendSettingsDetailView(onChange: refreshSummaries)
-                            .reservesTabBarSpace()
-                    } label: {
-                        SettingsIconRow(
-                            icon: "server.rack",
-                            color: .blue,
-                            title: "Backend",
-                            value: backendSummary
-                        )
-                    }
-                }
-
-                Section {
-                    NavigationLink {
-                        DataSourceSettingsDetailView(onChange: refreshSummaries)
-                            .reservesTabBarSpace()
-                    } label: {
-                        SettingsIconRow(
-                            icon: "waveform.path.ecg",
-                            color: .red,
-                            title: "Data Source",
-                            value: dataSourceSummary
-                        )
-                    }
-                }
-
-                if appState.isAuthenticated {
-                    Section("User Settings") {
-                        Picker("Glucose Units", selection: $glucoseUnit) {
-                            Text("mmol/L").tag("mmol/L")
-                            Text("mg/dL").tag("mg/dL")
-                        }
-                        .onChange(of: glucoseUnit) { newValue in
-                            GlucoseMonitorAPI.sharedDefaults().set(
-                                newValue,
-                                forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit
-                            )
-                            appState.setPreferredGlucoseUnit(newValue)
-                            syncTargetFields()  // re-show the stored target in the new unit
-                        }
-
-                        SettingsNumericRow(
-                            label: "Body Weight",
-                            subtitle: "kg * used for glucose model calibration",
-                            placeholder: "70",
-                            value: bodyWeightBinding,
-                            fractionDigits: 0...1
-                        )
-
-                        SettingsTextRow(
-                            label: "Target Glucose",
-                            subtitle: "\(appState.preferredGlucoseUnit) * \(targetRangeLabel)",
-                            placeholder: targetPlaceholder,
-                            text: $targetText,
-                            keyboard: .decimalPad
-                        )
-                        if let message = targetError {
-                            Text(message).font(.footnote).foregroundStyle(.red)
-                        }
-                        SettingsTextRow(
-                            label: "Rescue Carbs",
-                            subtitle: "g * \(TargetGlucoseInput.rescueRange.lowerBound)-\(TargetGlucoseInput.rescueRange.upperBound)",
-                            placeholder: "\(TargetGlucoseInput.defaultRescueCarbs)",
-                            text: $rescueText,
-                            keyboard: .numberPad
-                        )
-                        if let message = rescueError {
-                            Text(message).font(.footnote).foregroundStyle(.red)
-                        }
-                    }
-
-                    Section("Breakfast · 05:00 – 11:00") {
-                        SettingsNumericRow(
-                            label: "ISF",
-                            subtitle: "mmol/L per unit",
-                            placeholder: "2.5",
-                            value: isfBreakfastBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "Carb ratio",
-                            subtitle: "grams per unit",
-                            placeholder: "5",
-                            value: gramsPerUnitBreakfastBinding,
-                            fractionDigits: 1...2
-                        )
-                    }
-
-                    Section("Lunch · 11:00 – 16:00") {
-                        SettingsNumericRow(
-                            label: "ISF",
-                            subtitle: "mmol/L per unit",
-                            placeholder: "2.5",
-                            value: isfLunchBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "Carb ratio",
-                            subtitle: "grams per unit",
-                            placeholder: "5",
-                            value: gramsPerUnitLunchBinding,
-                            fractionDigits: 1...2
-                        )
-                    }
-
-                    Section("Dinner · 16:00 – 22:00") {
-                        SettingsNumericRow(
-                            label: "ISF",
-                            subtitle: "mmol/L per unit",
-                            placeholder: "2.5",
-                            value: isfDinnerBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "Carb ratio",
-                            subtitle: "grams per unit",
-                            placeholder: "5",
-                            value: gramsPerUnitDinnerBinding,
-                            fractionDigits: 1...2
-                        )
-                    }
-
-                    Section("Night · 22:00 – 05:00") {
-                        SettingsNumericRow(
-                            label: "ISF",
-                            subtitle: "mmol/L per unit",
-                            placeholder: "2.5",
-                            value: isfNightBinding,
-                            fractionDigits: 1...2
-                        )
-                        SettingsNumericRow(
-                            label: "Carb ratio",
-                            subtitle: "grams per unit",
-                            placeholder: "5",
-                            value: gramsPerUnitNightBinding,
-                            fractionDigits: 1...2
-                        )
-                    }
-
+            ScrollViewReader { proxy in
+                Form {
                     Section {
-                        Button("Save") {
-                            Task { await saveCalculationSettings() }
-                        }
-                        .disabled(!CalculationSettingsSaveRule.canSave(
-                            settingsLoaded: settingsLoaded,
-                            isSaving: isSavingCalculations,
-                            targetError: targetError,
-                            rescueError: rescueError
-                        ))
-
-                        if CalculationSettingsSaveRule.showsLoadFailure(
-                            settingsLoaded: settingsLoaded, lastLoadFailed: settingsLoadFailed
-                        ) {
-                            Text(CalculationSettingsSaveRule.loadFailedMessage)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
-                            Button("Retry") {
-                                Task { await loadCalculationSettings() }
-                            }
-                        }
-
-                        if !calculationStatus.isEmpty {
-                            Text(calculationStatus)
-                                .font(.footnote)
-                                .foregroundStyle(calculationStatus.hasPrefix("OK") ? .green : .red)
-                        }
-
                         NavigationLink {
-                            InsulinPreferencesDetailView(onChange: refreshSummaries)
+                            BackendSettingsDetailView(onChange: refreshSummaries)
                                 .reservesTabBarSpace()
                         } label: {
                             SettingsIconRow(
-                                icon: "syringe.fill",
-                                color: .orange,
-                                title: "Insulin Preferences",
-                                value: insulinSummary
+                                icon: "server.rack",
+                                color: .blue,
+                                title: "Backend",
+                                value: backendSummary
+                            )
+                        }
+                        .id(Self.topId)
+                    }
+
+                    Section {
+                        NavigationLink {
+                            DataSourceSettingsDetailView(onChange: refreshSummaries)
+                                .reservesTabBarSpace()
+                        } label: {
+                            SettingsIconRow(
+                                icon: "waveform.path.ecg",
+                                color: .red,
+                                title: "Data Source",
+                                value: dataSourceSummary
+                            )
+                        }
+                    }
+
+                    if appState.isAuthenticated {
+                        Section("User Settings") {
+                            Picker("Glucose Units", selection: $glucoseUnit) {
+                                Text("mmol/L").tag("mmol/L")
+                                Text("mg/dL").tag("mg/dL")
+                            }
+                            .onChange(of: glucoseUnit) { newValue in
+                                GlucoseMonitorAPI.sharedDefaults().set(
+                                    newValue,
+                                    forKey: GlucoseMonitorAPI.StorageKey.glucoseDisplayUnit
+                                )
+                                appState.setPreferredGlucoseUnit(newValue)
+                                syncTargetFields()  // re-show the stored target in the new unit
+                            }
+
+                            SettingsNumericRow(
+                                label: "Body Weight",
+                                subtitle: "kg * used for glucose model calibration",
+                                placeholder: "70",
+                                value: bodyWeightBinding,
+                                fractionDigits: 0...1
+                            )
+
+                            SettingsTextRow(
+                                label: "Target Glucose",
+                                subtitle: "\(appState.preferredGlucoseUnit) * \(targetRangeLabel)",
+                                placeholder: targetPlaceholder,
+                                text: $targetText,
+                                keyboard: .decimalPad
+                            )
+                            if let message = targetError {
+                                Text(message).font(.footnote).foregroundStyle(.red)
+                            }
+                            SettingsTextRow(
+                                label: "Rescue Carbs",
+                                subtitle: "g * \(TargetGlucoseInput.rescueRange.lowerBound)-\(TargetGlucoseInput.rescueRange.upperBound)",
+                                placeholder: "\(TargetGlucoseInput.defaultRescueCarbs)",
+                                text: $rescueText,
+                                keyboard: .numberPad
+                            )
+                            if let message = rescueError {
+                                Text(message).font(.footnote).foregroundStyle(.red)
+                            }
+                        }
+
+                        Section("Breakfast · 05:00 – 11:00") {
+                            SettingsNumericRow(
+                                label: "ISF",
+                                subtitle: "mmol/L per unit",
+                                placeholder: "2.5",
+                                value: isfBreakfastBinding,
+                                fractionDigits: 1...2
+                            )
+                            SettingsNumericRow(
+                                label: "Carb ratio",
+                                subtitle: "grams per unit",
+                                placeholder: "5",
+                                value: gramsPerUnitBreakfastBinding,
+                                fractionDigits: 1...2
                             )
                         }
 
-                        Button("Sign Out", role: .destructive) {
-                            Task { await appState.logout() }
+                        Section("Lunch · 11:00 – 16:00") {
+                            SettingsNumericRow(
+                                label: "ISF",
+                                subtitle: "mmol/L per unit",
+                                placeholder: "2.5",
+                                value: isfLunchBinding,
+                                fractionDigits: 1...2
+                            )
+                            SettingsNumericRow(
+                                label: "Carb ratio",
+                                subtitle: "grams per unit",
+                                placeholder: "5",
+                                value: gramsPerUnitLunchBinding,
+                                fractionDigits: 1...2
+                            )
+                        }
+
+                        Section("Dinner · 16:00 – 22:00") {
+                            SettingsNumericRow(
+                                label: "ISF",
+                                subtitle: "mmol/L per unit",
+                                placeholder: "2.5",
+                                value: isfDinnerBinding,
+                                fractionDigits: 1...2
+                            )
+                            SettingsNumericRow(
+                                label: "Carb ratio",
+                                subtitle: "grams per unit",
+                                placeholder: "5",
+                                value: gramsPerUnitDinnerBinding,
+                                fractionDigits: 1...2
+                            )
+                        }
+
+                        Section("Night · 22:00 – 05:00") {
+                            SettingsNumericRow(
+                                label: "ISF",
+                                subtitle: "mmol/L per unit",
+                                placeholder: "2.5",
+                                value: isfNightBinding,
+                                fractionDigits: 1...2
+                            )
+                            SettingsNumericRow(
+                                label: "Carb ratio",
+                                subtitle: "grams per unit",
+                                placeholder: "5",
+                                value: gramsPerUnitNightBinding,
+                                fractionDigits: 1...2
+                            )
+                        }
+
+                        Section {
+                            Button("Save") {
+                                Task { await saveCalculationSettings() }
+                            }
+                            .disabled(!CalculationSettingsSaveRule.canSave(
+                                settingsLoaded: settingsLoaded,
+                                isSaving: isSavingCalculations,
+                                targetError: targetError,
+                                rescueError: rescueError
+                            ))
+
+                            if CalculationSettingsSaveRule.showsLoadFailure(
+                                settingsLoaded: settingsLoaded, lastLoadFailed: settingsLoadFailed
+                            ) {
+                                Text(CalculationSettingsSaveRule.loadFailedMessage)
+                                    .font(.footnote)
+                                    .foregroundStyle(.red)
+                                Button("Retry") {
+                                    Task { await loadCalculationSettings() }
+                                }
+                            }
+
+                            if !calculationStatus.isEmpty {
+                                Text(calculationStatus)
+                                    .font(.footnote)
+                                    .foregroundStyle(calculationStatus.hasPrefix("OK") ? .green : .red)
+                            }
+
+                            NavigationLink {
+                                InsulinPreferencesDetailView(onChange: refreshSummaries)
+                                    .reservesTabBarSpace()
+                            } label: {
+                                SettingsIconRow(
+                                    icon: "syringe.fill",
+                                    color: .orange,
+                                    title: "Insulin Preferences",
+                                    value: insulinSummary
+                                )
+                            }
+
+                            Button("Sign Out", role: .destructive) {
+                                Task { await appState.logout() }
+                            }
                         }
                     }
                 }
-            }
-            .dismissKeyboardOnInteraction()
-            .reservesTabBarSpace()
-            .navigationTitle("Settings")
-            .navigationBarTitleDisplayMode(.large)
-            .onAppear(perform: refreshSummaries)
-            .refreshable {
-                if appState.isAuthenticated {
-                    await loadCalculationSettings()
+                .dismissKeyboardOnInteraction()
+                .reservesTabBarSpace()
+                .navigationTitle("Settings")
+                .navigationBarTitleDisplayMode(.large)
+                .onAppear(perform: refreshSummaries)
+                .refreshable {
+                    if appState.isAuthenticated {
+                        await loadCalculationSettings()
+                    }
                 }
-            }
-            .task(id: appState.isAuthenticated) {
-                if appState.isAuthenticated {
-                    await loadCalculationSettings()
-                } else {
-                    // Values loaded for a previous sign-in must not be saved into the next account.
-                    settingsLoaded = false
-                    settingsLoadFailed = false
+                .task(id: appState.isAuthenticated) {
+                    if appState.isAuthenticated {
+                        await loadCalculationSettings()
+                    } else {
+                        // Values loaded for a previous sign-in must not be saved into the next account.
+                        settingsLoaded = false
+                        settingsLoadFailed = false
+                    }
+                }
+                .onChange(of: scrollTopTick) { _ in
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        proxy.scrollTo(Self.topId, anchor: .top)
+                    }
                 }
             }
         }

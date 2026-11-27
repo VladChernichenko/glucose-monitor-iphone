@@ -6,6 +6,8 @@ struct ChatOverlayView: View {
     @StateObject private var model = ChatViewModel()
     /// After a meal is logged from a plan card: parent switches to the dashboard and scrolls up.
     var onMealLogged: (() -> Void)? = nil
+    /// Bumped by the tab container when Chat is opened, to scroll to the latest message.
+    var scrollToBottomTick: Int = 0
 
     @State private var draft = ""
     @State private var photo: UIImage?
@@ -218,6 +220,7 @@ struct ChatOverlayView: View {
             .onChange(of: model.bubbles.last?.id) { _ in scrollToBottom(proxy) }
             .onChange(of: model.lastMessageLine) { _ in scrollToBottom(proxy) }
             .onChange(of: model.isSending) { _ in scrollToBottom(proxy) }
+            .onChange(of: scrollToBottomTick) { _ in scrollToBottom(proxy) }
         }
     }
 
