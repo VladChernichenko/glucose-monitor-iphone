@@ -13,21 +13,25 @@ struct ContentView: View {
     private static let dashboardTab = 0
     static let chatTab = 1
     static let settingsTab = 2
+    private static let tabCount = 3
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
             DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
             ChatOverlayView(onMealLogged: {
                 dashboardScrollTopTick += 1
                 selectedTab = Self.dashboardTab
             })
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.chatTab)
                 .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right") }
             SettingsView()
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.settingsTab)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
@@ -120,6 +124,53 @@ struct ContentView: View {
             SignInView()
                 .environmentObject(appState)
         }
+    }
+}
+
+// MARK: - Tab swipe
+
+/// Global frames of regions whose own horizontal swipes (e.g. swipe-to-delete rows) must not switch tabs.
+private struct TabSwipeExclusionKey: PreferenceKey {
+    static var defaultValue: [CGRect] = []
+    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value.append(contentsOf: nextValue()) }
+}
+
+/// Switches to the neighbouring tab on a clearly horizontal left/right swipe. Runs simultaneously with
+/// the content's own gestures so vertical scrolling is unaffected.
+private struct TabSwipeModifier: ViewModifier {
+    @Binding var selection: Int
+    let tabCount: Int
+    @State private var excludedFrames: [CGRect] = []
+
+    func body(content: Content) -> some View {
+        content
+            .onPreferenceChange(TabSwipeExclusionKey.self) { excludedFrames = $0 }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30, coordinateSpace: .global)
+                    .onEnded { g in
+                        let dx = g.translation.width
+                        let dy = g.translation.height
+                        guard abs(dx) > 60, abs(dx) > abs(dy) * 2,
+                              !excludedFrames.contains(where: { $0.contains(g.startLocation) }) else { return }
+                        let target = selection + (dx < 0 ? 1 : -1)
+                        guard (0..<tabCount).contains(target) else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) { selection = target }
+                    }
+            )
+    }
+}
+
+extension View {
+    /// Swipe left/right on this tab's content to move to the next/previous tab.
+    func tabSwipe(_ selection: Binding<Int>, tabCount: Int) -> some View {
+        modifier(TabSwipeModifier(selection: selection, tabCount: tabCount))
+    }
+
+    /// Prevents horizontal swipes that start inside this view from switching tabs.
+    func excludedFromTabSwipe() -> some View {
+        background(GeometryReader { geo in
+            Color.clear.preference(key: TabSwipeExclusionKey.self, value: [geo.frame(in: .global)])
+        })
     }
 }
 
@@ -821,6 +872,7 @@ struct DashboardView: View {
                 .scrollDisabled(true)
                 .environment(\.defaultMinListRowHeight, 72)
                 .frame(height: CGFloat(slice.count) * 100)
+                .excludedFromTabSwipe()
             }
         }
         .padding()
