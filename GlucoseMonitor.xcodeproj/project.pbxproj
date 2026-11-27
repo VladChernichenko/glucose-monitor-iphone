@@ -77,6 +77,7 @@
 		700000000000000000000047 /* PreBolusTimerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000048 /* PreBolusTimerTests.swift */; };
 		700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000091 /* ForecastAnchoringTests.swift */; };
 		700000000000000000000096 /* InsulinMarkerLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000096 /* InsulinMarkerLayoutTests.swift */; };
+		700000000000000000000F10 /* LongActingScheduleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000F10 /* LongActingScheduleTests.swift */; };
 		700000000000000000000050 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		700000000000000000000051 /* GlucoseUnit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 600000000000000000000050 /* GlucoseUnit.swift */; };
 		F5A182502FCC699A001AB224 /* BedsideModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */; };
@@ -285,6 +286,7 @@
 		600000000000000000000048 /* PreBolusTimerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreBolusTimerTests.swift; sourceTree = "<group>"; };
 		600000000000000000000091 /* ForecastAnchoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForecastAnchoringTests.swift; sourceTree = "<group>"; };
 		600000000000000000000096 /* InsulinMarkerLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsulinMarkerLayoutTests.swift; sourceTree = "<group>"; };
+		600000000000000000000F10 /* LongActingScheduleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongActingScheduleTests.swift; sourceTree = "<group>"; };
 		600000000000000000000050 /* GlucoseUnit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseUnit.swift; sourceTree = "<group>"; };
 		F5A1824D2FCC699A001AB224 /* BedsideModeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BedsideModeView.swift; sourceTree = "<group>"; };
 		F5B001002FCC7001001AB224 /* DashboardCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardCache.swift; sourceTree = "<group>"; };
@@ -545,6 +547,7 @@
 				600000000000000000000048 /* PreBolusTimerTests.swift */,
 				600000000000000000000091 /* ForecastAnchoringTests.swift */,
 				600000000000000000000096 /* InsulinMarkerLayoutTests.swift */,
+				600000000000000000000F10 /* LongActingScheduleTests.swift */,
 				60000000000000000000004D /* OnboardingFlowTests.swift */,
 				60000000000000000000004E /* RefreshFlowTests.swift */,
 				60000000000000000000004F /* EditNoteNutritionProfileTests.swift */,
@@ -851,6 +854,7 @@
 				700000000000000000000047 /* PreBolusTimerTests.swift in Sources */,
 				700000000000000000000090 /* ForecastAnchoringTests.swift in Sources */,
 				700000000000000000000096 /* InsulinMarkerLayoutTests.swift in Sources */,
+				700000000000000000000F10 /* LongActingScheduleTests.swift in Sources */,
 				70000000000000000000004C /* OnboardingFlowTests.swift in Sources */,
 				70000000000000000000004D /* RefreshFlowTests.swift in Sources */,
 				70000000000000000000004F /* EditNoteNutritionProfileTests.swift in Sources */,
