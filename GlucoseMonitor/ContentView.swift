@@ -213,7 +213,7 @@ struct SwipePager<Page: View>: View {
 /// Recognises horizontal swipes anywhere in the window. SwiftUI gestures don't receive touches that
 /// land on Lists, Forms, ScrollViews or buttons, so a UIKit pan recognizer is attached to the window
 /// itself and runs alongside every other gesture. It stays inactive while a sheet, alert or
-/// full-screen cover is shown, and ignores touches starting at the left edge (system back swipe).
+/// full-screen cover is shown, and yields to the navigation back swipe.
 private struct WindowSwipeRecognizer: UIViewRepresentable {
     var onChanged: (CGFloat) -> Void
     /// Called with the final horizontal translation; 0 when the swipe was cancelled.
@@ -251,8 +251,8 @@ private struct WindowSwipeRecognizer: UIViewRepresentable {
         var onEnded: ((CGFloat) -> Void)?
         private var pan: UIPanGestureRecognizer?
 
-        /// Touches starting this close to the left edge belong to the navigation back swipe.
-        private static let leftEdgeInset: CGFloat = 24
+        /// Touches starting this close to the left edge are left to the system.
+        private static let leftEdgeInset: CGFloat = 8
 
         func attach(to window: UIWindow?) {
             guard pan?.view !== window else { return }
@@ -285,6 +285,13 @@ private struct WindowSwipeRecognizer: UIViewRepresentable {
         func gestureRecognizer(_ recognizer: UIGestureRecognizer,
                                shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
             true
+        }
+
+        /// The navigation back swipe (an edge pan) wins when it applies, e.g. on a pushed Settings
+        /// page. On a root page it fails immediately, so the tab swipe starts without delay.
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldRequireFailureOf other: UIGestureRecognizer) -> Bool {
+            other is UIScreenEdgePanGestureRecognizer
         }
 
         @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
