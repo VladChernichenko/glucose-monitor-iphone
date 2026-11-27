@@ -153,7 +153,7 @@ extension ContentView {
 
 extension Animation {
     /// Page change / snap-back animation for the tab pager and tab bar.
-    static let tabSwipe = Animation.spring(response: 0.45, dampingFraction: 0.9)
+    static let tabSwipe = Animation.spring(response: 0.35, dampingFraction: 0.9)
 }
 
 /// Horizontal pager that works like drag and drop: the current page moves exactly with the finger
