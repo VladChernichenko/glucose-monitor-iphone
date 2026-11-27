@@ -221,10 +221,27 @@ struct ChatOverlayView: View {
             .onChange(of: model.lastMessageLine) { _ in scrollToBottom(proxy) }
             .onChange(of: model.isSending) { _ in scrollToBottom(proxy) }
             .onChange(of: scrollToBottomTick) { _ in scrollToBottom(proxy) }
+            // Keep the latest message just above the input as the keyboard opens and closes; the
+            // keyboard changes the list's height but not its scroll position.
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                scrollToBottomAfterKeyboardChange(proxy)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                scrollToBottomAfterKeyboardChange(proxy)
+            }
         }
     }
 
     private static let bottomId = "chat-bottom"
+
+    /// Waits a moment for the list to pick up the keyboard's new safe area, then scrolls.
+    private func scrollToBottomAfterKeyboardChange(_ proxy: ScrollViewProxy) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            withAnimation(.easeOut(duration: 0.25)) {
+                proxy.scrollTo(Self.bottomId, anchor: .bottom)
+            }
+        }
+    }
 
     private func scrollToBottom(_ proxy: ScrollViewProxy) {
         DispatchQueue.main.async {
