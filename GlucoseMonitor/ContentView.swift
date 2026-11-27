@@ -25,20 +25,10 @@ struct ContentView: View {
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
-        // Page-style TabView: the pages follow the finger while swiping left/right and snap with
-        // the system paging animation. It has no tab bar of its own, so SwipeTabBar provides one.
-        TabView(selection: $selectedTab) {
-            DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
-                .tag(Self.dashboardTab)
-            ChatOverlayView(onMealLogged: {
-                dashboardScrollTopTick += 1
-                withAnimation { selectedTab = Self.dashboardTab }
-            })
-                .tag(Self.chatTab)
-            SettingsView()
-                .tag(Self.settingsTab)
+        // The pages follow the finger while swiping left/right; SwipeTabBar is the bottom tab bar.
+        SwipePager(selection: $selectedTab, pageCount: Self.tabItems.count) { index in
+            page(index)
         }
-        .tabViewStyle(.page(indexDisplayMode: .never))
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !keyboardVisible {
                 SwipeTabBar(selection: $selectedTab, items: Self.tabItems)
@@ -142,6 +132,111 @@ struct ContentView: View {
     }
 }
 
+// MARK: - Tab pager
+
+extension ContentView {
+    @ViewBuilder
+    fileprivate func page(_ index: Int) -> some View {
+        switch index {
+        case Self.dashboardTab:
+            DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
+        case Self.chatTab:
+            ChatOverlayView(onMealLogged: {
+                dashboardScrollTopTick += 1
+                withAnimation(.tabSwipe) { selectedTab = Self.dashboardTab }
+            })
+        default:
+            SettingsView()
+        }
+    }
+}
+
+extension Animation {
+    /// Page change / snap-back animation for the tab pager and tab bar.
+    static let tabSwipe = Animation.spring(response: 0.45, dampingFraction: 0.9)
+}
+
+/// Horizontal pager that works like drag and drop: the current page moves exactly with the finger
+/// and only changes once it has been dragged past half the screen width. Letting go before that
+/// springs it back; a quick flick does not change the page.
+struct SwipePager<Page: View>: View {
+    @Binding var selection: Int
+    let pageCount: Int
+    @ViewBuilder let page: (Int) -> Page
+
+    private enum Axis { case horizontal, vertical }
+
+    @State private var dragOffset: CGFloat = 0
+    /// Direction of the current drag, decided by its first movement so vertical scrolling
+    /// never moves the pages and a horizontal drag doesn't scroll the page's content.
+    @State private var dragAxis: Axis?
+    /// Resets to false when the drag ends *or* is cancelled, so the pager can never stay half-dragged.
+    @GestureState private var isDragging = false
+
+    var body: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            HStack(spacing: 0) {
+                ForEach(0..<pageCount, id: \.self) { index in
+                    page(index)
+                        .frame(width: width, height: geo.size.height)
+                        .accessibilityHidden(index != selection)
+                }
+            }
+            .frame(width: width, alignment: .leading)
+            .offset(x: -CGFloat(selection) * width + dragOffset)
+            .scrollDisabled(dragAxis == .horizontal)
+            .simultaneousGesture(dragGesture(width: width))
+        }
+        .clipped()
+        .onChange(of: isDragging) { dragging in
+            guard !dragging else { return }
+            // A drag that was cancelled (e.g. taken over by the system) never reaches onEnded.
+            // Wait until any onEnded has run, then snap back if the pager is still mid-drag.
+            DispatchQueue.main.async {
+                dragAxis = nil
+                if dragOffset != 0 {
+                    withAnimation(.tabSwipe) { dragOffset = 0 }
+                }
+            }
+        }
+    }
+
+    private func dragGesture(width: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 12)
+            .updating($isDragging) { _, state, _ in state = true }
+            .onChanged { value in
+                if dragAxis == nil {
+                    let dx = abs(value.translation.width), dy = abs(value.translation.height)
+                    dragAxis = dx > dy ? .horizontal : .vertical
+                }
+                guard dragAxis == .horizontal else { return }
+                var dx = value.translation.width
+                // Rubber-band past the first and last page.
+                if (selection == 0 && dx > 0) || (selection == pageCount - 1 && dx < 0) {
+                    dx /= 3
+                }
+                dragOffset = dx
+            }
+            .onEnded { value in
+                defer { dragAxis = nil }
+                guard dragAxis == .horizontal, width > 0 else { return }
+                let dx = value.translation.width
+                var target = selection
+                if dx < -width / 2 {
+                    target += 1
+                } else if dx > width / 2 {
+                    target -= 1
+                }
+                target = min(max(target, 0), pageCount - 1)
+                withAnimation(.tabSwipe) {
+                    selection = target
+                    dragOffset = 0
+                }
+            }
+    }
+}
+
 // MARK: - Tab bar
 
 /// Bottom tab bar for the page-style TabView, styled like the system tab bar.
@@ -162,7 +257,7 @@ struct SwipeTabBar: View {
                     let item = items[index]
                     let isSelected = selection == index
                     Button {
-                        withAnimation(.easeInOut(duration: 0.3)) { selection = index }
+                        withAnimation(.tabSwipe) { selection = index }
                     } label: {
                         VStack(spacing: 3) {
                             Image(systemName: item.systemImage)
@@ -447,7 +542,7 @@ struct DashboardView: View {
     private var libreStaleBanner: some View {
         let cause = appState.libreStaleCause ?? .upstreamDown
         if cause.needsSettings {
-            Button { withAnimation { selectedTab = ContentView.settingsTab } } label: { libreStaleBannerBody(cause) }
+            Button { withAnimation(.tabSwipe) { selectedTab = ContentView.settingsTab } } label: { libreStaleBannerBody(cause) }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens Settings")
         } else {
