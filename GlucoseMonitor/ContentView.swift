@@ -129,29 +129,20 @@ struct ContentView: View {
 
 // MARK: - Tab swipe
 
-/// Global frames of regions whose own horizontal swipes (e.g. swipe-to-delete rows) must not switch tabs.
-private struct TabSwipeExclusionKey: PreferenceKey {
-    static var defaultValue: [CGRect] = []
-    static func reduce(value: inout [CGRect], nextValue: () -> [CGRect]) { value.append(contentsOf: nextValue()) }
-}
-
 /// Switches to the neighbouring tab on a clearly horizontal left/right swipe. Runs simultaneously with
 /// the content's own gestures so vertical scrolling is unaffected.
 private struct TabSwipeModifier: ViewModifier {
     @Binding var selection: Int
     let tabCount: Int
-    @State private var excludedFrames: [CGRect] = []
 
     func body(content: Content) -> some View {
         content
-            .onPreferenceChange(TabSwipeExclusionKey.self) { excludedFrames = $0 }
             .simultaneousGesture(
                 DragGesture(minimumDistance: 30, coordinateSpace: .global)
                     .onEnded { g in
                         let dx = g.translation.width
                         let dy = g.translation.height
-                        guard abs(dx) > 60, abs(dx) > abs(dy) * 2,
-                              !excludedFrames.contains(where: { $0.contains(g.startLocation) }) else { return }
+                        guard abs(dx) > 60, abs(dx) > abs(dy) * 2 else { return }
                         let target = selection + (dx < 0 ? 1 : -1)
                         guard (0..<tabCount).contains(target) else { return }
                         withAnimation(.easeInOut(duration: 0.2)) { selection = target }
@@ -164,13 +155,6 @@ extension View {
     /// Swipe left/right on this tab's content to move to the next/previous tab.
     func tabSwipe(_ selection: Binding<Int>, tabCount: Int) -> some View {
         modifier(TabSwipeModifier(selection: selection, tabCount: tabCount))
-    }
-
-    /// Prevents horizontal swipes that start inside this view from switching tabs.
-    func excludedFromTabSwipe() -> some View {
-        background(GeometryReader { geo in
-            Color.clear.preference(key: TabSwipeExclusionKey.self, value: [geo.frame(in: .global)])
-        })
     }
 }
 
@@ -849,7 +833,6 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
-                // swipeActions only apply inside a List (not plain VStack/ScrollView rows).
                 List {
                     ForEach(slice) { note in
                         RecentNoteRow(note: note)
@@ -858,13 +841,6 @@ struct DashboardView: View {
                             .listRowSeparator(.visible)
                             .contentShape(Rectangle())
                             .onTapGesture { noteToEdit = note }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    Task { await appState.deleteNote(id: note.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
                     }
                 }
                 .listStyle(.plain)
@@ -872,7 +848,6 @@ struct DashboardView: View {
                 .scrollDisabled(true)
                 .environment(\.defaultMinListRowHeight, 72)
                 .frame(height: CGFloat(slice.count) * 100)
-                .excludedFromTabSwipe()
             }
         }
         .padding()
