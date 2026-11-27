@@ -21,17 +21,21 @@ struct ContentView: View {
     /// Hides the tab bar while the keyboard is up (like the system tab bar), so it doesn't sit
     /// between the chat input and the keyboard.
     @State private var keyboardVisible = false
+    /// Current horizontal swipe as a fraction of the page width (negative = towards the next tab).
+    @State private var swipeFraction: CGFloat = 0
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
         // The pages follow the finger while swiping left/right; SwipeTabBar is the bottom tab bar.
-        SwipePager(selection: $selectedTab, pageCount: Self.tabItems.count) { index in
+        SwipePager(selection: $selectedTab, dragFraction: $swipeFraction, pageCount: Self.tabItems.count) { index in
             page(index)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             if !keyboardVisible {
-                SwipeTabBar(selection: $selectedTab, items: Self.tabItems)
+                SwipeTabBar(selection: $selectedTab,
+                            position: CGFloat(selectedTab) - swipeFraction,
+                            items: Self.tabItems)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -161,10 +165,10 @@ extension Animation {
 /// that springs it back; a quick flick does not change the page.
 struct SwipePager<Page: View>: View {
     @Binding var selection: Int
+    /// The in-progress drag as a fraction of the page width (shared so the tab bar can follow it).
+    @Binding var dragFraction: CGFloat
     let pageCount: Int
     @ViewBuilder let page: (Int) -> Page
-
-    @State private var dragOffset: CGFloat = 0
     /// True while a horizontal swipe is in progress; pauses the pages' own scrolling meanwhile.
     @State private var isSwiping = false
 
@@ -179,7 +183,7 @@ struct SwipePager<Page: View>: View {
                 }
             }
             .frame(width: width, alignment: .leading)
-            .offset(x: -CGFloat(selection) * width + dragOffset)
+            .offset(x: (dragFraction - CGFloat(selection)) * width)
             .scrollDisabled(isSwiping)
             .background(
                 WindowSwipeRecognizer(
@@ -187,7 +191,8 @@ struct SwipePager<Page: View>: View {
                         isSwiping = true
                         // Rubber-band past the first and last page.
                         let atEdge = (selection == 0 && dx > 0) || (selection == pageCount - 1 && dx < 0)
-                        dragOffset = atEdge ? dx / 3 : dx
+                        guard width > 0 else { return }
+                        dragFraction = (atEdge ? dx / 3 : dx) / width
                     },
                     onEnded: { dx in
                         isSwiping = false
@@ -200,7 +205,7 @@ struct SwipePager<Page: View>: View {
                         target = min(max(target, 0), pageCount - 1)
                         withAnimation(.tabSwipe) {
                             selection = target
-                            dragOffset = 0
+                            dragFraction = 0
                         }
                     }
                 )
@@ -317,9 +322,12 @@ struct SwipeTabBar: View {
     }
 
     @Binding var selection: Int
+    /// Fractional tab position, following the finger during a swipe (e.g. 0.4 = 40% of the way
+    /// from the first tab to the second).
+    let position: CGFloat
     let items: [Item]
 
-    @Namespace private var selectionIndicator
+    private static let glassItemWidth: CGFloat = 92
 
     var body: some View {
         #if compiler(>=6.2)
@@ -348,33 +356,35 @@ struct SwipeTabBar: View {
     }
 
     #if compiler(>=6.2)
-    /// Floating glass capsule; the selected tab sits on a lighter capsule that slides between tabs.
+    /// Floating glass capsule; the selection pill tracks `position`, so it slides with the finger
+    /// during a swipe and animates with the page when the switch completes.
     @available(iOS 26.0, *)
     private var glassBar: some View {
-        HStack(spacing: 0) {
+        let pillPosition = min(max(position, 0), CGFloat(items.count - 1))
+        let highlighted = Int(pillPosition.rounded())
+        return HStack(spacing: 0) {
             ForEach(items.indices, id: \.self) { index in
                 let item = items[index]
-                let isSelected = selection == index
+                let isSelected = highlighted == index
                 Button {
                     select(index)
                 } label: {
                     itemLabel(item, weight: .semibold)
                         .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                        .frame(width: 92)
+                        .frame(width: Self.glassItemWidth)
                         .padding(.vertical, 7)
-                        .background {
-                            if isSelected {
-                                Capsule()
-                                    .fill(Color.primary.opacity(0.12))
-                                    .matchedGeometryEffect(id: "selection", in: selectionIndicator)
-                            }
-                        }
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(item.title)
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
+        }
+        .background(alignment: .leading) {
+            Capsule()
+                .fill(Color.primary.opacity(0.12))
+                .frame(width: Self.glassItemWidth)
+                .offset(x: pillPosition * Self.glassItemWidth)
         }
         .padding(4)
         .glassEffect(.regular.interactive(), in: .capsule)
