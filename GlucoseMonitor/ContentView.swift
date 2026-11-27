@@ -1157,21 +1157,19 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
-                List {
+                // A plain stack sizes to its rows; a List needs a guessed fixed height and leaves a gap.
+                VStack(spacing: 0) {
                     ForEach(slice) { note in
                         RecentNoteRow(note: note)
-                            .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.visible)
+                            .padding(.vertical, 4)
+                            .frame(minHeight: 72)
                             .contentShape(Rectangle())
                             .onTapGesture { noteToEdit = note }
+                        if note.id != slice.last?.id {
+                            Divider()
+                        }
                     }
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
-                .scrollDisabled(true)
-                .environment(\.defaultMinListRowHeight, 72)
-                .frame(height: CGFloat(slice.count) * 100)
             }
         }
         .padding()
