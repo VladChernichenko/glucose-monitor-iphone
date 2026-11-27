@@ -112,6 +112,7 @@ enum GlycemicCategory {
         "UNDER_ESTIMATED_INSULIN": "Took more than logged",
         "OVER_ESTIMATED_FOOD": "Took less carbs than logged",
         "AEROBIC_ACTIVITY": "Cardio",
+        "GLUCONEOGENESIS": "Gluconeogenesis",
     ]
 
     static func buttonTitle(_ raw: String) -> String {

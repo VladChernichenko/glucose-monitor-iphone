@@ -41,8 +41,10 @@ final class GlycemicEventTextTests: XCTestCase {
         XCTAssertEqual(GlycemicCategory.buttonTitle("UNDER_ESTIMATED_INSULIN"), "Took more than logged")
         XCTAssertEqual(GlycemicCategory.buttonTitle("UNDER_ESTIMATED_FOOD"), "Ate more than logged")
         XCTAssertEqual(GlycemicCategory.buttonTitle("UNLOGGED_INSULIN"), "Took unlogged insulin")
+        XCTAssertEqual(GlycemicCategory.buttonTitle("GLUCONEOGENESIS"), "Gluconeogenesis")
         let all = ["UNLOGGED_FOOD", "UNDER_ESTIMATED_FOOD", "STRESS", "ABSORPTION_DELAY", "LIPODYSTROPHY",
-                   "DAWN_PHENOMENON", "ANAEROBIC_ACTIVITY", "UNLOGGED_INSULIN", "UNDER_ESTIMATED_INSULIN", "AEROBIC_ACTIVITY"]
+                   "DAWN_PHENOMENON", "ANAEROBIC_ACTIVITY", "UNLOGGED_INSULIN", "UNDER_ESTIMATED_INSULIN", "AEROBIC_ACTIVITY",
+                   "GLUCONEOGENESIS"]
         for raw in all {
             let title = GlycemicCategory.buttonTitle(raw).lowercased()
             XCTAssertFalse(title.contains("dose"), raw)
