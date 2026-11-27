@@ -146,6 +146,16 @@ final class WatchStripTests: XCTestCase {
                        "Lands 10.4 mmol/L by \(at("2026-10-31T23:00:00")) \u{00B7} correction 1.0 U")
     }
 
+    func testAboveTarget_headlineAndCorrection() throws {
+        let s = try strip(reason: "ABOVE_TARGET",
+                          suggestion: #"{"kind":"INSULIN","units":1.5,"targetMmol":5.5,"isf":2.5}"#,
+                          landing: landing, iob: "0.1", cob: "0")
+        XCTAssertEqual(s.reason, .aboveTarget)
+        XCTAssertEqual(WatchStripText.headline(s, unit: "mmol/L"), "Above target 5.5 mmol/L")
+        XCTAssertEqual(WatchStripText.detail(s, unit: "mmol/L"),
+                       "Lands 10.4 mmol/L by \(at("2026-10-31T23:00:00")) \u{00B7} correction 1.5 U")
+    }
+
     func testWatchingWithoutLanding_noDetailLine() throws {
         let learned = try strip(reason: "WATCHING", activity: "LEARNED")
         XCTAssertEqual(WatchStripText.detail(learned, unit: "mmol/L"), "")

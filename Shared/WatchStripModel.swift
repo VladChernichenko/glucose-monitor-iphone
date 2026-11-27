@@ -63,7 +63,7 @@ struct WatchStrip: Codable, Equatable {
         case lowNow = "LOW_NOW", treatingLow = "TREATING_LOW", forecastLow = "FORECAST_LOW"
         case carbsLanding = "CARBS_LANDING", highForecast = "HIGH_FORECAST"
         case insulinLanding = "INSULIN_LANDING", smallRise = "SMALL_RISE"
-        case watching = "WATCHING", dipAhead = "DIP_AHEAD", unknown
+        case watching = "WATCHING", dipAhead = "DIP_AHEAD", aboveTarget = "ABOVE_TARGET", unknown
         init(from decoder: Decoder) throws {
             self = Self(rawValue: try decoder.singleValueContainer().decode(String.self)) ?? .unknown
         }
@@ -188,6 +188,8 @@ enum WatchStripText {
             return "High ahead: \(glucose(s.landing?.mmol, unit)) at \(time(s.landing?.at))"
         case .watching, .dipAhead:
             return "Watching \u{00B7} \(String(format: "%.1f", s.iob ?? 0)) U, \(String(format: "%.0f", s.cob ?? 0)) g active"
+        case .aboveTarget:
+            return "Above target \(glucose(s.suggestion?.targetMmol, unit))"
         case .unknown: return ""
         }
     }
@@ -222,10 +224,10 @@ enum WatchStripText {
             return "Insulin still landing, no correction \u{00B7} \(next)"
         case .smallRise:
             return "Small rise, no correction \u{00B7} \(next)"
-        case .watching, .dipAhead:
+        case .watching, .dipAhead, .aboveTarget:
             // No landing to state: no detail line rather than "Lands -- by --:--".
-            if s.reason == .watching && s.landing == nil { return "" }
-            guard s.reason == .watching else {
+            if s.reason != .dipAhead && s.landing == nil { return "" }
+            guard s.reason != .dipAhead else {
                 return "Dip to \(glucose(s.low?.mmol, unit)) around \(time(s.low?.at)), have 10\u{2013}15 g ready"
             }
             let lands = "Lands \(glucose(s.landing?.mmol, unit)) by \(time(s.landing?.at))"
