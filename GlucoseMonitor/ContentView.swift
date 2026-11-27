@@ -308,7 +308,8 @@ private struct WindowSwipeRecognizer: UIViewRepresentable {
 
 // MARK: - Tab bar
 
-/// Bottom tab bar for the page-style TabView, styled like the system tab bar.
+/// Bottom tab bar for the swipe pager, styled like the system tab bar: a floating Liquid Glass
+/// capsule on iOS 26 and later, the classic flat bar on earlier versions.
 struct SwipeTabBar: View {
     struct Item {
         let title: String
@@ -318,7 +319,71 @@ struct SwipeTabBar: View {
     @Binding var selection: Int
     let items: [Item]
 
+    @Namespace private var selectionIndicator
+
     var body: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            glassBar
+        } else {
+            classicBar
+        }
+        #else
+        classicBar
+        #endif
+    }
+
+    private func select(_ index: Int) {
+        withAnimation(.tabSwipe) { selection = index }
+    }
+
+    private func itemLabel(_ item: Item, weight: Font.Weight) -> some View {
+        VStack(spacing: 3) {
+            Image(systemName: item.systemImage)
+                .font(.system(size: 22))
+                .frame(height: 26)
+            Text(item.title)
+                .font(.system(size: 10, weight: weight))
+        }
+    }
+
+    #if compiler(>=6.2)
+    /// Floating glass capsule; the selected tab sits on a lighter capsule that slides between tabs.
+    @available(iOS 26.0, *)
+    private var glassBar: some View {
+        HStack(spacing: 0) {
+            ForEach(items.indices, id: \.self) { index in
+                let item = items[index]
+                let isSelected = selection == index
+                Button {
+                    select(index)
+                } label: {
+                    itemLabel(item, weight: .semibold)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                        .frame(width: 92)
+                        .padding(.vertical, 7)
+                        .background {
+                            if isSelected {
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.12))
+                                    .matchedGeometryEffect(id: "selection", in: selectionIndicator)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(item.title)
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+        .padding(4)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .frame(maxWidth: .infinity)
+        .padding(.bottom, 4)
+    }
+    #endif
+
+    private var classicBar: some View {
         VStack(spacing: 0) {
             Divider()
             HStack(spacing: 0) {
@@ -326,20 +391,14 @@ struct SwipeTabBar: View {
                     let item = items[index]
                     let isSelected = selection == index
                     Button {
-                        withAnimation(.tabSwipe) { selection = index }
+                        select(index)
                     } label: {
-                        VStack(spacing: 3) {
-                            Image(systemName: item.systemImage)
-                                .font(.system(size: 22))
-                                .frame(height: 26)
-                            Text(item.title)
-                                .font(.system(size: 10, weight: .medium))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 7)
-                        .padding(.bottom, 3)
-                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
-                        .contentShape(Rectangle())
+                        itemLabel(item, weight: .medium)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 7)
+                            .padding(.bottom, 3)
+                            .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(item.title)
