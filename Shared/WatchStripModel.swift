@@ -225,9 +225,15 @@ enum WatchStripText {
         case .watching, .dipAhead:
             // No landing to state: no detail line rather than "Lands -- by --:--".
             if s.reason == .watching && s.landing == nil { return "" }
-            return s.reason == .watching
-                ? "Lands \(glucose(s.landing?.mmol, unit)) by \(time(s.landing?.at))"
-                : "Dip to \(glucose(s.low?.mmol, unit)) around \(time(s.low?.at)), have 10\u{2013}15 g ready"
+            guard s.reason == .watching else {
+                return "Dip to \(glucose(s.low?.mmol, unit)) around \(time(s.low?.at)), have 10\u{2013}15 g ready"
+            }
+            let lands = "Lands \(glucose(s.landing?.mmol, unit)) by \(time(s.landing?.at))"
+            // Landing above target but under 10: the backend attaches the correction to the green banner.
+            guard sug?.kind == .insulin, let units = sug?.units else { return lands }
+            let correction = "\(lands) \u{00B7} correction \(String(format: "%.1f", units)) U"
+            guard let taken = sug?.takenUnits, taken > 0 else { return correction }
+            return correction + " (with \(String(format: "%.1f", taken)) U taken = \(String(format: "%.1f", units + taken)) U)"
         case .unknown: return ""
         }
     }
