@@ -1124,8 +1124,8 @@ enum BackendAPI {
         }
     }
 
-    /// Saves insulin preferences. `longActingInjectionTime` ("HH:mm") gates the long-acting logging
-    /// action: nil leaves the stored value unchanged, "" clears it, "HH:mm" sets it.
+    /// Saves insulin preferences. `longActingInjectionTime` ("HH:mm") drives the hint on the
+    /// long-acting logging action (it never blocks logging): nil leaves the stored value unchanged, "" clears it, "HH:mm" sets it.
     static func saveInsulinPreferences(rapidCode: String, longActingCode: String,
                                        longActingInjectionTime: String? = nil) async throws -> UserInsulinPreferences {
         try await performWithRefresh {

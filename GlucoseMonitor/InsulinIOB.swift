@@ -1,38 +1,37 @@
 import Foundation
 
-/// Decides whether the "Log long-acting insulin" action is available, based on the user's
-/// configured daily injection time. The action is enabled within a window around that time so
-/// the user logs their basal dose close to when they actually take it.
+/// Hint shown on the "Long-acting insulin" dashboard action, based on the user's configured daily
+/// injection time. It only labels the row ("Due 22:00" / "Log now" / "Next at 22:00"); it never
+/// blocks logging - a dose taken early, late or off-schedule must still be loggable.
 enum LongActingSchedule {
-    /// Action becomes available this long before the configured time...
+    /// "Due" is shown from this long before the configured time...
     static let windowBefore: TimeInterval = 60 * 60          // 1 hour
-    /// ...and stays available this long after it (to allow logging a little late).
+    /// ...and "Log now" until this long after it.
     static let windowAfter: TimeInterval = 4 * 60 * 60       // 4 hours
 
-    struct Status {
-        let enabled: Bool
+    struct Status: Equatable {
         /// Short label for the dashboard row (empty when no schedule is configured).
         let label: String
     }
 
     /// - Parameter injectionTimeHHmm: daily time as "HH:mm", or nil/empty when unset.
-    /// Returns `enabled = true` with an empty label when no time is configured (always available).
+    /// Returns an empty label when no time is configured.
     static func status(injectionTimeHHmm: String?,
                        now: Date = Date(),
                        calendar: Calendar = .current) -> Status {
         guard let hhmm = injectionTimeHHmm, !hhmm.isEmpty,
               let base = parse(hhmm, now: now, calendar: calendar) else {
-            return Status(enabled: true, label: "")
+            return Status(label: "")
         }
         // Check the scheduled time on the adjacent days too so the window works across midnight.
         let candidates = [-1, 0, 1].compactMap { calendar.date(byAdding: .day, value: $0, to: base) }
         for target in candidates {
             if now >= target.addingTimeInterval(-windowBefore) && now <= target.addingTimeInterval(windowAfter) {
                 let label = now < target ? "Due \(hhmm)" : "Log now"
-                return Status(enabled: true, label: label)
+                return Status(label: label)
             }
         }
-        return Status(enabled: false, label: "Next at \(hhmm)")
+        return Status(label: "Next at \(hhmm)")
     }
 
     private static func parse(_ hhmm: String, now: Date, calendar: Calendar) -> Date? {

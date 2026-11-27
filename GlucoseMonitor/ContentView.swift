@@ -823,8 +823,8 @@ struct DashboardView: View {
 
     // MARK: - Quick actions
 
-    /// Long-acting (basal) logging row. Enabled only within the window around the user's configured
-    /// injection time (always enabled when no time is set). Shows the schedule as a subtitle.
+    /// Long-acting (basal) logging row. Always tappable; the configured injection time only drives
+    /// the subtitle hint ("Due" / "Log now" / "Next at").
     private var longActingActionRow: some View {
         let status = LongActingSchedule.status(injectionTimeHHmm: appState.insulinPrefs?.longActingInjectionTime)
         return Button { showLongActing = true } label: {
@@ -845,7 +845,6 @@ struct DashboardView: View {
             .contentShape(Rectangle())
             .foregroundColor(.primary)
         }
-        .disabled(!status.enabled)
     }
 
     private var quickActions: some View {
