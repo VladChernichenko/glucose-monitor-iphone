@@ -342,6 +342,60 @@ final class MealPlanCardTests: XCTestCase {
         XCTAssertEqual(vm.items[2].kind, .assistant(text: "Bread is most of the carbs."))
     }
 
+    // MARK: - Struck-through explanation (declined or deleted plans)
+
+    private func historyRows(state: String, extra: String = "") throws -> [BackendAPI.ChatMessageDTO] {
+        let json = """
+        [{"id":"a1","createdAt":"2026-10-31T11:00:05Z","role":"ASSISTANT","text":"Bread is most of the carbs.",
+          "intent":"meal_plan","hasPhoto":false,"noteIds":[],"payload":\(payloadJSON(state: state, extra: extra))},
+         {"id":"u1","createdAt":"2026-10-31T11:00:00Z","role":"USER","text":"prepare me for soup","intent":null,
+          "hasPhoto":false,"noteIds":[]}]
+        """
+        return try GlucoseMonitorAPI.jsonDecoder().decode([BackendAPI.ChatMessageDTO].self, from: Data(json.utf8))
+    }
+
+    func testOpenPlanExplanationIsNotStruck() throws {
+        let items = ChatViewModel.items(fromNewestFirst: try historyRows(state: "PLANNED"))
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(items), [])
+    }
+
+    func testSkippedPlanInHistoryStrikesItsExplanation() throws {
+        let items = ChatViewModel.items(fromNewestFirst: try historyRows(
+            state: "SKIPPED", extra: #","skippedAt":"2026-10-31T12:03:00""#))
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(items), ["a1-text"])
+    }
+
+    func testPlanWithDeletedNotesInHistoryStrikesItsExplanation() throws {
+        let items = ChatViewModel.items(fromNewestFirst: try historyRows(
+            state: "EATEN", extra: tookExtra + #","mealNoteId":"n2","notesDeleted":true"#))
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(items), ["a1-text"])
+    }
+
+    func testNotEatingStrikesTheStreamedExplanation() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        let vm = makeVM(fake, now: local("2026-10-31T12:00:00"))
+        try await streamPlan(vm, fake)
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(vm.items), [])
+        fake.planResult = .success(try actionResult("SKIPPED", extra: #","skippedAt":"2026-10-31T12:03:00""#))
+
+        await vm.skipPlan(messageId: "a1")
+
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(vm.items), [vm.items[2].id])
+    }
+
+    func testDashboardDeletionStrikesTheExplanationOnRefresh() async throws {
+        let fake = ChatViewModelTests.FakeAssistantService()
+        fake.pages = [try historyRows(state: "EATEN", extra: tookExtra + #","mealNoteId":"n2""#),
+                      try historyRows(state: "EATEN", extra: tookExtra + #","mealNoteId":"n2","notesDeleted":true"#)]
+        let vm = makeVM(fake, now: local("2026-10-31T12:30:00"))
+        await vm.loadInitial()
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(vm.items), [])
+
+        await vm.refreshLoggedUndoState()
+
+        XCTAssertEqual(ChatViewModel.struckExplanationIds(vm.items), ["a1-text"])
+    }
+
     func testTookSendsPlanDoseAndPauseAndUpdatesCard() async throws {
         let fake = ChatViewModelTests.FakeAssistantService()
         let vm = makeVM(fake, now: berlinTime("2026-10-31T12:01:00"))

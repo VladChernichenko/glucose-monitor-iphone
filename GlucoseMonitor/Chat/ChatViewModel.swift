@@ -62,6 +62,18 @@ final class ChatViewModel: ObservableObject {
                                  kind: .glycemicPrompt(event, text: pendingPromptText))]
     }
 
+    /// Explanations of plans the user declined (Not eating) or whose notes were all deleted: the
+    /// assistant text right after such a card, shown struck through.
+    static func struckExplanationIds(_ items: [ChatItem]) -> Set<String> {
+        var ids = Set<String>()
+        for (i, item) in items.enumerated() {
+            guard case .mealPlan(let card) = item.kind, card.payload.isVoid, i + 1 < items.count,
+                  case .assistant = items[i + 1].kind else { continue }
+            ids.insert(items[i + 1].id)
+        }
+        return ids
+    }
+
     var lastMessageLine: String? {
         bubbles.last(where: { !$0.previewText.isEmpty })?.previewText
     }
@@ -526,6 +538,12 @@ final class ChatViewModel: ObservableObject {
             guard case .logged(let entry) = item.kind, entry.undone else { return nil }
             return entry.undoMessageId
         })
+        // A plan whose notes were deleted on the dashboard picks up `notesDeleted` here.
+        for item in mapped {
+            if case .mealPlan(let card) = item.kind, index(of: card.messageId) != nil {
+                setPlanPayload(messageId: card.messageId, card.payload)
+            }
+        }
         for i in items.indices {
             guard case .logged(var entry) = items[i].kind, !entry.undone,
                   let id = entry.undoMessageId, undoneIds.contains(id) else { continue }

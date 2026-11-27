@@ -14,6 +14,8 @@ struct ChatMessageRow: View {
     var removal: ((NoteRemovalCard) -> NoteRemovalActions)?
     /// Actions for a sick mode card row (Turn on / End sick mode).
     var sickMode: ((SickModeChatCard) -> SickModeChatActions)?
+    /// The explanation of a declined or deleted meal plan: struck through and muted.
+    var struck = false
 
     var body: some View {
         switch item.kind {
@@ -39,12 +41,12 @@ struct ChatMessageRow: View {
                     if text.isEmpty {
                         TypingDots()
                     } else {
-                        Text(text).textSelection(.enabled)
+                        Text(text).strikethrough(struck).textSelection(.enabled)
                     }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                .foregroundStyle(item.isFailed ? .secondary : .primary)
+                .foregroundStyle(item.isFailed || struck ? .secondary : .primary)
                 .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
                 Spacer(minLength: 48)
             }

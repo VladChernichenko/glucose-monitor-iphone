@@ -120,6 +120,8 @@ extension BackendAPI {
         /// Set instead of `supersededBy` when other rapid insulin was logged after the plan (stacking guard).
         var supersededByNoteId: String?
         var supersededAt: Date?
+        /// Set by the backend once every note this plan logged was deleted (dashboard Del, Notes tab, chat Remove).
+        var notesDeleted: Bool?
         /// The history banner (Task 22), absent when none was built. A malformed one is dropped, not the card.
         var bannerBox: LossyHistoryBanner?
 
@@ -131,11 +133,14 @@ extension BackendAPI {
         private enum CodingKeys: String, CodingKey {
             case userMessageId, language, state, description, plannedAt, meal, items, plan, doseValidUntil, tookAt
             case doseUnits, pauseMinutes, eatAt, overdueAt, doseNoteId, doseSource, advisedDoseUnits, eatenAt
-            case mealNoteId, eatenMeal, skippedAt, supersededBy, supersededByNoteId, supersededAt
+            case mealNoteId, eatenMeal, skippedAt, supersededBy, supersededByNoteId, supersededAt, notesDeleted
             case bannerBox = "banner"
         }
 
         var phase: MealPlanPhase? { MealPlanPhase(rawValue: state) }
+
+        /// Not eating, or everything it logged was deleted: its explanation is shown struck through.
+        var isVoid: Bool { phase == .skipped || notesDeleted == true }
     }
 
     struct MealPlanActionResult: Decodable, Equatable {

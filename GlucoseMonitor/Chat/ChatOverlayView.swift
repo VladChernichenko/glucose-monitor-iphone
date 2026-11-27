@@ -185,6 +185,7 @@ struct ChatOverlayView: View {
                             }
                     }
                     let bubbles = model.bubbles
+                    let struck = ChatViewModel.struckExplanationIds(bubbles)
                     ForEach(Array(bubbles.enumerated()), id: \.element.id) { index, item in
                         if index == 0 || !Calendar.current.isDate(item.createdAt, inSameDayAs: bubbles[index - 1].createdAt) {
                             ChatDaySeparator(date: item.createdAt)
@@ -195,7 +196,8 @@ struct ChatOverlayView: View {
                                        mealPlan: mealPlanActions,
                                        proposal: proposalActions,
                                        removal: removalActions,
-                                       sickMode: sickActions)
+                                       sickMode: sickActions,
+                                       struck: struck.contains(item.id))
                         .id(item.id)
                     }
                     Color.clear.frame(height: 1).id(Self.bottomId)
