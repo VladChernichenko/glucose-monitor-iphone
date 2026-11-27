@@ -693,6 +693,9 @@ struct EditNoteSheet: View {
     @State private var activityIntensity: BackendAPI.ActivityIntensityLevel
     @State private var durationMin: Int
     @State private var isSaving = false
+    @State private var isDeleting = false
+    @State private var confirmDelete = false
+    @State private var deleteFailed = false
 
     init(note: BackendAPI.GlucoseNote, onSave: @escaping (BackendAPI.UpdateNoteBody) async -> Void) {
         self.note = note
@@ -728,6 +731,30 @@ struct EditNoteSheet: View {
                 } else {
                     mealForm
                 }
+                Section {
+                    Button(role: .destructive) {
+                        confirmDelete = true
+                    } label: {
+                        HStack {
+                            Spacer()
+                            if isDeleting { ProgressView() } else { Text(note.isActivity ? "Delete Activity" : "Delete Note") }
+                            Spacer()
+                        }
+                    }
+                    .disabled(isSaving || isDeleting)
+                }
+            }
+            .confirmationDialog(note.isActivity ? "Delete this activity?" : "Delete this note?",
+                                isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Delete", role: .destructive, action: deleteTapped)
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This can't be undone.")
+            }
+            .alert("Couldn't delete", isPresented: $deleteFailed) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(appState.errorMessage ?? "Please try again.")
             }
             .navigationTitle(note.isActivity ? "Edit activity" : "Edit Note")
             .task {
@@ -744,7 +771,7 @@ struct EditNoteSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save", action: saveTapped)
-                        .disabled(isSaving || (note.isActivity && durationMin <= 0))
+                        .disabled(isSaving || isDeleting || (note.isActivity && durationMin <= 0))
                 }
             }
         }
@@ -819,6 +846,22 @@ struct EditNoteSheet: View {
         }
         Section("Start time") {
             DatePicker("Started", selection: $noteDate, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+        }
+    }
+
+    private func deleteTapped() {
+        guard !isDeleting, !isSaving else { return }
+        hideKeyboard()
+        isDeleting = true
+        Task { @MainActor in
+            await appState.deleteNote(id: note.id)
+            isDeleting = false
+            // AppState only removes the note locally when the backend delete succeeded.
+            if appState.notes.contains(where: { $0.id == note.id }) {
+                deleteFailed = true
+            } else {
+                dismiss()
+            }
         }
     }
 

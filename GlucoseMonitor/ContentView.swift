@@ -13,21 +13,25 @@ struct ContentView: View {
     private static let dashboardTab = 0
     static let chatTab = 1
     static let settingsTab = 2
+    private static let tabCount = 3
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
         TabView(selection: $selectedTab) {
             DashboardView(selectedTab: $selectedTab, scrollTopTick: $dashboardScrollTopTick)
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.dashboardTab)
                 .tabItem { Label("Dashboard", systemImage: "waveform.path.ecg") }
             ChatOverlayView(onMealLogged: {
                 dashboardScrollTopTick += 1
                 selectedTab = Self.dashboardTab
             })
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.chatTab)
                 .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right") }
             SettingsView()
+                .tabSwipe($selectedTab, tabCount: Self.tabCount)
                 .tag(Self.settingsTab)
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
@@ -120,6 +124,37 @@ struct ContentView: View {
             SignInView()
                 .environmentObject(appState)
         }
+    }
+}
+
+// MARK: - Tab swipe
+
+/// Switches to the neighbouring tab on a clearly horizontal left/right swipe. Runs simultaneously with
+/// the content's own gestures so vertical scrolling is unaffected.
+private struct TabSwipeModifier: ViewModifier {
+    @Binding var selection: Int
+    let tabCount: Int
+
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 30, coordinateSpace: .global)
+                    .onEnded { g in
+                        let dx = g.translation.width
+                        let dy = g.translation.height
+                        guard abs(dx) > 60, abs(dx) > abs(dy) * 2 else { return }
+                        let target = selection + (dx < 0 ? 1 : -1)
+                        guard (0..<tabCount).contains(target) else { return }
+                        withAnimation(.easeInOut(duration: 0.2)) { selection = target }
+                    }
+            )
+    }
+}
+
+extension View {
+    /// Swipe left/right on this tab's content to move to the next/previous tab.
+    func tabSwipe(_ selection: Binding<Int>, tabCount: Int) -> some View {
+        modifier(TabSwipeModifier(selection: selection, tabCount: tabCount))
     }
 }
 
@@ -798,7 +833,6 @@ struct DashboardView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
-                // swipeActions only apply inside a List (not plain VStack/ScrollView rows).
                 List {
                     ForEach(slice) { note in
                         RecentNoteRow(note: note)
@@ -807,13 +841,6 @@ struct DashboardView: View {
                             .listRowSeparator(.visible)
                             .contentShape(Rectangle())
                             .onTapGesture { noteToEdit = note }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    Task { await appState.deleteNote(id: note.id) }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
                     }
                 }
                 .listStyle(.plain)
