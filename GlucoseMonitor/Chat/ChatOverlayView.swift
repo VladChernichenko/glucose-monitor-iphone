@@ -22,8 +22,8 @@ struct ChatOverlayView: View {
                 Divider()
                 messageList
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                Divider()
-                inputBar
+                    // Messages scroll underneath the input (and the tab bar below it).
+                    .safeAreaInset(edge: .bottom, spacing: 0) { inputArea }
             }
             .reservesTabBarSpace()
             .background(Color(.systemBackground))
@@ -237,54 +237,123 @@ struct ChatOverlayView: View {
         !model.isSending && (!draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || photo != nil)
     }
 
-    private var inputBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let photo {
-                ZStack(alignment: .topTrailing) {
-                    Image(uiImage: photo)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 56, height: 56)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    Button {
-                        self.photo = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.6))
-                    }
-                    .offset(x: 6, y: -6)
-                    .accessibilityLabel("Remove photo")
-                }
-            }
-            HStack(alignment: .bottom, spacing: 10) {
-                TextField("Write or add a photo…", text: $draft, axis: .vertical)
-                    .lineLimit(1...4)
-                    .focused($inputFocused)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+    /// Floating Liquid Glass input on iOS 26 and later; the classic flat bar on earlier versions.
+    @ViewBuilder
+    private var inputArea: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            glassInputBar
+        } else {
+            classicInputBar
+        }
+        #else
+        classicInputBar
+        #endif
+    }
+
+    @ViewBuilder
+    private var photoPreview: some View {
+        if let photo {
+            ZStack(alignment: .topTrailing) {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 Button {
-                    FoodSourcePicker.present(
-                        onCamera: { FoodCameraAuth.requestAndRun { showFoodCamera = true } },
-                        onLibrary: { showFoodLibrary = true })
+                    self.photo = nil
                 } label: {
-                    Image(systemName: "camera")
-                        .font(.title3)
-                        .padding(.bottom, 6)
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.palette)
+                        .foregroundStyle(.white, .black.opacity(0.6))
                 }
+                .offset(x: 6, y: -6)
+                .accessibilityLabel("Remove photo")
+            }
+        }
+    }
+
+    private var draftField: some View {
+        TextField("Write or add a photo…", text: $draft, axis: .vertical)
+            .lineLimit(1...4)
+            .focused($inputFocused)
+    }
+
+    private func pickFoodPhoto() {
+        FoodSourcePicker.present(
+            onCamera: { FoodCameraAuth.requestAndRun { showFoodCamera = true } },
+            onLibrary: { showFoodLibrary = true })
+    }
+
+    #if compiler(>=6.2)
+    /// Glass capsule: round camera button, text field, round send button.
+    @available(iOS 26.0, *)
+    private var glassInputBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            photoPreview
+                .padding(.leading, 8)
+                .padding(.top, 6)
+            HStack(alignment: .bottom, spacing: 8) {
+                Button(action: pickFoodPhoto) {
+                    Image(systemName: "camera")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(Color.primary)
+                        .frame(width: 40, height: 40)
+                        .background(Color.primary.opacity(0.1), in: Circle())
+                }
+                .buttonStyle(.plain)
                 .disabled(model.isSending)
                 .accessibilityLabel("Scan food or add a photo")
+                draftField
+                    .padding(.vertical, 10)
                 Button(action: send) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title)
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(canSend ? Color.white : Color.secondary)
+                        .frame(width: 40, height: 40)
+                        .background(canSend ? Color.accentColor : Color.primary.opacity(0.1), in: Circle())
                 }
+                .buttonStyle(.plain)
                 .disabled(!canSend)
                 .accessibilityLabel("Send")
             }
         }
+        .padding(6)
+        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.bottom, 8)
+    }
+    #endif
+
+    private var classicInputBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            VStack(alignment: .leading, spacing: 6) {
+                photoPreview
+                HStack(alignment: .bottom, spacing: 10) {
+                    draftField
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18))
+                    Button(action: pickFoodPhoto) {
+                        Image(systemName: "camera")
+                            .font(.title3)
+                            .padding(.bottom, 6)
+                    }
+                    .disabled(model.isSending)
+                    .accessibilityLabel("Scan food or add a photo")
+                    Button(action: send) {
+                        Image(systemName: "arrow.up.circle.fill")
+                            .font(.title)
+                    }
+                    .disabled(!canSend)
+                    .accessibilityLabel("Send")
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.systemBackground))
     }
 
     private func send() {

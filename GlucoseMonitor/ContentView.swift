@@ -375,7 +375,6 @@ struct SwipeTabBar: View {
     let position: CGFloat
     let items: [Item]
 
-    private static let glassItemWidth: CGFloat = 92
 
     var body: some View {
         #if compiler(>=6.2)
@@ -419,7 +418,7 @@ struct SwipeTabBar: View {
                 } label: {
                     itemLabel(item, weight: .semibold)
                         .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
-                        .frame(width: Self.glassItemWidth)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
                         .contentShape(Capsule())
                 }
@@ -428,15 +427,18 @@ struct SwipeTabBar: View {
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
-        .background(alignment: .leading) {
-            Capsule()
-                .fill(Color.primary.opacity(0.12))
-                .frame(width: Self.glassItemWidth)
-                .offset(x: pillPosition * Self.glassItemWidth)
+        .background {
+            GeometryReader { geo in
+                let itemWidth = geo.size.width / CGFloat(max(items.count, 1))
+                Capsule()
+                    .fill(Color.primary.opacity(0.12))
+                    .frame(width: itemWidth, height: geo.size.height)
+                    .offset(x: pillPosition * itemWidth)
+            }
         }
         .padding(4)
         .glassEffect(.clear.interactive(), in: .capsule)
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
         .padding(.bottom, 4)
     }
     #endif
