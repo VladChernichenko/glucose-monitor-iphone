@@ -641,6 +641,6 @@ final class MealPlanCardTests: XCTestCase {
         XCTAssertEqual(marks.map { MealPlanCardView.relativeLabel($0, from: start) }, ["now", "+1 h", "+2 h", "+3 h"])
         XCTAssertEqual(MealPlanCardView.forecastSummary(start: 8.8, end: 9.1, peak: 9.7, low: 8.8, from: start,
                                                         to: start.addingTimeInterval(4 * 3600), unit: "mmol/L"),
-                       "8.8 \u{2192} 9.1 mmol/L at +4 h \u{00B7} peak 9.7, low 8.8")
+                       "8.8 \u{2192} 9.1 mmol/L at +4 h \u{00B7} meal peak 9.7, low 8.8")
     }
 }

@@ -113,8 +113,8 @@ struct MealPlanCardView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            if let curve = plan.pause?.curve, !curve.isEmpty {
-                forecastChart(curve)
+            if let pause = plan.pause, !pause.curve.isEmpty {
+                forecastChart(pause.curve, pause: pause)
             }
         } else if let why = MealPlanRules.noDoseExplanation(card, now: now, unit: unit) {
             Text(why)
@@ -321,7 +321,7 @@ struct MealPlanCardView: View {
     private struct Sample: Identifiable { let id: Int; let time: Date; let value: Double; let lower: Double?; let upper: Double? }
 
     @ViewBuilder
-    private func forecastChart(_ curve: [BackendAPI.PredictionPathPoint]) -> some View {
+    private func forecastChart(_ curve: [BackendAPI.PredictionPathPoint], pause: BackendAPI.MealPlanPause) -> some View {
         let samples = curve.enumerated().compactMap { i, p -> Sample? in
             guard let g = p.predictedGlucose else { return nil }
             return Sample(id: i, time: p.timestamp, value: GlucoseUnit.fromMmol(g, displayUnit: unit),
@@ -344,6 +344,15 @@ struct MealPlanCardView: View {
                     LineMark(x: .value("Time", s.time), y: .value("Glucose", s.value))
                         .foregroundStyle(Color.blue)
                 }
+                // When the meal is eaten: the pause is the gap between "now" and this line.
+                if let wait = pause.pauseMinutes, wait > 0 {
+                    RuleMark(x: .value("Eat", first.time.addingTimeInterval(TimeInterval(wait * 60))))
+                        .foregroundStyle(Color.orange.opacity(0.7))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                        .annotation(position: .top, alignment: .leading) {
+                            Text("eat").font(.caption2).foregroundStyle(.orange)
+                        }
+                }
             }
             .chartYScale(domain: domain)
             .chartXScale(domain: first.time...last.time)
@@ -359,9 +368,12 @@ struct MealPlanCardView: View {
             }
             .frame(height: 110)
             .accessibilityLabel("Forecast after this dose and pause")
-            Text(MealPlanCardView.forecastSummary(start: first.value, end: last.value, peak: values.max() ?? last.value,
-                                                  low: values.min() ?? last.value, from: first.time, to: last.time,
-                                                  unit: unit))
+            // Peak = the backend's meal spike (highest point within 2 h after eating), as in the reason text.
+            Text(MealPlanCardView.forecastSummary(
+                start: first.value, end: last.value,
+                peak: pause.peak.map { GlucoseUnit.fromMmol($0, displayUnit: unit) } ?? (values.max() ?? last.value),
+                low: pause.min.map { GlucoseUnit.fromMmol($0, displayUnit: unit) } ?? (values.min() ?? last.value),
+                from: first.time, to: last.time, unit: unit))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -392,13 +404,13 @@ struct MealPlanCardView: View {
         return h == 0 ? "now" : "+\(h) h"
     }
 
-    /// "8.8 → 9.1 mmol/L at +4 h · peak 9.7, low 8.8".
+    /// "8.8 → 9.1 mmol/L at +4 h · meal peak 9.7, low 8.8".
     static func forecastSummary(start: Double, end: Double, peak: Double, low: Double,
                                 from: Date, to: Date, unit: String) -> String {
         let mgdl = GlucoseUnit.isMgdl(unit)
         let f: (Double) -> String = { mgdl ? String(Int($0.rounded())) : String(format: "%.1f", $0) }
         let h = Int((to.timeIntervalSince(from) / 3600).rounded())
-        return "\(f(start)) \u{2192} \(f(end)) \(mgdl ? "mg/dL" : "mmol/L") at +\(h) h \u{00B7} peak \(f(peak)), low \(f(low))"
+        return "\(f(start)) \u{2192} \(f(end)) \(mgdl ? "mg/dL" : "mmol/L") at +\(h) h \u{00B7} meal peak \(f(peak)), low \(f(low))"
     }
 
     // MARK: Edit seeds
