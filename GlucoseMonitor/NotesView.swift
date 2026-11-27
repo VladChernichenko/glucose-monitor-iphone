@@ -683,6 +683,7 @@ struct EditNoteSheet: View {
 
     @State private var noteDate: Date
     @State private var meal: String
+    @State private var descriptionText: String
     @State private var carbs: Int           // steps of 5 g  (iOS-3 fix)
     @State private var protein: Int         // steps of 5 g
     @State private var fat: Int             // steps of 5 g
@@ -701,7 +702,21 @@ struct EditNoteSheet: View {
         self.note = note
         self.onSave = onSave
         _noteDate = State(initialValue: note.timestamp ?? Date())
-        _meal = State(initialValue: note.meal.isEmpty ? "Other" : note.meal)
+        // A food name stored as the meal (e.g. "chocolate") is a description, not a type:
+        // move it into the description and pick the type from the entry itself.
+        let storedMeal = note.meal.trimmingCharacters(in: .whitespacesAndNewlines)
+        let comment = note.comment?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if note.isActivity || storedMeal.isEmpty || MealTypeDefaults.categories.contains(storedMeal) {
+            _meal = State(initialValue: storedMeal.isEmpty ? "Other" : storedMeal)
+            _descriptionText = State(initialValue: comment)
+        } else {
+            _meal = State(initialValue: MealTypeDefaults.suggested(
+                carbs: note.carbs, insulin: note.insulin,
+                glucoseMmol: note.glucoseValue, at: note.timestamp ?? Date()))
+            let hasMeal = comment.localizedCaseInsensitiveContains(storedMeal)
+            _descriptionText = State(initialValue: comment.isEmpty ? storedMeal
+                                     : (hasMeal ? comment : storedMeal + ", " + comment))
+        }
         // iOS-3 fix: snap to 5g steps instead of 10g (35g -> 35, not 40g)
         let roundedCarbs = min(100, max(0, Int((note.carbs / 5).rounded()) * 5))
         // iOS-3 fix: snap to 0.5u steps instead of 1u (2.7u -> 2.5, not 3u)
@@ -779,6 +794,10 @@ struct EditNoteSheet: View {
 
     @ViewBuilder
     private var mealForm: some View {
+        Section("Description") {
+            TextField("What did you eat?", text: $descriptionText, axis: .vertical)
+                .lineLimit(1...4)
+        }
         if let photoUrl = note.photoUrl, !photoUrl.isEmpty {
             Section("Photo") {
                 NotePhotoThumbnail(urlString: photoUrl, width: nil, height: 220, contentMode: .fit)
@@ -871,7 +890,7 @@ struct EditNoteSheet: View {
         Task {
             await MainActor.run { isSaving = true }
             let ts = BackendAPI.formatNoteTimestampForRequest(noteDate)
-            let body: BackendAPI.UpdateNoteBody
+            var body: BackendAPI.UpdateNoteBody
             if note.isActivity {
                 body = BackendAPI.UpdateNoteBody(
                     timestamp: ts,
@@ -896,10 +915,11 @@ struct EditNoteSheet: View {
                     carbs: Double(carbs),
                     insulin: insulin,          // iOS-3 fix: already Double (0.5u steps)
                     meal: meal,
-                    comment: nil,
+                    comment: nil,   // set below from the description field
                     glucoseValue: glucoseVal,
                     nutritionProfile: macroProfile
                 )
+                body.comment = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
             }
             await onSave(body)
             try? await Task.sleep(nanoseconds: 80_000_000)

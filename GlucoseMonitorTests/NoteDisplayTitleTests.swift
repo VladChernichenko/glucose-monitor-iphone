@@ -14,9 +14,14 @@ final class NoteDisplayTitleTests: XCTestCase {
         XCTAssertEqual(note.displayTitle, "buckwheat, grape")
     }
 
-    func testExplicitMealLabelKept() throws {
+    func testMealTypeDefersToDescription() throws {
         let note = try decodeNote(meal: "Lunch", comment: "buckwheat", nutritionProfile: nil)
-        XCTAssertEqual(note.displayTitle, "Lunch")
+        XCTAssertEqual(note.displayTitle, "buckwheat")
+    }
+
+    func testMealTypeKeptWithoutDescription() throws {
+        let note = try decodeNote(meal: "Correction", comment: nil, nutritionProfile: nil)
+        XCTAssertEqual(note.displayTitle, "Correction")
     }
 
     func testStoredFoodNamesUsedAsMeal() throws {

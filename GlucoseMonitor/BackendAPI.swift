@@ -95,8 +95,10 @@ enum BackendAPI {
         /// Dashboard / Notes list title: food names when present, else the stored meal label.
         var displayTitle: String {
             let label = meal.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Meal types (Breakfast, Dinner...) say when, not what: the food names or description win.
             let generic = label.isEmpty || label.compare("Meal", options: .caseInsensitive) == .orderedSame
                 || label.compare("none", options: .caseInsensitive) == .orderedSame
+                || (!isActivity && !isLongActing && MealTypeDefaults.categories.contains(label))
             if !generic { return label }
             if let foods = decodedNutritionProfile?.normalizedFoods?
                 .map({ Self.stripPortionWeight($0) })
