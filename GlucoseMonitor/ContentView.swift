@@ -23,21 +23,34 @@ struct ContentView: View {
     @State private var keyboardVisible = false
     /// Current horizontal swipe as a fraction of the page width (negative = towards the next tab).
     @State private var swipeFraction: CGFloat = 0
+    /// Measured height of the floating tab bar; each page keeps this much clear at the bottom.
+    @State private var tabBarHeight: CGFloat = 0
     /// Bumped when a meal is logged in chat so the dashboard scrolls to the top after switching tabs.
     @State private var dashboardScrollTopTick = 0
 
     var body: some View {
         // The pages follow the finger while swiping left/right; SwipeTabBar is the bottom tab bar.
+        // The tab bar floats over the pages like the iOS 26 system bar: scrolling content passes
+        // underneath the glass, and each page reserves the bar's height in its bottom safe area so
+        // its last item can always be scrolled clear of the bar.
         SwipePager(selection: $selectedTab, dragFraction: $swipeFraction, pageCount: Self.tabItems.count) { index in
             page(index)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    Color.clear.frame(height: keyboardVisible ? 0 : tabBarHeight)
+                }
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        .ignoresSafeArea(.container, edges: .bottom)
+        .overlay(alignment: .bottom) {
             if !keyboardVisible {
                 SwipeTabBar(selection: $selectedTab,
                             position: CGFloat(selectedTab) - swipeFraction,
                             items: Self.tabItems)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: TabBarHeightKey.self, value: geo.size.height)
+                    })
             }
         }
+        .onPreferenceChange(TabBarHeightKey.self) { tabBarHeight = $0 }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
             keyboardVisible = true
         }
@@ -137,6 +150,11 @@ struct ContentView: View {
 }
 
 // MARK: - Tab pager
+
+private struct TabBarHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
+}
 
 extension ContentView {
     @ViewBuilder
@@ -387,7 +405,7 @@ struct SwipeTabBar: View {
                 .offset(x: pillPosition * Self.glassItemWidth)
         }
         .padding(4)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .glassEffect(.clear.interactive(), in: .capsule)
         .frame(maxWidth: .infinity)
         .padding(.bottom, 4)
     }
