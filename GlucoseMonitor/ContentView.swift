@@ -157,21 +157,16 @@ extension Animation {
 }
 
 /// Horizontal pager that works like drag and drop: the current page moves exactly with the finger
-/// and only changes once it has been dragged past a third of the screen width. Letting go before that
-/// springs it back; a quick flick does not change the page.
+/// and only changes once it has been dragged past a third of the screen width. Letting go before
+/// that springs it back; a quick flick does not change the page.
 struct SwipePager<Page: View>: View {
     @Binding var selection: Int
     let pageCount: Int
     @ViewBuilder let page: (Int) -> Page
 
-    private enum Axis { case horizontal, vertical }
-
     @State private var dragOffset: CGFloat = 0
-    /// Direction of the current drag, decided by its first movement so vertical scrolling
-    /// never moves the pages and a horizontal drag doesn't scroll the page's content.
-    @State private var dragAxis: Axis?
-    /// Resets to false when the drag ends *or* is cancelled, so the pager can never stay half-dragged.
-    @GestureState private var isDragging = false
+    /// True while a horizontal swipe is in progress; pauses the pages' own scrolling meanwhile.
+    @State private var isSwiping = false
 
     var body: some View {
         GeometryReader { geo in
@@ -185,55 +180,122 @@ struct SwipePager<Page: View>: View {
             }
             .frame(width: width, alignment: .leading)
             .offset(x: -CGFloat(selection) * width + dragOffset)
-            .scrollDisabled(dragAxis == .horizontal)
-            .simultaneousGesture(dragGesture(width: width))
+            .scrollDisabled(isSwiping)
+            .background(
+                WindowSwipeRecognizer(
+                    onChanged: { dx in
+                        isSwiping = true
+                        // Rubber-band past the first and last page.
+                        let atEdge = (selection == 0 && dx > 0) || (selection == pageCount - 1 && dx < 0)
+                        dragOffset = atEdge ? dx / 3 : dx
+                    },
+                    onEnded: { dx in
+                        isSwiping = false
+                        var target = selection
+                        if dx < -width / 3 {
+                            target += 1
+                        } else if dx > width / 3 {
+                            target -= 1
+                        }
+                        target = min(max(target, 0), pageCount - 1)
+                        withAnimation(.tabSwipe) {
+                            selection = target
+                            dragOffset = 0
+                        }
+                    }
+                )
+            )
         }
         .clipped()
-        .onChange(of: isDragging) { dragging in
-            guard !dragging else { return }
-            // A drag that was cancelled (e.g. taken over by the system) never reaches onEnded.
-            // Wait until any onEnded has run, then snap back if the pager is still mid-drag.
-            DispatchQueue.main.async {
-                dragAxis = nil
-                if dragOffset != 0 {
-                    withAnimation(.tabSwipe) { dragOffset = 0 }
-                }
-            }
+    }
+}
+
+/// Recognises horizontal swipes anywhere in the window. SwiftUI gestures don't receive touches that
+/// land on Lists, Forms, ScrollViews or buttons, so a UIKit pan recognizer is attached to the window
+/// itself and runs alongside every other gesture. It stays inactive while a sheet, alert or
+/// full-screen cover is shown, and ignores touches starting at the left edge (system back swipe).
+private struct WindowSwipeRecognizer: UIViewRepresentable {
+    var onChanged: (CGFloat) -> Void
+    /// Called with the final horizontal translation; 0 when the swipe was cancelled.
+    var onEnded: (CGFloat) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> AnchorView {
+        let view = AnchorView()
+        view.isUserInteractionEnabled = false
+        view.coordinator = context.coordinator
+        return view
+    }
+
+    func updateUIView(_ view: AnchorView, context: Context) {
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+    }
+
+    static func dismantleUIView(_ view: AnchorView, coordinator: Coordinator) {
+        coordinator.detach()
+    }
+
+    final class AnchorView: UIView {
+        weak var coordinator: Coordinator?
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            coordinator?.attach(to: window)
         }
     }
 
-    private func dragGesture(width: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 12)
-            .updating($isDragging) { _, state, _ in state = true }
-            .onChanged { value in
-                if dragAxis == nil {
-                    let dx = abs(value.translation.width), dy = abs(value.translation.height)
-                    dragAxis = dx > dy ? .horizontal : .vertical
-                }
-                guard dragAxis == .horizontal else { return }
-                var dx = value.translation.width
-                // Rubber-band past the first and last page.
-                if (selection == 0 && dx > 0) || (selection == pageCount - 1 && dx < 0) {
-                    dx /= 3
-                }
-                dragOffset = dx
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var onChanged: ((CGFloat) -> Void)?
+        var onEnded: ((CGFloat) -> Void)?
+        private var pan: UIPanGestureRecognizer?
+
+        /// Touches starting this close to the left edge belong to the navigation back swipe.
+        private static let leftEdgeInset: CGFloat = 24
+
+        func attach(to window: UIWindow?) {
+            guard pan?.view !== window else { return }
+            detach()
+            guard let window else { return }
+            let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
+            pan.delegate = self
+            pan.maximumNumberOfTouches = 1
+            window.addGestureRecognizer(pan)
+            self.pan = pan
+        }
+
+        func detach() {
+            if let pan { pan.view?.removeGestureRecognizer(pan) }
+            pan = nil
+        }
+
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = recognizer as? UIPanGestureRecognizer, let window = pan.view as? UIWindow else {
+                return false
             }
-            .onEnded { value in
-                defer { dragAxis = nil }
-                guard dragAxis == .horizontal, width > 0 else { return }
-                let dx = value.translation.width
-                var target = selection
-                if dx < -width / 3 {
-                    target += 1
-                } else if dx > width / 3 {
-                    target -= 1
-                }
-                target = min(max(target, 0), pageCount - 1)
-                withAnimation(.tabSwipe) {
-                    selection = target
-                    dragOffset = 0
-                }
+            // Not while anything (sheet, alert, sign-in cover) is presented over the tabs.
+            if window.rootViewController?.presentedViewController != nil { return false }
+            let start = pan.location(in: window).x - pan.translation(in: window).x
+            guard start > Self.leftEdgeInset else { return false }
+            let velocity = pan.velocity(in: window)
+            return abs(velocity.x) > abs(velocity.y)
+        }
+
+        func gestureRecognizer(_ recognizer: UIGestureRecognizer,
+                               shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+            true
+        }
+
+        @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
+            let dx = pan.translation(in: pan.view).x
+            switch pan.state {
+            case .began, .changed: onChanged?(dx)
+            case .ended: onEnded?(dx)
+            case .cancelled, .failed: onEnded?(0)
+            default: break
             }
+        }
     }
 }
 
