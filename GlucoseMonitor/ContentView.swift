@@ -157,7 +157,7 @@ extension Animation {
 }
 
 /// Horizontal pager that works like drag and drop: the current page moves exactly with the finger
-/// and only changes once it has been dragged past half the screen width. Letting go before that
+/// and only changes once it has been dragged past a third of the screen width. Letting go before that
 /// springs it back; a quick flick does not change the page.
 struct SwipePager<Page: View>: View {
     @Binding var selection: Int
@@ -223,9 +223,9 @@ struct SwipePager<Page: View>: View {
                 guard dragAxis == .horizontal, width > 0 else { return }
                 let dx = value.translation.width
                 var target = selection
-                if dx < -width / 2 {
+                if dx < -width / 3 {
                     target += 1
-                } else if dx > width / 2 {
+                } else if dx > width / 3 {
                     target -= 1
                 }
                 target = min(max(target, 0), pageCount - 1)
