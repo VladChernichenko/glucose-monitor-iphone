@@ -94,9 +94,19 @@ struct MealPlanCardView: View {
         }
         macroGrid
         if let dose {
-            Text(MealPlanRules.doseText(dose))
-                .font(.title2.weight(.bold))
-                .monospacedDigit()
+            HStack(alignment: .firstTextBaseline) {
+                Text(MealPlanRules.doseText(dose))
+                    .font(.title2.weight(.bold))
+                    .monospacedDigit()
+                if dose > 0 {
+                    Button("Change") {
+                        doseText = showDoseEntry ? "" : ChatFormatting.backendNumber(dose)
+                        showDoseEntry.toggle()
+                    }
+                    .font(.footnote)
+                    .disabled(actions.isBusy)
+                }
+            }
             if let reason = plan.pause?.reason, !reason.isEmpty {
                 Text(reason)
                     .font(.footnote)
@@ -128,8 +138,9 @@ struct MealPlanCardView: View {
                 .buttonStyle(.bordered)
         }
         .disabled(actions.isBusy)
-        if showDoseEntry && !((dose ?? 0) > 0) {
-            doseEntryRow
+        if showDoseEntry {
+            // With a suggested dose, the edited dose keeps the plan's pause; without one it is logging only.
+            doseEntryRow(pauseMinutes: (dose ?? 0) > 0 ? (MealPlanRules.advisedPause(card, now: now) ?? 0) : 0)
         }
         Button("Eating without insulin") { macroSheet = .withoutInsulin }
             .font(.footnote)
@@ -147,8 +158,9 @@ struct MealPlanCardView: View {
         }
     }
 
-    /// Logging only: the user types the dose they took; nothing is prefilled and no pause is sent.
-    private var doseEntryRow: some View {
+    /// The dose the user takes instead: "Change" prefills the suggestion, "Log a dose…" starts empty.
+    /// The backend records it as user-entered (doseSource) next to the advised dose.
+    private func doseEntryRow(pauseMinutes: Int) -> some View {
         HStack(spacing: 8) {
             TextField("units", text: $doseText)
                 .keyboardType(.decimalPad)
@@ -157,7 +169,7 @@ struct MealPlanCardView: View {
             Text("U")
             Button("Log") {
                 guard let units = enteredDose else { return }
-                actions.onTook(units, 0)
+                actions.onTook(units, pauseMinutes)
                 doseText = ""
                 showDoseEntry = false
             }
@@ -316,20 +328,77 @@ struct MealPlanCardView: View {
                           lower: p.predictedGlucoseLower.map { GlucoseUnit.fromMmol($0, displayUnit: unit) },
                           upper: p.predictedGlucoseUpper.map { GlucoseUnit.fromMmol($0, displayUnit: unit) })
         }
-        if samples.count >= 2 {
-            let lo = GlucoseUnit.fromMmol(3.9, displayUnit: unit), hi = GlucoseUnit.fromMmol(10, displayUnit: unit)
+        if samples.count >= 2, let first = samples.first, let last = samples.last {
+            let values = samples.map(\.value)
+            let domain = MealPlanCardView.yDomain(values, unit: unit)
+            // The 3.9-10 band, clipped to the curve's own range: the band no longer stretches the axis.
+            let lo = max(GlucoseUnit.fromMmol(3.9, displayUnit: unit), domain.lowerBound)
+            let hi = min(GlucoseUnit.fromMmol(10, displayUnit: unit), domain.upperBound)
+            let hours = MealPlanCardView.hourMarks(from: first.time, to: last.time)
             Chart {
-                RectangleMark(yStart: .value("Low", lo), yEnd: .value("High", hi))
-                    .foregroundStyle(Color.green.opacity(0.10))
+                if lo < hi {
+                    RectangleMark(yStart: .value("Low", lo), yEnd: .value("High", hi))
+                        .foregroundStyle(Color.green.opacity(0.10))
+                }
                 ForEach(samples) { s in
                     LineMark(x: .value("Time", s.time), y: .value("Glucose", s.value))
                         .foregroundStyle(Color.blue)
                 }
             }
-            .chartYScale(domain: .automatic(includesZero: false))
-            .frame(height: 100)
+            .chartYScale(domain: domain)
+            .chartXScale(domain: first.time...last.time)
+            .chartXAxis {
+                AxisMarks(values: hours) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let d = value.as(Date.self) {
+                            Text(MealPlanCardView.relativeLabel(d, from: first.time))
+                        }
+                    }
+                }
+            }
+            .frame(height: 110)
             .accessibilityLabel("Forecast after this dose and pause")
+            Text(MealPlanCardView.forecastSummary(start: first.value, end: last.value, peak: values.max() ?? last.value,
+                                                  low: values.min() ?? last.value, from: first.time, to: last.time,
+                                                  unit: unit))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
+    }
+
+    /// The curve's own range padded by 1 mmol/L (18 mg/dL) each side, so a flat-looking forecast still shows
+    /// its shape instead of being squeezed under a fixed 2-10 axis.
+    static func yDomain(_ values: [Double], unit: String) -> ClosedRange<Double> {
+        let pad = GlucoseUnit.fromMmol(1.0, displayUnit: unit)
+        let lo = (values.min() ?? 0) - pad, hi = (values.max() ?? 0) + pad
+        return max(0, lo)...max(hi, max(0, lo) + pad)
+    }
+
+    /// Whole hours after the start ("now"), so the axis reads +1 h, +2 h... whatever the clock time.
+    static func hourMarks(from start: Date, to end: Date) -> [Date] {
+        var marks: [Date] = [start]
+        var t = start.addingTimeInterval(3600)
+        while t <= end.addingTimeInterval(60) {
+            marks.append(t)
+            t = t.addingTimeInterval(3600)
+        }
+        return marks
+    }
+
+    static func relativeLabel(_ date: Date, from start: Date) -> String {
+        let h = Int((date.timeIntervalSince(start) / 3600).rounded())
+        return h == 0 ? "now" : "+\(h) h"
+    }
+
+    /// "8.8 → 9.1 mmol/L at +4 h · peak 9.7, low 8.8".
+    static func forecastSummary(start: Double, end: Double, peak: Double, low: Double,
+                                from: Date, to: Date, unit: String) -> String {
+        let mgdl = GlucoseUnit.isMgdl(unit)
+        let f: (Double) -> String = { mgdl ? String(Int($0.rounded())) : String(format: "%.1f", $0) }
+        let h = Int((to.timeIntervalSince(from) / 3600).rounded())
+        return "\(f(start)) \u{2192} \(f(end)) \(mgdl ? "mg/dL" : "mmol/L") at +\(h) h \u{00B7} peak \(f(peak)), low \(f(low))"
     }
 
     // MARK: Edit seeds
